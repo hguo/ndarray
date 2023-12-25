@@ -1,0 +1,28 @@
+stream:
+  name: xgc
+  substreams:
+    - name: 1d
+      format: h5
+      pattern: "/Users/guo.2154/workspace/data/xgc-particle-pinch/xgc.oneddiag.h5"
+    - name: 3d
+      format: h5
+      pattern: "/Users/guo.2154/workspace/data/xgc_particle_pinch/xgc.3d.*.h5"
+  vars:
+    - name: step
+      substream: 1d
+      optional: true
+    - name: time
+      substream: 1d
+      optional: true
+    - name: e_parallel_mean_en_avg
+      substream: 1d
+      optional: true
+    - name: e_perp_temperature_avg
+      substream: 1d
+      optional: true
+    - name: dneOverne0
+      substream: 3d
+      optional: true
+    - name: Er
+      substream: 3d
+      optional: true

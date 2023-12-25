@@ -1,0 +1,9 @@
+synthetic:
+  name: woven
+  args:
+    dimensions: 32,32
+    scale: 1.0
+    scalar: f
+    gradient: grad
+    jacobian: J
+    time: true

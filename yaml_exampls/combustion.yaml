@@ -1,0 +1,10 @@
+stream:
+  name: combustion
+  substreams:
+    - name: files
+      format: float32
+      endian: big
+      pattern: "/data/combustion"
+  vars:
+    - name: f
+      dimensions: c480,720,120

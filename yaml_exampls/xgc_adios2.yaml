@@ -1,0 +1,88 @@
+stream:
+  name: xgc
+  substreams:
+    - name: mesh
+      format: adios2
+      pattern: "/Users/guo.2154/workspace/data/xgc-base/xgc.mesh.bp"
+      static: true # by default false
+    - name: units
+      format: adios2
+      pattern: "/Users/guo.2154/workspace/data/xgc_base/xgc.units.bp"
+      static: true
+      optional: true
+    - name: 1d
+      format: adios2
+      pattern: "/Users/guo.2154/workspace/data/xgc-base/xgc.oneddiag.bp"
+      optional: true
+    - name: 3d
+      format: adios2
+      pattern: "/Users/guo.2154/workspace/data/xgc-base/xgc.3d.*.bp"
+  static_vars:
+    - name: coordinates
+      possible_names:
+        - /coordinates/values
+      substream: mesh
+    - name: connectivity
+      possible_names:
+        - /cell_set[0]/node_connect_list
+    - name: nextnode
+      substream: mesh
+    - name: psi
+      substream: mesh
+    - name: eq_x_r
+      substream: units
+    - name: eq_x_z
+      substream: units
+    - name: eq_axis_b
+      substream: units
+    - name: eq_axis_r
+      substream: units
+    - name: eq_axis_z
+      substream: units
+    - name: sml_dt
+      substream: units
+    - name: sml_wedge_n
+      substream: units
+  vars:
+    - name: step
+      substream: 1d
+      optional: true
+    - name: time
+      substream: 1d
+      optional: true
+    - name: psi_mks
+      substream: 1d
+      optional: true
+    - name: e_gc_density_avg
+      possible_names:
+        - e_gc_density_df_1d
+      substream: 1d
+      optional: true
+    - name: e_parallel_mean_en_avg
+      possible_names:
+        - e_parallel_mean_en_df_1d
+      substream: 1d
+      optional: true
+    - name: e_perp_temperature_avg
+      possible_names:
+        - e_perp_temperature_df_1d
+      substream: 1d
+      optional: true
+    - name: dneOverne0
+      substream: 3d
+      optional: true
+    - name: dpot
+      substream: 3d
+      optional: true
+    - name: pot0
+      substream: 3d
+      optional: true
+    - name: potm0
+      substream: 3d
+      optional: true
+    - name: eden
+      substream: 3d
+      optional: true
+    - name: Er
+      substream: 3d
+      optional: true

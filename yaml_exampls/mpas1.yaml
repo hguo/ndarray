@@ -1,0 +1,61 @@
+stream:
+  name: mpas
+  substreams:
+    - name: mesh
+      format: netcdf
+      pattern: "/Users/guo.2154/workspace/data/20210421_sim7_CORE_60to30E2r2.mpassi.rst.0011-01-01_00000.nc"
+      static: true
+    - name: data
+      format: netcdf
+      pattern: "/Users/guo.2154/workspace/data/20210421_sim7_CORE_60to30E2r2.mpaso.hist.am.timeSeriesStatsMonthly.*.nc"
+      default: true # optional: default stream
+  static_vars: # if there is only one static substream, it is ok to omit substream name
+    - name: xCell
+    - name: yCell
+    - name: zCell
+    - name: xEdge
+    - name: yEdge
+    - name: zEdge
+    - name: xVertex
+    - name: yVertex
+    - name: zVertex
+    - name: indexToCellID
+    - name: indexToEdgeID
+    - name: indexToVertexID
+    - name: nEdgesOnCell
+    - name: nEdgesOnEdge
+    - name: cellsOnCell
+    - name: cellsOnEdge
+    - name: cellsOnVertex
+    - name: edgesOnVertex
+    - name: edgesOnCell
+    - name: edgesOnEdge
+    - name: verticesOnCell
+    - name: verticesOnEdge
+  vars:
+    - name: xtime
+      possible_names: # by default, will try the name, and no possible_names is needed
+        - xtime # variable name should be automatically included in possible_names
+        - xtime_startMonthly
+      dimensions: auto # by default auto
+      optional: false # by default false
+    - name: normalVelocity
+      possible_names:
+        - normalVelocity
+        - timeMonthly_ave_normalVelocity
+      dimensions: auto
+    - name: vertVelocityTop
+      possible_names:
+        - timeMonthly_ave_vertVelocityTop
+    - name: salinity
+      optional: true
+    - name: temperature
+      optional: true
+    - name: zTop
+      possible_names:
+        - timeMonthly_ave_zTop
+      optional: true
+    - name: zMid
+      possible_names:
+        - timeMonthly_ave_zMid
+      optional: true

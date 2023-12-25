@@ -1,0 +1,13 @@
+stream:
+  name: 5jets
+  substreams:
+    - name: 5jets
+      format: netcdf
+      pattern: "/data/5jets.nc/ns*.nc"
+  vars:
+    - name: density
+    - name: energy
+    - name: vx
+    - name: vy
+    - name: vz
+    - name: time
