@@ -39,7 +39,6 @@ struct substream {
   static std::shared_ptr<substream> from_yaml(YAML::Node);
 
   // yaml properties
-  bool is_default = false;
   bool is_static = false;
   std::string name;
   std::string pattern; // file name pattern
@@ -50,6 +49,9 @@ struct substream {
 
   // variables
   std::vector<variable> variables;
+
+  // communicator
+  MPI_Comm comm = MPI_COMM_WORLD;
 };
 
 struct substream_binary : public substream {
@@ -58,6 +60,8 @@ struct substream_binary : public substream {
 
 struct substream_netcdf : public substream {
   void initialize(YAML::Node);
+
+  bool has_unlimited_time_dimension = false;
 };
 
 struct stream {
@@ -81,7 +85,7 @@ inline void stream::parse_yaml(const std::string filename)
   if (yroot["substreams"]) { // has substreams
     auto ysubstreams = yroot["substreams"];
     for (auto i = 0; i < ysubstreams.size(); i ++) {
-      fprintf(stderr, "substream %d\n", i);
+      // fprintf(stderr, "substream %d\n", i);
       
       auto ysubstream = ysubstreams[i];
       auto sub = substream::from_yaml(ysubstream);
@@ -137,11 +141,13 @@ inline std::shared_ptr<substream> substream::from_yaml(YAML::Node y)
     }
   }
 
+#if 0
   for (auto i = 0; i < sub->variables.size(); i ++) {
     fprintf(stderr, "var=%s\n", sub->variables[i].name.c_str());
     for (const auto varname : sub->variables[i].possible_names)
       fprintf(stderr, "--name=%s\n", varname.c_str());
   }
+#endif
 
   if (auto yname = y["name"])
     sub->name = yname.as<std::string>();
@@ -149,25 +155,52 @@ inline std::shared_ptr<substream> substream::from_yaml(YAML::Node y)
   if (auto ypattern = y["pattern"])
     sub->pattern = ypattern.as<std::string>();
 
-  if (auto ydefault = y["default"])
-    sub->is_default = ydefault.as<bool>();
-
   if (auto ystatic = y["static"])
     sub->is_static = ystatic.as<bool>();
 
   // std::cerr << y << std::endl;
-  if (sub)
-    sub->initialize(y);
+  sub->initialize(y);
   return sub;
 }
 
 inline void substream_netcdf::initialize(YAML::Node y) 
 {
-  filenames = glob(pattern);
+#if NDARRAY_HAVE_NETCDF
+  this->filenames = glob(pattern);
 
-  for (auto f : filenames) {
-    std::cerr << f << std::endl;
+  fprintf(stderr, "substream %s, found %zu files.\n", 
+      this->name.c_str(), filenames.size());
+
+  for (const auto f : this->filenames) {
+    int ncid, rtn;
+#if NC_HAS_PARALLEL
+    rtn = nc_open_par(f.c_str(), NC_NOWRITE, comm, MPI_INFO_NULL, &ncid);
+    if (rtn != NC_NOERR)
+      NC_SAFE_CALL( nc_open(f.c_str(), NC_NOWRITE, &ncid) );
+#else
+    NC_SAFE_CALL( nc_open(f.c_str(), NC_NOWRITE, &ncid) );
+#endif
+
+    size_t nt = 0;
+    int unlimited_recid;
+    nc_inq_unlimdim(ncid, &unlimited_recid);
+
+    if (unlimited_recid >= 0) {
+      has_unlimited_time_dimension = true;
+
+      NC_SAFE_CALL( nc_inq_dimlen(ncid, unlimited_recid, &nt) );
+    } else {
+      has_unlimited_time_dimension = false;
+    }
+
+    NC_SAFE_CALL( nc_close(ncid) );
+    
+    timesteps_per_file.push_back(nt);
+    fprintf(stderr, "filename=%s, nt=%zu\n", f.c_str(), nt);
   }
+#else
+  fatal(NDARRAY_ERR_NOT_BUILT_WITH_NETCDF);
+#endif
 }
 
 }

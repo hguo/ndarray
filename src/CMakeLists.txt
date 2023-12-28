@@ -1,39 +1,43 @@
-add_executable (dryrun dryrun.cpp)
-target_link_libraries (dryrun yaml-cpp::yaml-cpp)
+add_library (libndarray SHARED ndarray.cpp)
+target_link_libraries (libndarray yaml-cpp::yaml-cpp)
 
-if (FTK_HAVE_ADIOS2)
+if (NDARRAY_HAVE_ADIOS2)
   target_link_libraries (libndarray adios2::adios2)
 endif ()
 
-if (FTK_HAVE_VTK)
+if (NDARRAY_HAVE_VTK)
   target_link_libraries (libndarray ${VTK_LIBRARIES})
 endif ()
 
-if (FTK_HAVE_NETCDF)
-  target_link_libraries (libndarray ${netCDF_LIBRARIES})
+if (NDARRAY_HAVE_NETCDF)
+  target_link_libraries (libndarray netCDF::netcdf)
 endif ()
 
-if (FTK_HAVE_PNETCDF)
+if (NDARRAY_HAVE_PNETCDF)
   target_link_libraries (libndarray ${PNETCDF_LIBRARY})
 endif ()
 
-if (FTK_HAVE_HDF5)
+if (NDARRAY_HAVE_HDF5)
   target_link_libraries (libndarray ${HDF5_LIBRARIES})
 endif ()
 
-if (FTK_HAVE_MPI)
-  add_subdirectory (bil)
-  target_link_libraries (libndarray bil ${MPI_C_LIBRARIES} ${MPI_CXX_LIBRARIES})
+if (NDARRAY_HAVE_MPI)
+  # add_subdirectory (bil)
+  target_link_libraries (libndarray ${MPI_C_LIBRARIES} ${MPI_CXX_LIBRARIES})
 endif ()
 
-if (FTK_HAVE_PNG)
+if (NDARRAY_HAVE_PNG)
   target_link_libraries (libndarray ${PNG_LIBRARIES})
 endif ()
 
-if (FTK_HAVE_OPENMP)
+if (NDARRAY_HAVE_OPENMP)
   target_link_libraries (libndarray OpenMP::OpenMP_CXX)
 endif ()
 
-if (FTK_HAVE_CUDA)
+if (NDARRAY_HAVE_CUDA)
   target_link_libraries (libndarray CUDA::cudart)
 endif ()
+
+
+add_executable (dryrun dryrun.cpp)
+target_link_libraries (dryrun libndarray)

@@ -6,6 +6,10 @@ std::string input_yaml_filename;
 
 int main(int argc, char **argv)
 {
+#if NDARRAY_HAVE_MPI
+  MPI_Init(&argc, &argv);
+#endif
+
   cxxopts::Options options(argv[0]);
   options.add_options()
     ("input,i", "Input yaml file", cxxopts::value<std::string>(input_yaml_filename))
@@ -23,6 +27,10 @@ int main(int argc, char **argv)
 
   std::shared_ptr<ndarray::stream> stream(new ndarray::stream);
   stream->parse_yaml(input_yaml_filename);
+
+#if NDARRAY_HAVE_MPI
+  MPI_Finalize();
+#endif
 
   return 0;
 }
