@@ -38,14 +38,19 @@ struct substream {
   
   static std::shared_ptr<substream> from_yaml(YAML::Node);
 
+  virtual int locate_timestep_file_index(int);
+  virtual void read(int, std::shared_ptr<ndarray_group>) = 0;
+
   // yaml properties
   bool is_static = false;
   std::string name;
   std::string pattern; // file name pattern
 
-  // derived properties
+  // files and timesteps
   std::vector<std::string> filenames;
-  std::vector<int> timesteps_per_file;
+  std::vector<int> timesteps_per_file, first_timestep_per_file;
+  int total_timesteps = 0;
+  int current_file_index = 0;
 
   // variables
   std::vector<variable> variables;
@@ -56,10 +61,13 @@ struct substream {
 
 struct substream_binary : public substream {
   void initialize(YAML::Node) {}
+  
+  void read(int, std::shared_ptr<ndarray_group>) {}
 };
 
 struct substream_netcdf : public substream {
   void initialize(YAML::Node);
+  void read(int, std::shared_ptr<ndarray_group>);
 
   bool has_unlimited_time_dimension = false;
 };
@@ -118,6 +126,29 @@ inline void variable::parse_yaml(YAML::Node y)
   }
 }
 
+inline int substream::locate_timestep_file_index(int i)
+{
+  int fi = current_file_index;
+  int ft = first_timestep_per_file[fi],
+      nt = timesteps_per_file[fi];
+
+  if (i >= ft && i < ft + nt)
+    return fi;
+  else {
+    for (fi = 0; fi < filenames.size(); fi ++) {
+      ft = first_timestep_per_file[fi];
+      nt = timesteps_per_file[fi];
+
+      if (i >= ft && i < ft + nt) {
+        current_file_index = fi;
+        return fi;
+      }
+    }
+  }
+
+  return -1; // not found
+}
+
 inline std::shared_ptr<substream> substream::from_yaml(YAML::Node y)
 {
   std::shared_ptr<substream> sub;
@@ -163,14 +194,73 @@ inline std::shared_ptr<substream> substream::from_yaml(YAML::Node y)
   return sub;
 }
 
+inline void substream_netcdf::read(int i, std::shared_ptr<ndarray_group> g)
+{
+  int fi = this->locate_timestep_file_index(i);
+  if (fi < -1) 
+    return;
+
+  const std::string f = filenames[fi];
+
+#if NDARRAY_HAVE_NETCDF
+  int ncid, rtn;
+#if NC_HAS_PARALLEL
+  rtn = nc_open_par(f.c_str(), NC_NOWRITE, comm, MPI_INFO_NULL, &ncid);
+  if (rtn != NC_NOERR)
+    NC_SAFE_CALL( nc_open(f.c_str(), NC_NOWRITE, &ncid) );
+#else
+  NC_SAFE_CALL( nc_open(f.c_str(), NC_NOWRITE, &ncid) );
+#endif
+
+  for (const auto &var : variables) {
+    int varid = -1;
+
+    for (const auto varname : var.possible_names) {
+      int rtn = nc_inq_varid(ncid, var.name.c_str(), &varid);
+      if (rtn == NC_NOERR) 
+        break;
+    }
+
+    if (varid >= 0) { // succ
+      int type;
+      NC_SAFE_CALL( nc_inq_vartype(ncid, varid, &type) );
+
+      std::shared_ptr<ndarray_base> p = ndarray_base::new_by_nc_datatype(type);
+      p->try_read_netcdf(ncid, var.possible_names, comm);
+
+      g->set(var.name, p);
+
+#if 0
+      int ndims, dimids[4];
+      size_t dimlens[4];
+
+      NC_SAFE_CALL( nc_inq_varndims(ncid, varids, &ndims) );
+      NC_SAFE_CALL( nc_inq_vardimid(ncid, varid, dimids) );
+      for (int i = 0; i < ndims; i ++) 
+        NC_SAFE_CALL( nc_inq_dimlen(ncid, dimids[i], &dimlens[i]) );
+#endif
+
+      // std::shared_ptr<ndarray_base> arr(new ndarray_base);
+    } else { // failed
+
+    }
+  }
+
+  NC_SAFE_CALL( nc_close(ncid) );
+
+#else
+  fatal(NDARRAY_ERR_NOT_BUILT_WITH_NETCDF);
+#endif
+}
+
 inline void substream_netcdf::initialize(YAML::Node y) 
 {
-#if NDARRAY_HAVE_NETCDF
   this->filenames = glob(pattern);
 
   fprintf(stderr, "substream %s, found %zu files.\n", 
       this->name.c_str(), filenames.size());
 
+#if NDARRAY_HAVE_NETCDF
   for (const auto f : this->filenames) {
     int ncid, rtn;
 #if NC_HAS_PARALLEL
@@ -196,6 +286,8 @@ inline void substream_netcdf::initialize(YAML::Node y)
     NC_SAFE_CALL( nc_close(ncid) );
     
     timesteps_per_file.push_back(nt);
+    first_timestep_per_file.push_back( this->total_timesteps );
+    this->total_timesteps += nt;
     fprintf(stderr, "filename=%s, nt=%zu\n", f.c_str(), nt);
   }
 #else

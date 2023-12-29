@@ -71,6 +71,8 @@ template <typename T> struct ndarray;
 struct ndarray_base {
   virtual ~ndarray_base() {}
 
+  static std::shared_ptr<ndarray_base> new_by_nc_datatype(int typep);
+
   virtual int type() const = 0;
 
   virtual size_t size() const = 0;
@@ -177,9 +179,16 @@ public: // netcdf
   void to_netcdf_multivariate(int ncid, int varids[]) const;
   void to_netcdf_unlimited_time(int ncid, int varid) const;
   void to_netcdf_multivariate_unlimited_time(int ncid, int varids[]) const;
-  
-  bool try_read_netcdf(int ncid, const std::vector<std::string>& possible_varnames, const size_t st[], const size_t sz[], MPI_Comm comm=MPI_COMM_WORLD);
-  
+
+  template <typename ContainerType> // std::vector<std::string>
+  static int probe_netcdf_varid(int ncid, const ContainerType& possible_varnames, MPI_Comm comm);
+
+  template <typename ContainerType> // std::vector<std::string>
+  bool try_read_netcdf(int ncid, const ContainerType& possible_varnames, const size_t st[], const size_t sz[], MPI_Comm comm = MPI_COMM_WORLD);
+
+  template <typename ContainerType> // std::vector<std::string>
+  bool try_read_netcdf(int ncid, const ContainerType& possible_varnames, MPI_Comm comm = MPI_COMM_WORLD);
+
   virtual int nc_datatype() const = 0;
 
 public: // h5 i/o
@@ -600,11 +609,11 @@ inline void ndarray_base::read_netcdf(int ncid, const std::string& varname, cons
   fatal(NDARRAY_ERR_NOT_BUILT_WITH_NETCDF);
 #endif
 }
-  
-inline bool ndarray_base::try_read_netcdf(int ncid, 
-    const std::vector<std::string>& possible_varnames, 
-    const size_t st[], 
-    const size_t sz[], 
+
+template <typename ContainerType> // std::vector<std::string>
+inline int ndarray_base::probe_netcdf_varid(
+    int ncid, 
+    const ContainerType& possible_varnames,
     MPI_Comm comm)
 {
 #ifdef NDARRAY_HAVE_NETCDF
@@ -621,15 +630,41 @@ inline bool ndarray_base::try_read_netcdf(int ncid,
       break;
   }
 
+  return varid;
+#else
+  fatal(NDARRAY_ERR_NOT_BUILT_WITH_NETCDF);
+  return -1;
+#endif
+}
+
+template <typename ContainerType> // std::vector<std::string>
+inline bool ndarray_base::try_read_netcdf(int ncid, 
+    const ContainerType& possible_varnames, 
+    MPI_Comm comm)
+{
+  int varid = probe_netcdf_varid(ncid, possible_varnames, comm);
+  
+  if (varid >= 0) {
+    read_netcdf(ncid, varid, comm);
+    return true;
+  } else 
+    return false;
+}
+  
+template <typename ContainerType> // std::vector<std::string>
+inline bool ndarray_base::try_read_netcdf(int ncid, 
+    const ContainerType& possible_varnames, 
+    const size_t st[], 
+    const size_t sz[], 
+    MPI_Comm comm)
+{
+  int varid = probe_netcdf_varid(ncid, possible_varnames, comm);
+  
   if (varid >= 0) {
     read_netcdf(ncid, varid, st, sz, comm);
     return true;
   } else 
     return false;
-#else
-  fatal(NDARRAY_ERR_NOT_BUILT_WITH_NETCDF);
-  return false;
-#endif
 }
 
 inline void ndarray_base::read_netcdf(const std::string& filename, const std::string& varname, const size_t starts[], const size_t sizes[], MPI_Comm comm)

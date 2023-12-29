@@ -861,6 +861,7 @@ template <> inline MPI_Datatype ndarray<int>::mpi_datatype() { return MPI_INT; }
 template <> inline int ndarray<double>::nc_datatype() const { return NC_DOUBLE; }
 template <> inline int ndarray<float>::nc_datatype() const { return NC_FLOAT; }
 template <> inline int ndarray<int>::nc_datatype() const { return NC_INT; }
+template <> inline int ndarray<unsigned int>::nc_datatype() const { return NC_UINT; }
 template <> inline int ndarray<unsigned long>::nc_datatype() const { return NC_UINT; }
 template <> inline int ndarray<char>::nc_datatype() const { return NC_CHAR; }
 #else 
@@ -1550,6 +1551,31 @@ T psnr(const ndarray<T>& x, const ndarray<T>& xp)
   const auto min_max = x.min_max();
   const auto range = std::get<1>(min_max) - std::get<0>(min_max);
   return 20.0 * log10(range) - 10.0 * log10(mse(x, xp));
+}
+
+//////
+inline std::shared_ptr<ndarray_base> ndarray_base::new_by_nc_datatype(int typep)
+{
+  std::shared_ptr<ndarray_base> p;
+
+#if NDARRAY_HAVE_NETCDF
+  if (typep == NC_INT)
+    p.reset(new ndarray<int>);
+  else if (typep == NC_FLOAT)
+    p.reset(new ndarray<float>);
+  else if (typep == NC_DOUBLE)
+    p.reset(new ndarray<double>);
+  else if (typep == NC_UINT)
+    p.reset(new ndarray<unsigned int>);
+  else if (typep == NC_CHAR)
+    p.reset(new ndarray<char>);
+  else 
+    fatal(NDARRAY_ERR_NOT_IMPLEMENTED);
+#else
+  fatal(NDARRAY_ERR_NOT_BUILT_WITH_NETCDF);
+#endif
+  
+  return p;
 }
 
 } // namespace ndarray
