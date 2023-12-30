@@ -249,9 +249,17 @@ inline void substream_netcdf::read(int i, std::shared_ptr<ndarray_group> g)
     if (varid >= 0) { // succ
       int type;
       NC_SAFE_CALL( nc_inq_vartype(ncid, varid, &type) );
-
+    
       std::shared_ptr<ndarray_base> p = ndarray_base::new_by_nc_datatype(type);
-      p->try_read_netcdf(ncid, var.possible_names, comm);
+
+      int unlimited_recid;
+      nc_inq_unlimdim(ncid, &unlimited_recid);
+
+      if (unlimited_recid >= 0) // has unlimited dimension
+        p->read_netcdf_timestep(ncid, varid, i - first_timestep_per_file[fi], comm);
+      else 
+        p->read_netcdf(ncid, varid, comm);
+
       g->set(var.name, p);
 
 #if 0

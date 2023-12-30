@@ -173,7 +173,9 @@ public: // netcdf
   void read_netcdf(const std::string& filename, const std::string& varname, MPI_Comm comm=MPI_COMM_WORLD);
   void read_netcdf(int ncid, const std::string& varname, MPI_Comm comm=MPI_COMM_WORLD);
   void read_netcdf(int ncid, int varid, MPI_Comm comm=MPI_COMM_WORLD);
-  void read_netcdf_slice(const std::string& filename, const std::string& varname, int k, MPI_Comm comm=MPI_COMM_WORLD);
+
+  void read_netcdf_timestep(int ncid, int varid, int t, MPI_Comm comm=MPI_COMM_WORLD); // assuming the variable has an unlimited dimension
+  
   // void to_netcdf(int ncid, const std::string& varname);
   // void to_netcdf(int ncid, int varid);
   void to_netcdf(int ncid, int varid, const size_t starts[], const size_t sizes[]) const;
@@ -560,6 +562,28 @@ inline void ndarray_base::read_netcdf(int ncid, int varid, const size_t starts[]
   reshapef(mysizes);
 
   read_netcdf(ncid, varid, ndims, starts, sizes, comm);
+#else
+  fatal(NDARRAY_ERR_NOT_BUILT_WITH_NETCDF);
+#endif
+}
+
+inline void ndarray_base::read_netcdf_timestep(int ncid, int varid, int t, MPI_Comm comm)
+{
+#ifdef NDARRAY_HAVE_NETCDF
+  int ndims;
+  int dimids[4];
+  size_t st[4] = {0}, sz[4] = {0};
+
+  NC_SAFE_CALL( nc_inq_varndims(ncid, varid, &ndims) );
+  NC_SAFE_CALL( nc_inq_vardimid(ncid, varid, dimids) );
+
+  for (int i = 0; i < ndims; i ++)
+    NC_SAFE_CALL( nc_inq_dimlen(ncid, dimids[i], &sz[i]) );
+
+  st[0] = t;
+  sz[0] = 1;
+  
+  read_netcdf(ncid, varid, st, sz, comm);
 #else
   fatal(NDARRAY_ERR_NOT_BUILT_WITH_NETCDF);
 #endif
