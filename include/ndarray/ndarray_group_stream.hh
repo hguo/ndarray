@@ -134,6 +134,8 @@ inline std::shared_ptr<ndarray_group> stream::read(int i)
   return g;
 }
 
+
+///////////
 inline void variable::parse_yaml(YAML::Node y)
 {
   this->name = y["name"].as<std::string>();
@@ -159,6 +161,8 @@ inline void variable::parse_yaml(YAML::Node y)
   }
 }
 
+
+///////////
 inline int substream::locate_timestep_file_index(int i)
 {
   int fi = current_file_index;
@@ -227,6 +231,8 @@ inline std::shared_ptr<substream> substream::from_yaml(YAML::Node y)
   return sub;
 }
 
+
+///////////
 inline void substream_netcdf::read(int i, std::shared_ptr<ndarray_group> g)
 {
   int fi = this->locate_timestep_file_index(i);
