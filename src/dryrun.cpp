@@ -29,10 +29,12 @@ int main(int argc, char **argv)
   stream->parse_yaml(input_yaml_filename);
 
   auto gs = stream->read_static();
-  auto g = stream->read(0);
-
   gs->print_info(std::cerr);
-  g->print_info(std::cerr);
+
+  for (int i = 0; i < stream->total_timesteps(); i ++)  {
+    auto g = stream->read(i);
+    g->print_info(std::cerr);
+  }
 
 #if NDARRAY_HAVE_MPI
   MPI_Finalize();

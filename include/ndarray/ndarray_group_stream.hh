@@ -78,6 +78,8 @@ struct stream {
 
   void parse_yaml(const std::string filename);
 
+  int total_timesteps() const;
+
 public:
   std::vector<std::shared_ptr<substream>> substreams;
 };
@@ -110,6 +112,15 @@ inline std::shared_ptr<ndarray_group> stream::read_static()
       sub->read(0, g);
 
   return g;
+}
+
+inline int stream::total_timesteps() const
+{
+  for (auto sub : this->substreams)
+    if (!sub->is_static)
+      return sub->total_timesteps;
+
+  return 0;
 }
 
 inline std::shared_ptr<ndarray_group> stream::read(int i)
