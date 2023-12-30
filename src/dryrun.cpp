@@ -28,6 +28,12 @@ int main(int argc, char **argv)
   std::shared_ptr<ndarray::stream> stream(new ndarray::stream);
   stream->parse_yaml(input_yaml_filename);
 
+  auto gs = stream->read_static();
+  auto g = stream->read(0);
+
+  gs->print_info(std::cerr);
+  g->print_info(std::cerr);
+
 #if NDARRAY_HAVE_MPI
   MPI_Finalize();
 #endif

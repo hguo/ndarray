@@ -44,7 +44,6 @@ struct ndarray : public ndarray_base {
   ndarray<T>& operator=(const ndarray<T>& a) { dims = a.dims; s = a.s; ncd = a.ncd; tv = a.tv; p = a.p; return *this; }
 
   std::ostream& print(std::ostream& os) const;
-  std::ostream& print_shape(std::ostream& os) const;
 
   size_t size() const {return p.size();}
   bool empty() const  {return p.empty();}
@@ -1163,26 +1162,9 @@ inline std::vector<ndarray<T>> ndarray<T>::slice_time() const
 }
 
 template <typename T>
-std::ostream& ndarray<T>::print_shape(std::ostream& os) const
-{
-  os << "nd=" << nd() << ", array_dims={";
-  for (size_t i = 0; i < dims.size(); i ++) 
-    if (i < dims.size()-1) os << dims[i] << ", ";
-    else os << dims[i] << "}, ";
-  
-  os << "prod={";
-  for (size_t i = 0; i < s.size(); i ++) 
-    if (i < s.size()-1) os << s[i] << ", ";
-    else os << s[i] << "}, ";
-  
-  os << "size=" << p.size(); // << std::endl;
-  return os;
-}
-
-template <typename T>
 std::ostream& ndarray<T>::print(std::ostream& os) const
 {
-  print_shape(os);
+  print_shapef(os);
 
   if (nd() == 1) {
     os << "[";

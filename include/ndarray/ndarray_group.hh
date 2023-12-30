@@ -2,11 +2,11 @@
 #define _NDARRAY_NDARRAY_GROUP_HH
 
 #include <ndarray/ndarray.hh>
-#include <unordered_map>
+#include <map>
 
 namespace ndarray {
 
-struct ndarray_group : public std::unordered_map<std::string, std::shared_ptr<ndarray_base>> {
+struct ndarray_group : public std::map<std::string, std::shared_ptr<ndarray_base>> {
   ndarray_group() {}
 
   bool has(const std::string key) const { return this->find(key) != this->end(); }
@@ -24,6 +24,11 @@ struct ndarray_group : public std::unordered_map<std::string, std::shared_ptr<nd
   template <typename T> ndarray<T> get(const std::string key) { return *get_ptr<T>(key); }
 
   // template <typename ... Args> ndarray_group(Args&&... args);
+
+  void print_info(std::ostream& os) const;
+
+public:
+  std::string name;
 };
 
 template <typename T>
@@ -41,6 +46,20 @@ inline void ndarray_group::remove(const std::string key)
   auto p = this->find(key);
   if (p != this->end()) {
     this->erase(p);
+  }
+}
+
+inline void ndarray_group::print_info(std::ostream& os) const
+{
+  os << "array_group " 
+     << (this->name.empty() ? "(no name)" : name)
+     << (this->empty() ? " (empty)" : " ")
+     << std::endl;
+
+  for (const auto &kv : *this) {
+    os << " - name: " << kv.first.c_str() << ", ";
+    kv.second->print_shapef(os);
+    os << std::endl;
   }
 }
 

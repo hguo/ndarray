@@ -83,6 +83,8 @@ struct ndarray_base {
   size_t dimf(size_t i) const {return dims[i];}
   size_t shapef(size_t i) const {return dimf(i);}
   const std::vector<size_t> &shapef() const {return dims;}
+  
+  std::ostream& print_shapef(std::ostream& os) const;
 
   size_t dimc(size_t i) const {return dims[dims.size() - i -1];}
   size_t shapec(size_t i) const {return dimc(i);}
@@ -685,6 +687,25 @@ inline void ndarray_base::read_netcdf(const std::string& filename, const std::st
 #else
   fatal(NDARRAY_ERR_NOT_BUILT_WITH_NETCDF);
 #endif
+}
+
+std::ostream& ndarray_base::print_shapef(std::ostream& os) const
+{
+  os << "nd=" << nd() << ", array_dims={";
+  for (size_t i = 0; i < dims.size(); i ++) 
+    if (i < dims.size()-1) os << dims[i] << ", ";
+    else os << dims[i] << "}, ";
+ 
+#if 0
+  os << "prod={";
+  for (size_t i = 0; i < s.size(); i ++) 
+    if (i < s.size()-1) os << s[i] << ", ";
+    else os << s[i] << "}, ";
+  
+  os << "size=" << p.size(); // << std::endl;
+#endif
+
+  return os;
 }
 
 } // namespace ndarray

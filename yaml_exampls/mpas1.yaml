@@ -42,20 +42,20 @@ stream:
         - name: normalVelocity
           possible_names:
             - normalVelocity
-            - timeMonthly_ave_normalVelocity
+            - timeMonthly_avg_normalVelocity
           dimensions: auto
         - name: vertVelocityTop
           possible_names:
-            - timeMonthly_ave_vertVelocityTop
+            - timeMonthly_avg_vertVelocityTop
         - name: salinity
           optional: true
         - name: temperature
           optional: true
         - name: zTop
           possible_names:
-            - timeMonthly_ave_zTop
+            - timeMonthly_avg_zTop
           optional: true
         - name: zMid
           possible_names:
-            - timeMonthly_ave_zMid
+            - timeMonthly_avg_zMid
           optional: true

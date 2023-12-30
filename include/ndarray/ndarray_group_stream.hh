@@ -73,15 +73,13 @@ struct substream_netcdf : public substream {
 };
 
 struct stream {
-  std::shared_ptr<ndarray_group> advance_timestep();
-  std::shared_ptr<ndarray_group> get_static_group();
+  std::shared_ptr<ndarray_group> read(int);
+  std::shared_ptr<ndarray_group> read_static();
 
   void parse_yaml(const std::string filename);
 
 public:
-  std::shared_ptr<ndarray_group> static_group;
-  
-  std::vector<substream> substreams;
+  std::vector<std::shared_ptr<substream>> substreams;
 };
 
 ///////////
@@ -97,8 +95,32 @@ inline void stream::parse_yaml(const std::string filename)
       
       auto ysubstream = ysubstreams[i];
       auto sub = substream::from_yaml(ysubstream);
+
+      this->substreams.push_back(sub);
     }
   }
+}
+
+inline std::shared_ptr<ndarray_group> stream::read_static()
+{
+  std::shared_ptr<ndarray_group> g(new ndarray_group);
+  
+  for (auto sub : this->substreams)
+    if (sub->is_static)
+      sub->read(0, g);
+
+  return g;
+}
+
+inline std::shared_ptr<ndarray_group> stream::read(int i)
+{
+  std::shared_ptr<ndarray_group> g(new ndarray_group);
+  
+  for (auto &sub : this->substreams)
+    if (!sub->is_static)
+      sub->read(i, g);
+
+  return g;
 }
 
 inline void variable::parse_yaml(YAML::Node y)
@@ -216,7 +238,10 @@ inline void substream_netcdf::read(int i, std::shared_ptr<ndarray_group> g)
     int varid = -1;
 
     for (const auto varname : var.possible_names) {
-      int rtn = nc_inq_varid(ncid, var.name.c_str(), &varid);
+      int rtn = nc_inq_varid(ncid, varname.c_str(), &varid);
+      // fprintf(stderr, "ncid=%d, varname=%s, possible_name=%s, varid=%d\n", 
+      //     ncid, var.name.c_str(), varname.c_str(), varid);
+
       if (rtn == NC_NOERR) 
         break;
     }
@@ -227,7 +252,6 @@ inline void substream_netcdf::read(int i, std::shared_ptr<ndarray_group> g)
 
       std::shared_ptr<ndarray_base> p = ndarray_base::new_by_nc_datatype(type);
       p->try_read_netcdf(ncid, var.possible_names, comm);
-
       g->set(var.name, p);
 
 #if 0
