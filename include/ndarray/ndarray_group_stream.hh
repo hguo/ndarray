@@ -72,6 +72,11 @@ struct substream_netcdf : public substream {
   bool has_unlimited_time_dimension = false;
 };
 
+struct substream_vti : public substream {
+  void initialize(YAML::Node);
+  void read(int, std::shared_ptr<ndarray_group>);
+};
+
 struct stream {
   std::shared_ptr<ndarray_group> read(int);
   std::shared_ptr<ndarray_group> read_static();
@@ -194,8 +199,10 @@ inline std::shared_ptr<substream> substream::from_yaml(YAML::Node y)
     std::string format = yformat.as<std::string>();
     if (format == "binary")
       sub.reset(new substream_binary);
-    if (format == "netcdf")
+    else if (format == "netcdf")
       sub.reset(new substream_netcdf);
+    else if (format == "vti")
+      sub.reset(new substream_vti);
     else
       throw NDARRAY_ERR_STREAM_FORMAT;
   }
@@ -229,6 +236,38 @@ inline std::shared_ptr<substream> substream::from_yaml(YAML::Node y)
   // std::cerr << y << std::endl;
   sub->initialize(y);
   return sub;
+}
+
+///////////
+inline void substream_vti::initialize(YAML::Node y) 
+{
+  this->filenames = glob(pattern);
+  this->total_timesteps = filenames.size();
+  fprintf(stderr, "substream %s, found %zu files.\n", 
+      this->name.c_str(), filenames.size());
+}
+
+inline void substream_vti::read(int i, std::shared_ptr<ndarray_group> g)
+{
+  const auto f = filenames[i]; // assume each vti has only one timestep
+
+#if NDARRAY_HAVE_VTK
+  vtkSmartPointer<vtkXMLImageDataReader> reader = vtkXMLImageDataReader::New();
+  reader->SetFileName(f.c_str());
+  reader->Update();
+  vtkSmartPointer<vtkImageData> vti = reader->GetOutput();
+
+  for (const auto &var : variables) {
+    auto array = vti->GetPointData()->GetArray( var.name.c_str() );
+    // array->PrintSelf(std::cerr, vtkIndent(4));
+
+    std::shared_ptr<ndarray_base> p = ndarray_base::new_from_vtk_data_array(array);
+    g->set(var.name, p);
+  }
+
+#else
+  fatal(NDARRAY_ERR_NOT_BUILT_WITH_VTK);
+#endif
 }
 
 

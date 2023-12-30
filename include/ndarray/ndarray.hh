@@ -862,6 +862,7 @@ template <> inline int ndarray<float>::nc_datatype() const { return NC_FLOAT; }
 template <> inline int ndarray<int>::nc_datatype() const { return NC_INT; }
 template <> inline int ndarray<unsigned int>::nc_datatype() const { return NC_UINT; }
 template <> inline int ndarray<unsigned long>::nc_datatype() const { return NC_UINT; }
+template <> inline int ndarray<unsigned char>::nc_datatype() const { return NC_UBYTE; }
 template <> inline int ndarray<char>::nc_datatype() const { return NC_CHAR; }
 #else 
 template <typename T>
@@ -1536,6 +1537,30 @@ T psnr(const ndarray<T>& x, const ndarray<T>& xp)
 }
 
 //////
+inline std::shared_ptr<ndarray_base> ndarray_base::new_by_vtk_datatype(int type)
+{
+  std::shared_ptr<ndarray_base> p;
+
+#if NDARRAY_HAVE_VTK
+  if (type == VTK_INT)
+    p.reset(new ndarray<int>);
+  else if (type == VTK_FLOAT)
+    p.reset(new ndarray<float>);
+  else if (type == VTK_DOUBLE)
+    p.reset(new ndarray<double>);
+  else if (type == VTK_UNSIGNED_INT)
+    p.reset(new ndarray<unsigned int>);
+  else if (type == VTK_UNSIGNED_CHAR)
+    p.reset(new ndarray<unsigned char>);
+  else 
+    fatal(NDARRAY_ERR_NOT_IMPLEMENTED);
+#else
+  fatal(NDARRAY_ERR_NOT_BUILT_WITH_VTK);
+#endif
+
+  return p;
+}
+
 inline std::shared_ptr<ndarray_base> ndarray_base::new_by_nc_datatype(int typep)
 {
   std::shared_ptr<ndarray_base> p;

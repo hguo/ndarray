@@ -72,6 +72,7 @@ struct ndarray_base {
   virtual ~ndarray_base() {}
 
   static std::shared_ptr<ndarray_base> new_by_nc_datatype(int typep);
+  static std::shared_ptr<ndarray_base> new_by_vtk_datatype(int typep);
 
   virtual int type() const = 0;
 
@@ -226,10 +227,12 @@ public: // vti i/o
 #if NDARRAY_HAVE_VTK
   virtual void from_vtk_image_data(vtkSmartPointer<vtkImageData> d, const std::string array_name=std::string()) = 0;
   virtual void from_vtu(vtkSmartPointer<vtkUnstructuredGrid> d, const std::string array_name=std::string()) = 0;
+  virtual void from_vtk_data_array(vtkSmartPointer<vtkDataArray> da) = 0;
 #endif
 
 public: // vtk data array
 #if NDARRAY_HAVE_VTK
+  static std::shared_ptr<ndarray_base> new_from_vtk_data_array(vtkSmartPointer<vtkDataArray> da);
   vtkSmartPointer<vtkDataArray> to_vtk_data_array(std::string varname=std::string()) const; 
   virtual int vtk_data_type() const = 0;
 #endif
@@ -345,6 +348,18 @@ inline void ndarray_base::read_vtk_image_data_file(const std::string& filename, 
   reader->SetFileName(filename.c_str());
   reader->Update();
   from_vtk_image_data(reader->GetOutput(), array_name);
+#else
+  fatal(NDARRAY_ERR_NOT_BUILT_WITH_VTK);
+#endif
+}
+  
+inline std::shared_ptr<ndarray_base> ndarray_base::new_from_vtk_data_array(vtkSmartPointer<vtkDataArray> da)
+{
+#if NDARRAY_HAVE_VTK
+  auto p = new_by_vtk_datatype( da->GetDataType() );
+  p->from_vtk_data_array(da);
+
+  return p;
 #else
   fatal(NDARRAY_ERR_NOT_BUILT_WITH_VTK);
 #endif
@@ -719,14 +734,17 @@ std::ostream& ndarray_base::print_shapef(std::ostream& os) const
   for (size_t i = 0; i < dims.size(); i ++) 
     if (i < dims.size()-1) os << dims[i] << ", ";
     else os << dims[i] << "}, ";
- 
+  
+  os << "size=" << this->size() << ", "
+     << "multicomponents=" << this->ncd << ", "
+     << "time_varying=" << this->tv;
+
 #if 0
   os << "prod={";
   for (size_t i = 0; i < s.size(); i ++) 
     if (i < s.size()-1) os << s[i] << ", ";
     else os << s[i] << "}, ";
   
-  os << "size=" << p.size(); // << std::endl;
 #endif
 
   return os;
