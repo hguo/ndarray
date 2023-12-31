@@ -73,6 +73,7 @@ struct ndarray_base {
 
   static std::shared_ptr<ndarray_base> new_by_nc_datatype(int typep);
   static std::shared_ptr<ndarray_base> new_by_vtk_datatype(int typep);
+  static std::shared_ptr<ndarray_base> new_by_adios2_datatype(const std::string type);
 #if NDARRAY_HAVE_HDF5
   static std::shared_ptr<ndarray_base> new_by_h5_datatype(hid_t native_type);
 #endif
@@ -219,6 +220,12 @@ public: // adios2 i/o
       adios2::Engine& reader, 
       const std::string &varname, 
       int step = NDARRAY_ADIOS2_STEPS_UNSPECIFIED) = 0; // read all
+
+  static std::shared_ptr<ndarray_base> new_from_bp(
+      adios2::IO &io,
+      adios2::Engine &reader,
+      const std::string &varname,
+      int step = NDARRAY_ADIOS2_STEPS_UNSPECIFIED);
 #endif
 
 public: // adios1 io
@@ -392,6 +399,22 @@ inline bool ndarray_base::read_h5(hid_t fid, const std::string& name)
     H5Dclose(did);
     return succ;
   }
+}
+#endif
+
+#if NDARRAY_HAVE_ADIOS2
+inline std::shared_ptr<ndarray_base> ndarray_base::new_from_bp(
+      adios2::IO &io,
+      adios2::Engine &reader,
+      const std::string &varname,
+      int step)
+{
+  std::shared_ptr<ndarray_base> p = 
+    new_by_adios2_datatype( io.VariableType(varname) );
+
+  p->read_bp(io, reader, varname, step);
+
+  return p;
 }
 #endif
 

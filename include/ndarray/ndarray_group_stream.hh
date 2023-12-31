@@ -153,7 +153,7 @@ inline void stream::parse_yaml(const std::string filename)
         // here's where adios2 is initialized
         has_adios2_substream = true;
 #if NDARRAY_HAVE_ADIOS2
-        io = adios.DeclarIO("BPReader");
+        io = adios.DeclareIO("BPReader");
 #endif
       }
 
@@ -344,7 +344,39 @@ inline void substream_adios2::initialize(YAML::Node y)
 
 inline void substream_adios2::read(int i, std::shared_ptr<ndarray_group> g)
 {
-  // TODO
+  const auto f = this->filenames[i];
+#if NDARRAY_HAVE_ADIOS2
+  adios2::Engine reader = this->stream_.io.Open(f, adios2::Mode::Read);
+  auto available_variables = stream_.io.AvailableVariables(true);
+
+  for (const auto &var : variables) {
+    std::string actual_varname;
+    for (const auto varname : var.possible_names) {
+      if (available_variables.find(varname) != available_variables.end()) {
+        actual_varname = varname;
+        break;
+      }
+    }
+
+    if (actual_varname.empty()) {
+      if (var.is_optional)
+        continue;
+      else {
+        fatal("cannot find variable " + var.name);
+        return;
+      }
+    } else {
+      auto p = ndarray_base::new_from_bp(
+          this->stream_.io, 
+          reader, 
+          actual_varname);
+      g->set(var.name, p);
+    }
+  }
+
+#else
+  fatal(NDARRAY_ERR_NOT_BUILT_WITH_ADIOS2);
+#endif
 }
 
 ///////////

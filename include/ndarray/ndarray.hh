@@ -1585,6 +1585,32 @@ inline std::shared_ptr<ndarray_base> ndarray_base::new_by_nc_datatype(int typep)
   return p;
 }
 
+inline std::shared_ptr<ndarray_base> ndarray_base::new_by_adios2_datatype(const std::string type)
+{
+  std::shared_ptr<ndarray_base> p;
+#if NDARRAY_HAVE_ADIOS2
+  if (type == adios2::GetType<int>())
+    p.reset(new ndarray<int>);
+  else if (type == adios2::GetType<float>())
+    p.reset(new ndarray<float>);
+  else if (type == adios2::GetType<double>())
+    p.reset(new ndarray<double>);
+  else if (type == adios2::GetType<unsigned int>())
+    p.reset(new ndarray<unsigned int>);
+  else if (type == adios2::GetType<unsigned long>())
+    p.reset(new ndarray<unsigned long>);
+  else if (type == adios2::GetType<unsigned char>())
+    p.reset(new ndarray<unsigned char>);
+  else if (type == adios2::GetType<char>())
+    p.reset(new ndarray<char>);
+  else 
+    fatal(NDARRAY_ERR_NOT_IMPLEMENTED);
+#else
+  warn(NDARRAY_ERR_NOT_BUILT_WITH_ADIOS2);
+#endif
+  return p;
+}
+
 #if NDARRAY_HAVE_HDF5
 inline std::shared_ptr<ndarray_base> ndarray_base::new_by_h5_datatype(hid_t type)
 {
