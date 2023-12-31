@@ -32,11 +32,36 @@ struct variable {
   void parse_yaml(YAML::Node);
 };
 
+struct substream;
+
+struct stream {
+  stream(MPI_Comm comm = MPI_COMM_WORLD);
+  ~stream() {};
+
+  std::shared_ptr<ndarray_group> read(int);
+  std::shared_ptr<ndarray_group> read_static();
+
+  void parse_yaml(const std::string filename);
+  int total_timesteps() const;
+  
+  void new_substream_from_yaml(YAML::Node);
+
+public:
+  std::vector<std::shared_ptr<substream>> substreams;
+  bool has_adios2_substream = false;
+
+  MPI_Comm comm;
+
+#if NDARRAY_HAVE_ADIOS2
+  adios2::ADIOS adios;
+  adios2::IO io;
+#endif
+};
+
 struct substream {
+  substream(stream& s) : stream_(s) {}
   virtual ~substream() {}
   virtual void initialize(YAML::Node) = 0;
-  
-  static std::shared_ptr<substream> from_yaml(YAML::Node);
 
   virtual int locate_timestep_file_index(int);
   virtual void read(int, std::shared_ptr<ndarray_group>) = 0;
@@ -52,6 +77,9 @@ struct substream {
   int total_timesteps = 0;
   int current_file_index = 0;
 
+  // reference to the parent stream
+  stream &stream_;
+
   // variables
   std::vector<variable> variables;
 
@@ -60,12 +88,14 @@ struct substream {
 };
 
 struct substream_binary : public substream {
+  substream_binary(stream& s) : substream(s) {}
   void initialize(YAML::Node) {}
   
   void read(int, std::shared_ptr<ndarray_group>) {}
 };
 
 struct substream_netcdf : public substream {
+  substream_netcdf(stream& s) : substream(s) {}
   void initialize(YAML::Node);
   void read(int, std::shared_ptr<ndarray_group>);
 
@@ -73,34 +103,39 @@ struct substream_netcdf : public substream {
 };
 
 struct substream_h5 : public substream {
+  substream_h5(stream& s) : substream(s) {}
   void initialize(YAML::Node);
   void read(int, std::shared_ptr<ndarray_group>);
   
   bool has_unlimited_time_dimension = false;
 };
 
+struct substream_adios2 : public substream {
+  substream_adios2(stream& s) : substream(s) {}
+  void initialize(YAML::Node);
+  void read(int, std::shared_ptr<ndarray_group>);
+};
+
 struct substream_vti : public substream {
+  substream_vti(stream& s) : substream(s) {}
   void initialize(YAML::Node);
   void read(int, std::shared_ptr<ndarray_group>);
 };
 
 struct substream_vti_o : public substream {
-
+  substream_vti_o(stream& s) : substream(s) {}
 };
 
-struct stream {
-  std::shared_ptr<ndarray_group> read(int);
-  std::shared_ptr<ndarray_group> read_static();
-
-  void parse_yaml(const std::string filename);
-
-  int total_timesteps() const;
-
-public:
-  std::vector<std::shared_ptr<substream>> substreams;
-};
 
 ///////////
+inline stream::stream(MPI_Comm comm_) : 
+#if NDARRAY_HAVE_ADIOS2
+  adios(comm_),
+#endif
+  comm(comm_)
+{
+}
+
 inline void stream::parse_yaml(const std::string filename)
 {
   YAML::Node yaml = YAML::LoadFile(filename);
@@ -112,9 +147,17 @@ inline void stream::parse_yaml(const std::string filename)
       // fprintf(stderr, "substream %d\n", i);
       
       auto ysubstream = ysubstreams[i];
-      auto sub = substream::from_yaml(ysubstream);
+    
+      std::string format = ysubstream["format"].as<std::string>();
+      if (format == "adios2" && !has_adios2_substream) {
+        // here's where adios2 is initialized
+        has_adios2_substream = true;
+#if NDARRAY_HAVE_ADIOS2
+        io = adios.DeclarIO("BPReader");
+#endif
+      }
 
-      this->substreams.push_back(sub);
+      new_substream_from_yaml(ysubstream);
     }
   }
 }
@@ -148,6 +191,58 @@ inline std::shared_ptr<ndarray_group> stream::read(int i)
       sub->read(i, g);
 
   return g;
+}
+
+inline void stream::new_substream_from_yaml(YAML::Node y)
+{
+  std::shared_ptr<substream> sub;
+
+  if (auto yformat = y["format"]) {
+    std::string format = yformat.as<std::string>();
+    if (format == "binary")
+      sub.reset(new substream_binary(*this));
+    else if (format == "netcdf")
+      sub.reset(new substream_netcdf(*this));
+    else if (format == "h5")
+      sub.reset(new substream_h5(*this));
+    else if (format == "adios2")
+      sub.reset(new substream_adios2(*this));
+    else if (format == "vti")
+      sub.reset(new substream_vti(*this));
+    else
+      throw NDARRAY_ERR_STREAM_FORMAT;
+  }
+  
+  if (auto yvars = y["vars"]) { // has variable list
+    for (auto i = 0; i < yvars.size(); i ++) {
+      variable var;
+      var.parse_yaml(yvars[i]);
+
+      sub->variables.push_back(var);
+    }
+  }
+
+#if 0
+  for (auto i = 0; i < sub->variables.size(); i ++) {
+    fprintf(stderr, "var=%s\n", sub->variables[i].name.c_str());
+    for (const auto varname : sub->variables[i].possible_names)
+      fprintf(stderr, "--name=%s\n", varname.c_str());
+  }
+#endif
+
+  if (auto yname = y["name"])
+    sub->name = yname.as<std::string>();
+
+  if (auto ypattern = y["pattern"])
+    sub->pattern = ypattern.as<std::string>();
+
+  if (auto ystatic = y["static"])
+    sub->is_static = ystatic.as<bool>();
+
+  // std::cerr << y << std::endl;
+  sub->initialize(y);
+
+  substreams.push_back(sub);
 }
 
 
@@ -202,54 +297,6 @@ inline int substream::locate_timestep_file_index(int i)
   return -1; // not found
 }
 
-inline std::shared_ptr<substream> substream::from_yaml(YAML::Node y)
-{
-  std::shared_ptr<substream> sub;
-
-  if (auto yformat = y["format"]) {
-    std::string format = yformat.as<std::string>();
-    if (format == "binary")
-      sub.reset(new substream_binary);
-    else if (format == "netcdf")
-      sub.reset(new substream_netcdf);
-    else if (format == "h5")
-      sub.reset(new substream_h5);
-    else if (format == "vti")
-      sub.reset(new substream_vti);
-    else
-      throw NDARRAY_ERR_STREAM_FORMAT;
-  }
-  
-  if (auto yvars = y["vars"]) { // has variable list
-    for (auto i = 0; i < yvars.size(); i ++) {
-      variable var;
-      var.parse_yaml(yvars[i]);
-
-      sub->variables.push_back(var);
-    }
-  }
-
-#if 0
-  for (auto i = 0; i < sub->variables.size(); i ++) {
-    fprintf(stderr, "var=%s\n", sub->variables[i].name.c_str());
-    for (const auto varname : sub->variables[i].possible_names)
-      fprintf(stderr, "--name=%s\n", varname.c_str());
-  }
-#endif
-
-  if (auto yname = y["name"])
-    sub->name = yname.as<std::string>();
-
-  if (auto ypattern = y["pattern"])
-    sub->pattern = ypattern.as<std::string>();
-
-  if (auto ystatic = y["static"])
-    sub->is_static = ystatic.as<bool>();
-
-  // std::cerr << y << std::endl;
-  sub->initialize(y);
-  return sub;
-}
 
 ///////////
 inline void substream_vti::initialize(YAML::Node y) 
@@ -283,6 +330,22 @@ inline void substream_vti::read(int i, std::shared_ptr<ndarray_group> g)
 #endif
 }
 
+///////////
+inline void substream_adios2::initialize(YAML::Node y)
+{
+  this->filenames = glob(pattern);
+
+  if (!is_static)
+    this->total_timesteps = this->filenames.size();
+
+  fprintf(stderr, "adios2 substream %s, found %zu files.\n", 
+      this->name.c_str(), filenames.size());
+}
+
+inline void substream_adios2::read(int i, std::shared_ptr<ndarray_group> g)
+{
+  // TODO
+}
 
 ///////////
 inline void substream_h5::initialize(YAML::Node y) 
