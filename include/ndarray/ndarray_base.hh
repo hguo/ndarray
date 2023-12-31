@@ -73,6 +73,9 @@ struct ndarray_base {
 
   static std::shared_ptr<ndarray_base> new_by_nc_datatype(int typep);
   static std::shared_ptr<ndarray_base> new_by_vtk_datatype(int typep);
+#if NDARRAY_HAVE_HDF5
+  static std::shared_ptr<ndarray_base> new_by_h5_datatype(hid_t native_type);
+#endif
 
   virtual int type() const = 0;
 

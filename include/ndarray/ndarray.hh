@@ -1585,6 +1585,32 @@ inline std::shared_ptr<ndarray_base> ndarray_base::new_by_nc_datatype(int typep)
   return p;
 }
 
+#if NDARRAY_HAVE_HDF5
+inline std::shared_ptr<ndarray_base> ndarray_base::new_by_h5_datatype(hid_t type)
+{
+  std::shared_ptr<ndarray_base> p;
+
+  if (H5Tequal(type, H5T_NATIVE_INT) > 0)
+    p.reset(new ndarray<int>);
+  else if (H5Tequal(type, H5T_NATIVE_FLOAT) > 0)
+    p.reset(new ndarray<float>);
+  else if (H5Tequal(type, H5T_NATIVE_DOUBLE) > 0)
+    p.reset(new ndarray<double>);
+  else if (H5Tequal(type, H5T_NATIVE_UINT) > 0)
+    p.reset(new ndarray<unsigned int>);
+  else if (H5Tequal(type, H5T_NATIVE_ULONG) > 0)
+    p.reset(new ndarray<unsigned long>);
+  else if (H5Tequal(type, H5T_NATIVE_UCHAR) > 0)
+    p.reset(new ndarray<unsigned char>);
+  else if (H5Tequal(type, H5T_NATIVE_CHAR) > 0)
+    p.reset(new ndarray<char>);
+  else
+    fatal(NDARRAY_ERR_NOT_IMPLEMENTED);
+
+  return p;
+}
+#endif
+
 } // namespace ndarray
 
 #endif

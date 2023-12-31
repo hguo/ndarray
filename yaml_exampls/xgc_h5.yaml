@@ -3,7 +3,8 @@ stream:
   substreams:
     - name: mesh
       format: h5
-      pattern: "/Users/guo.2154/workspace/data/xgc-particle-pinch/xgc.mesh.h5"
+      pattern: "/Users/guo.2154/workspace/data/xgc_particle_pinch/xgc.mesh.h5"
+      static: true
       vars:
         - name: node_connect_list
           possible_names: 
@@ -19,14 +20,16 @@ stream:
             - "/nextnode"
     - name: bfield
       format: h5
-      pattern: "/Users/guo.2154/workspace/data/xgc-particle-pinch/xgc.bfield.h5"
+      pattern: "/Users/guo.2154/workspace/data/xgc_particle_pinch/xgc.bfield.h5"
+      static: true
       vars:
         - name: B
           possible_names: "/node_data[0]/values"
           optional: true
     - name: 1d
       format: h5
-      pattern: "/Users/guo.2154/workspace/data/xgc-particle-pinch/xgc.oneddiag.h5"
+      pattern: "/Users/guo.2154/workspace/data/xgc_particle_pinch/xgc.oneddiag.h5"
+      static: true
       vars:
         - name: step
           optional: true

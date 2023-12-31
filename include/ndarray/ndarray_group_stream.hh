@@ -72,6 +72,13 @@ struct substream_netcdf : public substream {
   bool has_unlimited_time_dimension = false;
 };
 
+struct substream_h5 : public substream {
+  void initialize(YAML::Node);
+  void read(int, std::shared_ptr<ndarray_group>);
+  
+  bool has_unlimited_time_dimension = false;
+};
+
 struct substream_vti : public substream {
   void initialize(YAML::Node);
   void read(int, std::shared_ptr<ndarray_group>);
@@ -205,6 +212,8 @@ inline std::shared_ptr<substream> substream::from_yaml(YAML::Node y)
       sub.reset(new substream_binary);
     else if (format == "netcdf")
       sub.reset(new substream_netcdf);
+    else if (format == "h5")
+      sub.reset(new substream_h5);
     else if (format == "vti")
       sub.reset(new substream_vti);
     else
@@ -274,6 +283,61 @@ inline void substream_vti::read(int i, std::shared_ptr<ndarray_group> g)
 #endif
 }
 
+
+///////////
+inline void substream_h5::initialize(YAML::Node y) 
+{
+  this->filenames = glob(pattern);
+
+  if (!is_static)
+    this->total_timesteps = this->filenames.size();
+
+  fprintf(stderr, "hdf5 substream %s, found %zu files.\n", 
+      this->name.c_str(), filenames.size());
+}
+
+inline void substream_h5::read(int i, std::shared_ptr<ndarray_group> g)
+{
+#if NDARRAY_HAVE_HDF5
+  auto fid = H5Fopen( this->filenames[i].c_str(), H5F_ACC_RDONLY, H5P_DEFAULT );
+  if (fid >= 0) {
+    for (const auto &var : variables) {
+      
+      // probe variable name
+      hid_t did = H5I_INVALID_HID;
+      for (const auto varname : var.possible_names) {
+        did = H5Dopen2(fid, varname.c_str(), H5P_DEFAULT);
+        if (did != H5I_INVALID_HID)
+          break;
+      }
+
+      if (did == H5I_INVALID_HID) {
+        if (var.is_optional)
+          continue;
+        else {
+          fatal("cannot read variable " + var.name);
+          return;
+        }
+      } else { 
+        // create a new array
+        // auto native_type = H5Tget_native_type( H5Dget_type(did), H5T_DIR_DEFAULT );
+        auto native_type = H5Dget_type(did);
+        auto p = ndarray_base::new_by_h5_datatype( native_type );
+
+        // actual read
+        p->read_h5_did(did);
+        // p->print_shapef(std::cerr); std::cerr << std::endl;
+        g->set(var.name, p);
+
+        H5Dclose(did);
+      }
+    }
+    H5Fclose(fid);
+  }
+#else
+  fatal(NDARRAY_ERR_NOT_BUILT_WITH_HDF5);
+#endif
+}
 
 ///////////
 inline void substream_netcdf::read(int i, std::shared_ptr<ndarray_group> g)
