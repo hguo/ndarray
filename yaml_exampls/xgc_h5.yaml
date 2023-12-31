@@ -1,28 +1,47 @@
 stream:
   name: xgc
   substreams:
+    - name: mesh
+      format: h5
+      pattern: "/Users/guo.2154/workspace/data/xgc-particle-pinch/xgc.mesh.h5"
+      vars:
+        - name: node_connect_list
+          possible_names: 
+            - "/cell_set[0]/node_connect_list"
+        - name: coordinates
+          possible_names: 
+            - "/coordinates/values"
+        - name: psi
+          possible_names: 
+            - "/psi"
+        - name: nextnode
+          possible_names: 
+            - "/nextnode"
+    - name: bfield
+      format: h5
+      pattern: "/Users/guo.2154/workspace/data/xgc-particle-pinch/xgc.bfield.h5"
+      vars:
+        - name: B
+          possible_names: "/node_data[0]/values"
+          optional: true
     - name: 1d
       format: h5
       pattern: "/Users/guo.2154/workspace/data/xgc-particle-pinch/xgc.oneddiag.h5"
+      vars:
+        - name: step
+          optional: true
+        - name: time
+          optional: true
+        - name: e_parallel_mean_en_avg
+          optional: true
+        - name: e_perp_temperature_avg
+          optional: true
     - name: 3d
       format: h5
       pattern: "/Users/guo.2154/workspace/data/xgc_particle_pinch/xgc.3d.*.h5"
-  vars:
-    - name: step
-      substream: 1d
-      optional: true
-    - name: time
-      substream: 1d
-      optional: true
-    - name: e_parallel_mean_en_avg
-      substream: 1d
-      optional: true
-    - name: e_perp_temperature_avg
-      substream: 1d
-      optional: true
-    - name: dneOverne0
-      substream: 3d
-      optional: true
-    - name: Er
-      substream: 3d
-      optional: true
+      vars:
+        - name: dneOverne0
+        - name: dpot
+          optional: true
+        - name: Er
+          optional: true

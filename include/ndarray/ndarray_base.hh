@@ -597,8 +597,10 @@ inline void ndarray_base::read_netcdf_timestep(int ncid, int varid, int t, MPI_C
 
   st[0] = t;
   sz[0] = 1;
-  
+ 
   read_netcdf(ncid, varid, st, sz, comm);
+  set_has_time(true);
+
 #else
   fatal(NDARRAY_ERR_NOT_BUILT_WITH_NETCDF);
 #endif

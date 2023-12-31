@@ -23,7 +23,7 @@ enum {
 
 struct variable {
   std::string name;
-  std::set<std::string> possible_names;
+  std::vector<std::string> possible_names; // will prioritize possible_names by ordering
 
   bool is_optional = false;
   bool is_dims_auto = true;
@@ -75,6 +75,10 @@ struct substream_netcdf : public substream {
 struct substream_vti : public substream {
   void initialize(YAML::Node);
   void read(int, std::shared_ptr<ndarray_group>);
+};
+
+struct substream_vti_o : public substream {
+
 };
 
 struct stream {
@@ -144,12 +148,12 @@ inline std::shared_ptr<ndarray_group> stream::read(int i)
 inline void variable::parse_yaml(YAML::Node y)
 {
   this->name = y["name"].as<std::string>();
-  this->possible_names.insert( this->name );
 
   if (auto ypvar = y["possible_names"]) {
     for (auto j = 0; j < ypvar.size(); j ++)
-      this->possible_names.insert(ypvar[j].as<std::string>());
-  }
+      this->possible_names.push_back(ypvar[j].as<std::string>());
+  } else 
+    this->possible_names.push_back( this->name );
 
   if (auto ydims = y["dimensions"]) {
     if (ydims.IsScalar()) { // auto
@@ -303,15 +307,26 @@ inline void substream_netcdf::read(int i, std::shared_ptr<ndarray_group> g)
     }
 
     if (varid >= 0) { // succ
+      // create a new array
       int type;
       NC_SAFE_CALL( nc_inq_vartype(ncid, varid, &type) );
-    
       std::shared_ptr<ndarray_base> p = ndarray_base::new_by_nc_datatype(type);
-
+   
+      // check if the variable has unlimited dimension
       int unlimited_recid;
-      nc_inq_unlimdim(ncid, &unlimited_recid);
+      NC_SAFE_CALL( nc_inq_unlimdim(ncid, &unlimited_recid) );
+      
+      int ndims, dimids[4];
+      NC_SAFE_CALL( nc_inq_varndims(ncid, varid, &ndims) );
+      NC_SAFE_CALL( nc_inq_vardimid(ncid, varid, dimids) );
 
-      if (unlimited_recid >= 0) // has unlimited dimension
+      bool time_varying = false;
+      if (unlimited_recid >= 0) // has unlimied dimension
+        for (int i = 0; i < ndims; i ++)
+          if (dimids[i] == unlimited_recid)
+            time_varying = true;
+
+      if (time_varying)
         p->read_netcdf_timestep(ncid, varid, i - first_timestep_per_file[fi], comm);
       else 
         p->read_netcdf(ncid, varid, comm);

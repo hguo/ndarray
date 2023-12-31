@@ -5,10 +5,8 @@ stream:
       format: float32
       endian: big
       pattern: "/data/supernova/E_*.dat"
-      static: false
-  vars:
-    - name: f
-      substream: files
-      dimensions: [432, 432, 432] # dimensions: c432,432,432  # c-order
-      dimension_order: c
-      offset: 0                   # by default 0
+      vars:
+        - name: f
+          dimensions: [432, 432, 432] # dimensions: c432,432,432  # c-order
+          dimension_order: c
+          offset: 0                   # by default 0

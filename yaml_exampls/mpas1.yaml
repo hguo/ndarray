@@ -33,9 +33,9 @@ stream:
       pattern: "/Users/guo.2154/workspace/data/20210421_sim7_CORE_60to30E2r2.mpaso.hist.am.timeSeriesStatsMonthly.*.nc"
       default: true # optional: default stream
       vars:
-        - name: xtime
-          possible_names: # by default, will try the name, and no possible_names is needed
-            - xtime # variable name should be automatically included in possible_names
+        - name: xtime # the name will be the variable name in netCDF if possible_names is not given
+          possible_names: 
+            - xtime 
             - xtime_startMonthly
           dimensions: auto # by default auto
           optional: false # by default false
@@ -46,6 +46,7 @@ stream:
           dimensions: auto
         - name: vertVelocityTop
           possible_names:
+            - vertVelocityTop
             - timeMonthly_avg_vertVelocityTop
         - name: salinity
           optional: true
@@ -53,9 +54,16 @@ stream:
           optional: true
         - name: zTop
           possible_names:
+            - zTop
             - timeMonthly_avg_zTop
           optional: true
         - name: zMid
           possible_names:
+            - zMid
             - timeMonthly_avg_zMid
+          optional: true
+        - name: layerThickness
+          possible_names: 
+            - layerThickness
+            - timeMonthly_avg_layerThickness
           optional: true
