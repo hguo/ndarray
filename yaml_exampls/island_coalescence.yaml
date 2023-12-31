@@ -4,7 +4,7 @@ stream:
     - name: pvtu
       format: pvtu
       pattern: "/data/data_lanl_island_coalescence/restart-amr2/Cycle*/data.pvtu"
-  vars:
-    - name: B
-    - name: V
-    - name: current
+      vars:
+        - name: B
+        - name: V
+        - name: current
