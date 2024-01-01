@@ -37,6 +37,12 @@ struct variable {
   bool is_offset_auto = true; // only apply to binary
   size_t offset = 0;
 
+#if NDARRAY_USE_LITTLE_ENDIAN
+  bool endian = NDARRAY_ENDIAN_LITTLE;
+#else
+  bool endian = NDARRAY_ENDIAN_BIG;
+#endif
+
   void parse_yaml(YAML::Node);
 };
 
@@ -295,6 +301,13 @@ inline void variable::parse_yaml(YAML::Node y)
       throw NDARRAY_ERR_STREAM_FORMAT;
   }
 
+  if (auto yendian = y["endian"]) {
+    if (yendian.as<std::string>() == "big")
+      this->endian = NDARRAY_ENDIAN_BIG;
+    else if (yendian.as<std::string>() == "little")
+      this->endian = NDARRAY_ENDIAN_LITTLE;
+  }
+
   if (auto yopt = y["optional"]) {
     this->is_optional = yopt.as<bool>();
   }
@@ -347,7 +360,7 @@ inline void substream_binary::read(int i, std::shared_ptr<ndarray_group> g)
     if (!var.is_offset_auto)
       fseek(fp, var.offset, SEEK_SET);
 
-    p->read_binary_file( fp );
+    p->read_binary_file( fp, var.endian );
     g->set(var.name, p);
   }
 

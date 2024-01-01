@@ -57,7 +57,10 @@ struct ndarray : public ndarray_base {
 
   const T* data() const {return p.data();}
   T* data() {return p.data();}
-  
+ 
+  void flip_byte_order(T&);
+  void flip_byte_order();
+
   const void* pdata() const {return p.data();}
   void* pdata() {return p.data();}
 
@@ -257,9 +260,9 @@ public: // file i/o; automatically determine format based on extensions
   bool to_file(const std::string& filename, const std::string varname="", MPI_Comm comm = MPI_COMM_WORLD) const;
 
 public: // i/o for binary file
-  void read_binary_file(const std::string& filename) { ndarray_base::read_binary_file(filename); }
-  void read_binary_file(FILE *fp);
-  void read_binary_file_sequence(const std::string& pattern);
+  void read_binary_file(const std::string& filename, int endian = NDARRAY_ENDIAN_LITTLE) { ndarray_base::read_binary_file(filename, endian); }
+  void read_binary_file(FILE *fp, int endian = NDARRAY_ENDIAN_LITTLE);
+  void read_binary_file_sequence(const std::string& pattern, int endian = NDARRAY_ENDIAN_LITTLE);
   void to_vector(std::vector<T> &out_vector) const;
   void to_binary_file(const std::string& filename) { ndarray_base::to_binary_file(filename); }
   void to_binary_file(FILE *fp);
@@ -563,9 +566,39 @@ void ndarray<T>::bil_add_block_raw(const std::string& filename,
 }
 
 template <typename T>
-void ndarray<T>::read_binary_file(FILE *fp)
+void ndarray<T>::flip_byte_order(T &x)
+{
+  T y;
+  char *px = (char*)&x, *py = (char*)&y;
+
+  for (int i = 0; i < sizeof(T); i ++)
+    py[sizeof(T)-i-1] = px[i];
+
+  x = y;
+}
+
+template <typename T>
+void ndarray<T>::flip_byte_order()
+{
+  for (auto i = 0; i < nelem(); i ++)
+    flip_byte_order(p[i]);
+}
+
+template <typename T>
+void ndarray<T>::read_binary_file(FILE *fp, int endian)
 {
   auto s = fread(&p[0], sizeof(T), nelem(), fp);
+
+#if NDARRAY_USE_LITTLE_ENDIAN
+  if (endian == NDARRAY_ENDIAN_BIG)
+    flip_byte_order();
+#endif 
+
+#if NDARRAY_USE_BIG_ENDIAN
+  if (endian == NDARRAY_ENDIAN_LITTLE)
+    flip_byte_order();
+#endif
+
   if (s != nelem())
     warn(NDARRAY_ERR_FILE_CANNOT_READ_EXPECTED_BYTES);
 }
@@ -586,7 +619,7 @@ void ndarray<T>::to_binary_file2(const std::string& f) const
 }
 
 template <typename T>
-void ndarray<T>::read_binary_file_sequence(const std::string& pattern)
+void ndarray<T>::read_binary_file_sequence(const std::string& pattern, int endian) // TODO: endian
 {
   const auto filenames = glob(pattern);
   if (filenames.size() == 0) return;

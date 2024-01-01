@@ -30,6 +30,12 @@ ndarray_option (VTK "Use VTK" FALSE)
 set (CMAKE_CXX_STANDARD 17)
 set (CMAKE_CXX_STANDARD_REQUIRED ON)
 
+if (CMAKE_CXX_BYTE_ORDER STREQUAL LITTLE_ENDIAN)
+  set (NDARRAY_USE_LITTLE_ENDIAN TRUE)
+else ()
+  set (NDARRAY_USE_BIG_ENDIAN TRUE)
+endif ()
+
 find_package (Threads REQUIRED)
 find_package (yaml-cpp REQUIRED)
 

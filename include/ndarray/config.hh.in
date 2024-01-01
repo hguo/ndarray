@@ -13,6 +13,9 @@
 #cmakedefine NDARRAY_HAVE_PNG 1
 #cmakedefine NDARRAY_HAVE_VTK 1
 
+#cmakedefine NDARRAY_USE_BIG_ENDIAN 1
+#cmakedefine NDARRAY_USE_LITTLE_ENDIAN 1
+
 #if NDARRAY_HAVE_MPI
 #else
   typedef int MPI_Comm;

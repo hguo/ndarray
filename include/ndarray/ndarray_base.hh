@@ -54,6 +54,11 @@
 namespace ndarray {
 
 enum {
+  NDARRAY_ENDIAN_LITTLE = 0,
+  NDARRAY_ENDIAN_BIG = 1
+};
+
+enum {
   NDARRAY_ORDER_C = 0,
   NDARRAY_ORDER_F = 1
 };
@@ -118,6 +123,8 @@ struct ndarray_base {
   virtual const void* pdata() const = 0;
   virtual void* pdata() = 0;
 
+  virtual void flip_byte_order() = 0;
+
   virtual void reshapef(const std::vector<size_t> &dims_) = 0;
   void reshapef(const std::vector<int>& dims);
   void reshapef(size_t ndims, const size_t sizes[]);
@@ -178,8 +185,8 @@ public:
   bool has_time() const { return tv; }
 
 public: // binary i/o
-  void read_binary_file(const std::string& filename);
-  virtual void read_binary_file(FILE *fp) = 0;
+  void read_binary_file(const std::string& filename, int endian = NDARRAY_ENDIAN_LITTLE);
+  virtual void read_binary_file(FILE *fp, int endian = NDARRAY_ENDIAN_LITTLE) = 0;
   void to_binary_file(const std::string& filename);
   virtual void to_binary_file(FILE *fp) = 0;
 
@@ -350,10 +357,10 @@ inline void ndarray_base::make_multicomponents()
   set_multicomponents();
 }
 
-inline void ndarray_base::read_binary_file(const std::string& filename)
+inline void ndarray_base::read_binary_file(const std::string& filename, int endian)
 {
   FILE *fp = fopen(filename.c_str(), "rb");
-  read_binary_file(fp);
+  read_binary_file(fp, endian);
   fclose(fp);
 }
 
