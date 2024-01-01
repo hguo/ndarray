@@ -2,6 +2,7 @@
 #define _NDARRAY_IO_UTIL_HH
 
 #include <ndarray/config.hh>
+#include <algorithm>
 #include <iostream>
 #include <fstream>
 #include <vector>

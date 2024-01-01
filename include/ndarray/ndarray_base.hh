@@ -363,17 +363,15 @@ inline void ndarray_base::read_vtk_image_data_file(const std::string& filename, 
 #endif
 }
   
+#if NDARRAY_HAVE_VTK
 inline std::shared_ptr<ndarray_base> ndarray_base::new_from_vtk_data_array(vtkSmartPointer<vtkDataArray> da)
 {
-#if NDARRAY_HAVE_VTK
   auto p = new_by_vtk_datatype( da->GetDataType() );
   p->from_vtk_data_array(da);
 
   return p;
-#else
-  fatal(NDARRAY_ERR_NOT_BUILT_WITH_VTK);
-#endif
 }
+#endif
 
 inline bool ndarray_base::read_h5(const std::string& filename, const std::string& name)
 {
