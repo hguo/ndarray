@@ -64,6 +64,8 @@ public:
   std::vector<std::shared_ptr<substream>> substreams;
   bool has_adios2_substream = false;
 
+  std::string path_prefix;
+
   MPI_Comm comm;
 
 #if NDARRAY_HAVE_ADIOS2
@@ -79,6 +81,8 @@ struct substream {
 
   virtual int locate_timestep_file_index(int);
   virtual void read(int, std::shared_ptr<ndarray_group>) = 0;
+
+  void glob();
 
   // yaml properties
   bool is_static = false;
@@ -155,8 +159,11 @@ inline void stream::parse_yaml(const std::string filename)
   YAML::Node yaml = YAML::LoadFile(filename);
   auto yroot = yaml["stream"];
 
-  if (yroot["substreams"]) { // has substreams
-    auto ysubstreams = yroot["substreams"];
+  if (auto yprefix = yroot["path_prefix"]) {
+    this->path_prefix = yprefix.as<std::string>();
+  }
+
+  if (auto ysubstreams = yroot["substreams"]) { // has substreams
     for (auto i = 0; i < ysubstreams.size(); i ++) {
       // fprintf(stderr, "substream %d\n", i);
       
@@ -315,6 +322,14 @@ inline void variable::parse_yaml(YAML::Node y)
 
 
 ///////////
+inline void substream::glob()
+{
+  const auto pattern_ = stream_.path_prefix + pattern;
+  this->filenames = ::ndarray::glob(pattern_);
+  fprintf(stderr, "substream %s, pattern=%s, found %zu files.\n", 
+      this->name.c_str(), pattern_.c_str(), filenames.size());
+}
+
 inline int substream::locate_timestep_file_index(int i)
 {
   int fi = current_file_index;
@@ -342,10 +357,8 @@ inline int substream::locate_timestep_file_index(int i)
 ///////////
 inline void substream_binary::initialize(YAML::Node y)
 {
-  this->filenames = glob(pattern);
+  glob();
   this->total_timesteps = filenames.size();
-  fprintf(stderr, "binary substream %s, found %zu files.\n", 
-      this->name.c_str(), filenames.size());
 }
 
 inline void substream_binary::read(int i, std::shared_ptr<ndarray_group> g)
@@ -370,10 +383,8 @@ inline void substream_binary::read(int i, std::shared_ptr<ndarray_group> g)
 ///////////
 inline void substream_vti::initialize(YAML::Node y) 
 {
-  this->filenames = glob(pattern);
+  glob();
   this->total_timesteps = filenames.size();
-  fprintf(stderr, "substream %s, found %zu files.\n", 
-      this->name.c_str(), filenames.size());
 }
 
 inline void substream_vti::read(int i, std::shared_ptr<ndarray_group> g)
@@ -402,13 +413,10 @@ inline void substream_vti::read(int i, std::shared_ptr<ndarray_group> g)
 ///////////
 inline void substream_adios2::initialize(YAML::Node y)
 {
-  this->filenames = glob(pattern);
+  glob();
 
   if (!is_static)
     this->total_timesteps = this->filenames.size();
-
-  fprintf(stderr, "adios2 substream %s, found %zu files.\n", 
-      this->name.c_str(), filenames.size());
 }
 
 inline void substream_adios2::read(int i, std::shared_ptr<ndarray_group> g)
@@ -451,13 +459,10 @@ inline void substream_adios2::read(int i, std::shared_ptr<ndarray_group> g)
 ///////////
 inline void substream_h5::initialize(YAML::Node y) 
 {
-  this->filenames = glob(pattern);
+  glob();
 
   if (!is_static)
     this->total_timesteps = this->filenames.size();
-
-  fprintf(stderr, "hdf5 substream %s, found %zu files.\n", 
-      this->name.c_str(), filenames.size());
 }
 
 inline void substream_h5::read(int i, std::shared_ptr<ndarray_group> g)
@@ -586,10 +591,7 @@ inline void substream_netcdf::read(int i, std::shared_ptr<ndarray_group> g)
 
 inline void substream_netcdf::initialize(YAML::Node y) 
 {
-  this->filenames = glob(pattern);
-
-  fprintf(stderr, "substream %s, found %zu files.\n", 
-      this->name.c_str(), filenames.size());
+  glob();
 
 #if NDARRAY_HAVE_NETCDF
   for (const auto f : this->filenames) {

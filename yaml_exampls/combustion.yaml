@@ -1,10 +1,11 @@
 stream:
   name: combustion
+  path_prefix: "/data/combustion/"
   substreams:
     - name: jet_chi
       format: binary
       endian: big
-      pattern: "/data/combustion/jet_chi_*.dat"
+      pattern: "jet_chi_*.dat"
       vars:
         - name: chi
           dtype: float32
@@ -14,7 +15,7 @@ stream:
     - name: jet_hr
       format: binary
       endian: big
-      pattern: "/data/combustion/jet_hr_*.dat"
+      pattern: "jet_hr_*.dat"
       vars:
         - name: hr
           dtype: float32
@@ -24,7 +25,7 @@ stream:
     - name: jet_mixfrac
       format: binary
       endian: big
-      pattern: "/data/combustion/jet_mixfrac_*.dat"
+      pattern: "jet_mixfrac_*.dat"
       vars:
         - name: mixfrac
           dtype: float32
@@ -34,7 +35,7 @@ stream:
     - name: vort
       format: binary
       endian: big
-      pattern: "/data/combustion/jet_vort_*.dat"
+      pattern: "jet_vort_*.dat"
       vars:
         - name: vort
           dtype: float32
@@ -44,7 +45,7 @@ stream:
     - name: Y_OH
       format: binary
       endian: big
-      pattern: "/data/combustion/jet_Y_OH_*.dat"
+      pattern: "jet_Y_OH_*.dat"
       vars:
         - name: Y_OH
           dtype: float32
