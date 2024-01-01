@@ -60,6 +60,8 @@ struct stream {
   
   void new_substream_from_yaml(YAML::Node);
 
+  void set_path_prefix(const std::string p) { path_prefix = p; }
+
 public:
   std::vector<std::shared_ptr<substream>> substreams;
   bool has_adios2_substream = false;
@@ -158,7 +160,8 @@ inline void stream::parse_yaml(const std::string filename)
   auto yroot = yaml["stream"];
 
   if (auto yprefix = yroot["path_prefix"]) {
-    this->path_prefix = yprefix.as<std::string>();
+    if (this->path_prefix.empty())
+      this->path_prefix = yprefix.as<std::string>();
   }
 
   if (auto ysubstreams = yroot["substreams"]) { // has substreams
@@ -254,7 +257,7 @@ inline void stream::new_substream_from_yaml(YAML::Node y)
 
   if (auto yfilenames = y["filenames"]) {
     if (yfilenames.IsScalar()) { // file name pattern
-      const auto filename_pattern = path_prefix + yfilenames.as<std::string>();
+      const auto filename_pattern = path_prefix + "/" + yfilenames.as<std::string>();
       sub->filenames = ::ndarray::glob(filename_pattern);
       fprintf(stderr, "substream %s, filename_pattern=%s, found %zu files.\n", 
           sub->name.c_str(), filename_pattern.c_str(), sub->filenames.size());

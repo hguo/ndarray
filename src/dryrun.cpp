@@ -3,6 +3,7 @@
 #include "cxxopts.hpp"
 
 std::string input_yaml_filename;
+std::string data_path_prefix;
 
 int main(int argc, char **argv)
 {
@@ -13,6 +14,7 @@ int main(int argc, char **argv)
   cxxopts::Options options(argv[0]);
   options.add_options()
     ("input,i", "Input yaml file", cxxopts::value<std::string>(input_yaml_filename))
+    ("prefix,p", "Data path prefix", cxxopts::value<std::string>(data_path_prefix))
     ("help,h", "Print this information");
 
   options.parse_positional({"input"});
@@ -26,6 +28,10 @@ int main(int argc, char **argv)
   fprintf(stderr, "input yaml file: %s\n", input_yaml_filename.c_str());
 
   std::shared_ptr<ndarray::stream> stream(new ndarray::stream);
+
+  if (!data_path_prefix.empty())
+    stream->set_path_prefix( data_path_prefix );
+
   stream->parse_yaml(input_yaml_filename);
 
   auto gs = stream->read_static();
