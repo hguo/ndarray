@@ -28,6 +28,10 @@ struct variable {
   bool is_optional = false;
   bool is_dims_auto = true;
   std::vector<int> dimensions;
+  unsigned char order = NDARRAY_ORDER_C;
+
+  bool is_dtype_auto = true;
+  int dtype = NDARRAY_DTYPE_UNKNOWN;
 
   void parse_yaml(YAML::Node);
 };
@@ -89,9 +93,9 @@ struct substream {
 
 struct substream_binary : public substream {
   substream_binary(stream& s) : substream(s) {}
-  void initialize(YAML::Node) {}
+  void initialize(YAML::Node);
   
-  void read(int, std::shared_ptr<ndarray_group>) {}
+  void read(int, std::shared_ptr<ndarray_group>);
 };
 
 struct substream_netcdf : public substream {
@@ -257,14 +261,25 @@ inline void variable::parse_yaml(YAML::Node y)
   } else 
     this->possible_names.push_back( this->name );
 
+  if (auto ydtype = y["dtype"]) {
+    this->dtype = ndarray_base::str2dtype( ydtype.as<std::string>() );
+    if (this->dtype != NDARRAY_DTYPE_UNKNOWN)
+      this->is_dtype_auto = false;
+  }
+
+  if (auto yorder = y["dimension_order"]) {
+    if (yorder.as<std::string>() == "f")
+      this->order = NDARRAY_ORDER_F;
+  }
+
   if (auto ydims = y["dimensions"]) {
     if (ydims.IsScalar()) { // auto
       this->is_dims_auto = true;
     } else if (ydims.IsSequence()) {
       for (auto i = 0; i < ydims.size(); i ++) 
         this->dimensions.push_back( ydims[i].as<int>() );
-    }
-    // TODO: otherwise throw an exception
+    } else 
+      throw NDARRAY_ERR_STREAM_FORMAT;
   }
 
   if (auto yopt = y["optional"]) {
@@ -297,6 +312,30 @@ inline int substream::locate_timestep_file_index(int i)
   return -1; // not found
 }
 
+
+///////////
+inline void substream_binary::initialize(YAML::Node y)
+{
+  this->filenames = glob(pattern);
+  this->total_timesteps = filenames.size();
+  fprintf(stderr, "binary substream %s, found %zu files.\n", 
+      this->name.c_str(), filenames.size());
+}
+
+inline void substream_binary::read(int i, std::shared_ptr<ndarray_group> g)
+{
+  const auto f = filenames[i]; // assume each vti has only one timestep
+  FILE *fp = fopen(f.c_str(), "rb");
+  
+  for (const auto &var : variables) {
+    auto p = ndarray_base::new_by_dtype( var.dtype );
+    p->reshapec( var.dimensions );
+    p->read_binary_file( fp );
+    g->set(var.name, p);
+  }
+
+  fclose(fp);
+}
 
 ///////////
 inline void substream_vti::initialize(YAML::Node y) 
@@ -417,7 +456,7 @@ inline void substream_h5::read(int i, std::shared_ptr<ndarray_group> g)
         // create a new array
         // auto native_type = H5Tget_native_type( H5Dget_type(did), H5T_DIR_DEFAULT );
         auto native_type = H5Dget_type(did);
-        auto p = ndarray_base::new_by_h5_datatype( native_type );
+        auto p = ndarray_base::new_by_h5_dtype( native_type );
 
         // actual read
         p->read_h5_did(did);
@@ -469,7 +508,7 @@ inline void substream_netcdf::read(int i, std::shared_ptr<ndarray_group> g)
       // create a new array
       int type;
       NC_SAFE_CALL( nc_inq_vartype(ncid, varid, &type) );
-      std::shared_ptr<ndarray_base> p = ndarray_base::new_by_nc_datatype(type);
+      std::shared_ptr<ndarray_base> p = ndarray_base::new_by_nc_dtype(type);
    
       // check if the variable has unlimited dimension
       int unlimited_recid;

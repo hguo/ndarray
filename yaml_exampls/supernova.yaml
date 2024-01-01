@@ -2,11 +2,12 @@ stream:
   name: supernova
   substreams:
     - name: files
-      format: float32
-      endian: big
+      format: binary
       pattern: "/data/supernova/E_*.dat"
       vars:
         - name: f
+          dtype: float32
+          endian: big
           dimensions: [432, 432, 432] # dimensions: c432,432,432  # c-order
           dimension_order: c
           offset: 0                   # by default 0

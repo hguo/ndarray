@@ -54,10 +54,18 @@
 namespace ndarray {
 
 enum {
-  NDARRAY_TYPE_UNKNOWN = 0,
-  NDARRAY_TYPE_FLOAT = 1,
-  NDARRAY_TYPE_DOUBLE = 2,
-  NDARRAY_TYPE_INT = 3
+  NDARRAY_ORDER_C = 0,
+  NDARRAY_ORDER_F = 1
+};
+
+enum {
+  NDARRAY_DTYPE_UNKNOWN,
+  NDARRAY_DTYPE_CHAR,
+  NDARRAY_DTYPE_INT,
+  NDARRAY_DTYPE_FLOAT,
+  NDARRAY_DTYPE_DOUBLE,
+  NDARRAY_DTYPE_UNSIGNED_CHAR,
+  NDARRAY_DTYPE_UNSIGNED_INT
 };
 
 enum {
@@ -71,11 +79,16 @@ template <typename T> struct ndarray;
 struct ndarray_base {
   virtual ~ndarray_base() {}
 
-  static std::shared_ptr<ndarray_base> new_by_nc_datatype(int typep);
-  static std::shared_ptr<ndarray_base> new_by_vtk_datatype(int typep);
-  static std::shared_ptr<ndarray_base> new_by_adios2_datatype(const std::string type);
+  static std::string dtype2str(int dtype);
+  static int str2dtype(const std::string str);
+
+  static std::shared_ptr<ndarray_base> new_by_dtype(int type);
+  static std::shared_ptr<ndarray_base> new_by_dtype(const std::string str) { return new_by_dtype(str2dtype(str)); }
+  static std::shared_ptr<ndarray_base> new_by_nc_dtype(int typep);
+  static std::shared_ptr<ndarray_base> new_by_vtk_dtype(int typep);
+  static std::shared_ptr<ndarray_base> new_by_adios2_dtype(const std::string type);
 #if NDARRAY_HAVE_HDF5
-  static std::shared_ptr<ndarray_base> new_by_h5_datatype(hid_t native_type);
+  static std::shared_ptr<ndarray_base> new_by_h5_dtype(hid_t native_type);
 #endif
 
   virtual int type() const = 0;
@@ -198,7 +211,7 @@ public: // netcdf
   template <typename ContainerType> // std::vector<std::string>
   bool try_read_netcdf(int ncid, const ContainerType& possible_varnames, MPI_Comm comm = MPI_COMM_WORLD);
 
-  virtual int nc_datatype() const = 0;
+  virtual int nc_dtype() const = 0;
 
 public: // h5 i/o
   bool read_h5(const std::string& filename, const std::string& name);
@@ -366,7 +379,7 @@ inline void ndarray_base::read_vtk_image_data_file(const std::string& filename, 
 #if NDARRAY_HAVE_VTK
 inline std::shared_ptr<ndarray_base> ndarray_base::new_from_vtk_data_array(vtkSmartPointer<vtkDataArray> da)
 {
-  auto p = new_by_vtk_datatype( da->GetDataType() );
+  auto p = new_by_vtk_dtype( da->GetDataType() );
   p->from_vtk_data_array(da);
 
   return p;
@@ -408,7 +421,7 @@ inline std::shared_ptr<ndarray_base> ndarray_base::new_from_bp(
       int step)
 {
   std::shared_ptr<ndarray_base> p = 
-    new_by_adios2_datatype( io.VariableType(varname) );
+    new_by_adios2_dtype( io.VariableType(varname) );
 
   p->read_bp(io, reader, varname, step);
 
@@ -504,15 +517,15 @@ inline void ndarray_base::read_netcdf(int ncid, int varid, int ndims, const size
   std::reverse(mysizes.begin(), mysizes.end());
   reshapef(mysizes);
 
-  if (nc_datatype() == NC_INT) {
+  if (nc_dtype() == NC_INT) {
     NC_SAFE_CALL( nc_get_vara_int(ncid, varid, starts, sizes, (int*)pdata()) );
-  } else if (nc_datatype() == NC_FLOAT) {
+  } else if (nc_dtype() == NC_FLOAT) {
     NC_SAFE_CALL( nc_get_vara_float(ncid, varid, starts, sizes, (float*)pdata()) );
-  } else if (nc_datatype() == NC_DOUBLE) {
+  } else if (nc_dtype() == NC_DOUBLE) {
     NC_SAFE_CALL( nc_get_vara_double(ncid, varid, starts, sizes, (double*)pdata()) );
-  } else if (nc_datatype() == NC_UINT) {
+  } else if (nc_dtype() == NC_UINT) {
     NC_SAFE_CALL( nc_get_vara_uint(ncid, varid, starts, sizes, (unsigned int*)pdata()) );
-  } else if (nc_datatype() == NC_CHAR) {
+  } else if (nc_dtype() == NC_CHAR) {
     NC_SAFE_CALL( nc_get_vara_text(ncid, varid, starts, sizes, (char*)pdata()) );
   } else
     fatal(NDARRAY_ERR_NOT_IMPLEMENTED);
@@ -535,11 +548,11 @@ inline void ndarray_base::to_netcdf(int ncid, int varid, const size_t st[], cons
   fprintf(stderr, "st=%zu, %zu, %zu, %zu, sz=%zu, %zu, %zu, %zu\n", 
       st[0], st[1], st[2], st[3], sz[0], sz[1], sz[2], sz[3]);
   
-  if (nc_datatype() == NC_DOUBLE) {
+  if (nc_dtype() == NC_DOUBLE) {
     NC_SAFE_CALL( nc_put_vara_double(ncid, varid, st, sz, (double*)pdata()) );
-  } else if (nc_datatype() == NC_FLOAT) {
+  } else if (nc_dtype() == NC_FLOAT) {
     NC_SAFE_CALL( nc_put_vara_float(ncid, varid, st, sz, (float*)pdata()) );
-  } else if (nc_datatype() == NC_INT) {
+  } else if (nc_dtype() == NC_INT) {
     NC_SAFE_CALL( nc_put_vara_int(ncid, varid, st, sz, (int*)pdata()) );
   } else 
     fatal(NDARRAY_ERR_NOT_IMPLEMENTED);
@@ -774,6 +787,24 @@ std::ostream& ndarray_base::print_shapef(std::ostream& os) const
 #endif
 
   return os;
+}
+
+inline int ndarray_base::str2dtype(const std::string str)
+{
+  if (str == "char")
+    return NDARRAY_DTYPE_CHAR;
+  else if (str == "uchar")
+    return NDARRAY_DTYPE_UNSIGNED_CHAR;
+  else if (str == "int" || str == "int32")
+    return NDARRAY_DTYPE_INT;
+  else if (str == "uint" || str == "uint32")
+    return NDARRAY_DTYPE_UNSIGNED_INT;
+  else if (str == "float" || str == "float32")
+    return NDARRAY_DTYPE_FLOAT;
+  else if (str == "double" || str == "float64")
+    return NDARRAY_DTYPE_DOUBLE;
+  else 
+    return NDARRAY_DTYPE_UNKNOWN;
 }
 
 } // namespace ndarray

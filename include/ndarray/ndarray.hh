@@ -344,10 +344,10 @@ public: // pybind11
   void to_numpy(const std::string& filename) const;
 
 #if NDARRAY_HAVE_MPI
-  static MPI_Datatype mpi_datatype();
+  static MPI_Datatype mpi_dtype();
 #endif
   
-  int nc_datatype() const;
+  int nc_dtype() const;
 
 public:
   void to_device(int device, int id=0);
@@ -375,10 +375,10 @@ private:
 
 //////////////////////////////////
 
-template <typename T> int ndarray<T>::type() const { return NDARRAY_TYPE_UNKNOWN; }
-template <> inline int ndarray<double>::type() const { return NDARRAY_TYPE_DOUBLE; }
-template <> inline int ndarray<float>::type() const { return NDARRAY_TYPE_FLOAT; }
-template <> inline int ndarray<int>::type() const { return NDARRAY_TYPE_INT; }
+template <typename T> int ndarray<T>::type() const { return NDARRAY_DTYPE_UNKNOWN; }
+template <> inline int ndarray<double>::type() const { return NDARRAY_DTYPE_DOUBLE; }
+template <> inline int ndarray<float>::type() const { return NDARRAY_DTYPE_FLOAT; }
+template <> inline int ndarray<int>::type() const { return NDARRAY_DTYPE_INT; }
 
 #if 0
 template <typename T>
@@ -556,7 +556,7 @@ void ndarray<T>::bil_add_block_raw(const std::string& filename,
     sz.push_back(ext.size(i));
   }
 
-  BIL_Add_block_raw(nd(), domain.data(), st.data(), sz.data(), filename.c_str(), mpi_datatype(), (void**)&p[0]);
+  BIL_Add_block_raw(nd(), domain.data(), st.data(), sz.data(), filename.c_str(), mpi_dtype(), (void**)&p[0]);
 #else
   fatal(NDARRAY_ERR_NOT_BUILT_WITH_MPI);
 #endif
@@ -851,22 +851,22 @@ T ndarray<T>::resolution() const {
 }
 
 #if NDARRAY_HAVE_MPI
-template <> inline MPI_Datatype ndarray<double>::mpi_datatype() { return MPI_DOUBLE; }
-template <> inline MPI_Datatype ndarray<float>::mpi_datatype() { return MPI_FLOAT; }
-template <> inline MPI_Datatype ndarray<int>::mpi_datatype() { return MPI_INT; }
+template <> inline MPI_Datatype ndarray<double>::mpi_dtype() { return MPI_DOUBLE; }
+template <> inline MPI_Datatype ndarray<float>::mpi_dtype() { return MPI_FLOAT; }
+template <> inline MPI_Datatype ndarray<int>::mpi_dtype() { return MPI_INT; }
 #endif
 
 #if NDARRAY_HAVE_NETCDF
-template <> inline int ndarray<double>::nc_datatype() const { return NC_DOUBLE; }
-template <> inline int ndarray<float>::nc_datatype() const { return NC_FLOAT; }
-template <> inline int ndarray<int>::nc_datatype() const { return NC_INT; }
-template <> inline int ndarray<unsigned int>::nc_datatype() const { return NC_UINT; }
-template <> inline int ndarray<unsigned long>::nc_datatype() const { return NC_UINT; }
-template <> inline int ndarray<unsigned char>::nc_datatype() const { return NC_UBYTE; }
-template <> inline int ndarray<char>::nc_datatype() const { return NC_CHAR; }
+template <> inline int ndarray<double>::nc_dtype() const { return NC_DOUBLE; }
+template <> inline int ndarray<float>::nc_dtype() const { return NC_FLOAT; }
+template <> inline int ndarray<int>::nc_dtype() const { return NC_INT; }
+template <> inline int ndarray<unsigned int>::nc_dtype() const { return NC_UINT; }
+template <> inline int ndarray<unsigned long>::nc_dtype() const { return NC_UINT; }
+template <> inline int ndarray<unsigned char>::nc_dtype() const { return NC_UBYTE; }
+template <> inline int ndarray<char>::nc_dtype() const { return NC_CHAR; }
 #else 
 template <typename T>
-inline int ndarray<T>::nc_datatype() const { return -1; } // linking without netcdf
+inline int ndarray<T>::nc_dtype() const { return -1; } // linking without netcdf
 #endif
 
 #if NDARRAY_HAVE_ADIOS2
@@ -1537,7 +1537,29 @@ T psnr(const ndarray<T>& x, const ndarray<T>& xp)
 }
 
 //////
-inline std::shared_ptr<ndarray_base> ndarray_base::new_by_vtk_datatype(int type)
+inline std::shared_ptr<ndarray_base> ndarray_base::new_by_dtype(int type)
+{
+  std::shared_ptr<ndarray_base> p;
+
+  if (type == NDARRAY_DTYPE_INT)
+    p.reset(new ndarray<int>);
+  else if (type == NDARRAY_DTYPE_FLOAT)
+    p.reset(new ndarray<float>);
+  else if (type == NDARRAY_DTYPE_DOUBLE)
+    p.reset(new ndarray<double>);
+  else if (type == NDARRAY_DTYPE_UNSIGNED_INT)
+    p.reset(new ndarray<unsigned int>);
+  else if (type == NDARRAY_DTYPE_UNSIGNED_CHAR)
+    p.reset(new ndarray<unsigned char>);
+  else if (type == NDARRAY_DTYPE_CHAR)
+    p.reset(new ndarray<char>);
+  else
+    fatal(NDARRAY_ERR_NOT_IMPLEMENTED);
+
+  return p;
+}
+
+inline std::shared_ptr<ndarray_base> ndarray_base::new_by_vtk_dtype(int type)
 {
   std::shared_ptr<ndarray_base> p;
 
@@ -1561,7 +1583,7 @@ inline std::shared_ptr<ndarray_base> ndarray_base::new_by_vtk_datatype(int type)
   return p;
 }
 
-inline std::shared_ptr<ndarray_base> ndarray_base::new_by_nc_datatype(int typep)
+inline std::shared_ptr<ndarray_base> ndarray_base::new_by_nc_dtype(int typep)
 {
   std::shared_ptr<ndarray_base> p;
 
@@ -1585,7 +1607,7 @@ inline std::shared_ptr<ndarray_base> ndarray_base::new_by_nc_datatype(int typep)
   return p;
 }
 
-inline std::shared_ptr<ndarray_base> ndarray_base::new_by_adios2_datatype(const std::string type)
+inline std::shared_ptr<ndarray_base> ndarray_base::new_by_adios2_dtype(const std::string type)
 {
   std::shared_ptr<ndarray_base> p;
 #if NDARRAY_HAVE_ADIOS2
@@ -1612,7 +1634,7 @@ inline std::shared_ptr<ndarray_base> ndarray_base::new_by_adios2_datatype(const 
 }
 
 #if NDARRAY_HAVE_HDF5
-inline std::shared_ptr<ndarray_base> ndarray_base::new_by_h5_datatype(hid_t type)
+inline std::shared_ptr<ndarray_base> ndarray_base::new_by_h5_dtype(hid_t type)
 {
   std::shared_ptr<ndarray_base> p;
 
