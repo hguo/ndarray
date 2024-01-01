@@ -19,6 +19,7 @@ stream:
       format: adios2
       filenames: "xgc.units.bp"
       static: true
+      optional: true # the entire stream is optional
       vars:
         - name: eq_x_r
         - name: eq_x_z
@@ -31,6 +32,7 @@ stream:
       format: adios2
       filenames: "xgc.oneddiag.bp"
       static: true # by default false
+      optional: true
       vars:
         - name: step
           optional: true

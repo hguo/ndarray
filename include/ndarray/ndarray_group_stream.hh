@@ -84,6 +84,12 @@ struct substream {
   virtual int locate_timestep_file_index(int);
   virtual void read(int, std::shared_ptr<ndarray_group>) = 0;
 
+  virtual bool require_input_files() = 0;
+
+  // status
+  bool is_enabled = true;
+  bool is_optional = false;
+
   // yaml properties
   bool is_static = false;
   std::string name;
@@ -107,6 +113,8 @@ struct substream {
 
 struct substream_binary : public substream {
   substream_binary(stream& s) : substream(s) {}
+  virtual bool require_input_files() { return true; }
+  
   void initialize(YAML::Node);
   
   void read(int, std::shared_ptr<ndarray_group>);
@@ -114,6 +122,8 @@ struct substream_binary : public substream {
 
 struct substream_netcdf : public substream {
   substream_netcdf(stream& s) : substream(s) {}
+  virtual bool require_input_files() { return true; }
+  
   void initialize(YAML::Node);
   void read(int, std::shared_ptr<ndarray_group>);
 
@@ -122,6 +132,8 @@ struct substream_netcdf : public substream {
 
 struct substream_h5 : public substream {
   substream_h5(stream& s) : substream(s) {}
+  virtual bool require_input_files() { return true; }
+  
   void initialize(YAML::Node);
   void read(int, std::shared_ptr<ndarray_group>);
   
@@ -130,12 +142,16 @@ struct substream_h5 : public substream {
 
 struct substream_adios2 : public substream {
   substream_adios2(stream& s) : substream(s) {}
+  virtual bool require_input_files() { return true; }
+  
   void initialize(YAML::Node);
   void read(int, std::shared_ptr<ndarray_group>);
 };
 
 struct substream_vti : public substream {
   substream_vti(stream& s) : substream(s) {}
+  virtual bool require_input_files() { return true; }
+  
   void initialize(YAML::Node);
   void read(int, std::shared_ptr<ndarray_group>);
 };
@@ -189,7 +205,7 @@ inline std::shared_ptr<ndarray_group> stream::read_static()
   std::shared_ptr<ndarray_group> g(new ndarray_group);
   
   for (auto sub : this->substreams)
-    if (sub->is_static)
+    if (sub->is_enabled && sub->is_static)
       sub->read(0, g);
 
   return g;
@@ -209,7 +225,7 @@ inline std::shared_ptr<ndarray_group> stream::read(int i)
   std::shared_ptr<ndarray_group> g(new ndarray_group);
   
   for (auto &sub : this->substreams)
-    if (!sub->is_static)
+    if (sub->is_enabled && !sub->is_static)
       sub->read(i, g);
 
   return g;
@@ -268,11 +284,27 @@ inline void stream::new_substream_from_yaml(YAML::Node y)
     }
   }
 
+  if (auto yopt = y["optional"])
+    sub->is_optional = yopt.as<bool>();
+
+  if (auto yenabled = y["enabled"])
+    sub->is_enabled = yenabled.as<bool>();
+
   if (auto ystatic = y["static"])
     sub->is_static = ystatic.as<bool>();
 
-  // std::cerr << y << std::endl;
-  sub->initialize(y);
+  if (sub->filenames.empty()) {
+    const std::string msg = "cannot find any files associated with substream " + sub->name;
+    
+    if (sub->is_optional) {
+      warn(msg);
+      sub->is_enabled = false;
+    } else 
+      fatal(msg);
+  }
+
+  if (sub->is_enabled)
+    sub->initialize(y);
 
   substreams.push_back(sub);
 }
