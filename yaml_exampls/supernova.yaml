@@ -10,4 +10,4 @@ stream:
           endian: big
           dimensions: [432, 432, 432] # dimensions: c432,432,432  # c-order
           dimension_order: c
-          offset: 0                   # by default 0
+          offset: auto                # offset can be either auto or a specific value

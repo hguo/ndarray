@@ -25,13 +25,17 @@ struct variable {
   std::string name;
   std::vector<std::string> possible_names; // will prioritize possible_names by ordering
 
-  bool is_optional = false;
+  bool is_optional = false; // will be ignored if the format is binary
+  
   bool is_dims_auto = true;
   std::vector<int> dimensions;
   unsigned char order = NDARRAY_ORDER_C;
 
   bool is_dtype_auto = true;
   int dtype = NDARRAY_DTYPE_UNKNOWN;
+
+  bool is_offset_auto = true; // only apply to binary
+  size_t offset = 0;
 
   void parse_yaml(YAML::Node);
 };
@@ -267,6 +271,15 @@ inline void variable::parse_yaml(YAML::Node y)
       this->is_dtype_auto = false;
   }
 
+  if (auto yoffset = y["offset"]) {
+    if (yoffset.as<std::string>() == "auto")
+      this->is_offset_auto = true;
+    else {
+      this->is_offset_auto = false;
+      this->offset = yoffset.as<size_t>();
+    }
+  }
+
   if (auto yorder = y["dimension_order"]) {
     if (yorder.as<std::string>() == "f")
       this->order = NDARRAY_ORDER_F;
@@ -330,6 +343,10 @@ inline void substream_binary::read(int i, std::shared_ptr<ndarray_group> g)
   for (const auto &var : variables) {
     auto p = ndarray_base::new_by_dtype( var.dtype );
     p->reshapec( var.dimensions );
+
+    if (!var.is_offset_auto)
+      fseek(fp, var.offset, SEEK_SET);
+
     p->read_binary_file( fp );
     g->set(var.name, p);
   }
