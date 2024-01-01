@@ -1,10 +1,53 @@
 stream:
   name: combustion
   substreams:
-    - name: files
-      format: float32
+    - name: jet_chi
+      format: binary
       endian: big
-      pattern: "/data/combustion"
-  vars:
-    - name: f
-      dimensions: c480,720,120
+      pattern: "/data/combustion/jet_chi_*.dat"
+      vars:
+        - name: chi
+          dtype: float32
+          dimensions: [480, 720, 120]
+          dimension_order: c
+          endian: big
+    - name: jet_hr
+      format: binary
+      endian: big
+      pattern: "/data/combustion/jet_hr_*.dat"
+      vars:
+        - name: hr
+          dtype: float32
+          dimensions: [480, 720, 120]
+          dimension_order: c
+          endian: big
+    - name: jet_mixfrac
+      format: binary
+      endian: big
+      pattern: "/data/combustion/jet_mixfrac_*.dat"
+      vars:
+        - name: mixfrac
+          dtype: float32
+          dimensions: [480, 720, 120]
+          dimension_order: c
+          endian: big
+    - name: vort
+      format: binary
+      endian: big
+      pattern: "/data/combustion/jet_vort_*.dat"
+      vars:
+        - name: vort
+          dtype: float32
+          dimensions: [480, 720, 120]
+          dimension_order: c
+          endian: big
+    - name: Y_OH
+      format: binary
+      endian: big
+      pattern: "/data/combustion/jet_Y_OH_*.dat"
+      vars:
+        - name: Y_OH
+          dtype: float32
+          dimensions: [480, 720, 120]
+          dimension_order: c
+          endian: big
