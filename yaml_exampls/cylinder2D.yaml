@@ -3,6 +3,6 @@ stream:
   substreams:
     - name: vti
       format: vti
-      pattern: "/Users/guo.2154/workspace/data/cylinder2D/*.vti"
+      filenames: "/Users/guo.2154/workspace/data/cylinder2D/*.vti"
       vars:
         - name: vector

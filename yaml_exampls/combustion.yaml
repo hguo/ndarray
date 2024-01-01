@@ -5,7 +5,7 @@ stream:
     - name: jet_chi
       format: binary
       endian: big
-      pattern: "jet_chi_*.dat"
+      filenames: "jet_chi_*.dat"
       vars:
         - name: chi
           dtype: float32
@@ -15,7 +15,7 @@ stream:
     - name: jet_hr
       format: binary
       endian: big
-      pattern: "jet_hr_*.dat"
+      filenames: "jet_hr_*.dat"
       vars:
         - name: hr
           dtype: float32
@@ -25,7 +25,7 @@ stream:
     - name: jet_mixfrac
       format: binary
       endian: big
-      pattern: "jet_mixfrac_*.dat"
+      filenames: "jet_mixfrac_*.dat"
       vars:
         - name: mixfrac
           dtype: float32
@@ -35,7 +35,7 @@ stream:
     - name: vort
       format: binary
       endian: big
-      pattern: "jet_vort_*.dat"
+      filenames: "jet_vort_*.dat"
       vars:
         - name: vort
           dtype: float32
@@ -45,7 +45,7 @@ stream:
     - name: Y_OH
       format: binary
       endian: big
-      pattern: "jet_Y_OH_*.dat"
+      filenames: "jet_Y_OH_*.dat"
       vars:
         - name: Y_OH
           dtype: float32

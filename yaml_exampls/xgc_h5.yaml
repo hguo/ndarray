@@ -1,9 +1,10 @@
 stream:
   name: xgc
+  path_prefix: "/Users/guo.2154/workspace/data/xgc_particle_pinch/"
   substreams:
     - name: mesh
       format: h5
-      pattern: "/Users/guo.2154/workspace/data/xgc_particle_pinch/xgc.mesh.h5"
+      filenames: "xgc.mesh.h5"
       static: true
       vars:
         - name: node_connect_list
@@ -20,7 +21,7 @@ stream:
             - "/nextnode"
     - name: bfield
       format: h5
-      pattern: "/Users/guo.2154/workspace/data/xgc_particle_pinch/xgc.bfield.h5"
+      filenames: "xgc.bfield.h5"
       static: true
       vars:
         - name: B
@@ -28,7 +29,7 @@ stream:
           optional: true
     - name: 1d
       format: h5
-      pattern: "/Users/guo.2154/workspace/data/xgc_particle_pinch/xgc.oneddiag.h5"
+      filenames: "xgc.oneddiag.h5"
       static: true
       vars:
         - name: step
@@ -41,7 +42,7 @@ stream:
           optional: true
     - name: 3d
       format: h5
-      pattern: "/Users/guo.2154/workspace/data/xgc_particle_pinch/xgc.3d.*.h5"
+      filenames: "xgc.3d.*.h5"
       vars:
         - name: dneOverne0
         - name: dpot

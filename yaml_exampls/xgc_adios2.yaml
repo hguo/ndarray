@@ -1,9 +1,10 @@
 stream:
   name: xgc
+  path_prefix: "/Users/guo.2154/workspace/data/xgc_base/"
   substreams:
     - name: mesh
       format: adios2
-      pattern: "/Users/guo.2154/workspace/data/xgc_base/xgc.mesh.bp"
+      filenames: "xgc.mesh.bp"
       static: true # by default false
       vars:   
         - name: coordinates
@@ -16,7 +17,7 @@ stream:
         - name: psi
     - name: units
       format: adios2
-      pattern: "/Users/guo.2154/workspace/data/xgc_base/xgc.units.bp"
+      filenames: "xgc.units.bp"
       static: true
       vars:
         - name: eq_x_r
@@ -28,7 +29,7 @@ stream:
         - name: sml_wedge_n
     - name: 1d
       format: adios2
-      pattern: "/Users/guo.2154/workspace/data/xgc_base/xgc.oneddiag.bp"
+      filenames: "xgc.oneddiag.bp"
       static: true # by default false
       vars:
         - name: step
@@ -54,7 +55,7 @@ stream:
           optional: true
     - name: 3d
       format: adios2
-      pattern: "/Users/guo.2154/workspace/data/xgc_base/xgc.3d.*.bp"
+      filenames: "xgc.3d.*.bp"
       vars:
         - name: dneOverne0
           optional: true

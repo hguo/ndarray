@@ -1,9 +1,10 @@
 stream:
   name: mpas
+  path_prefix: "/Users/guo.2154/workspace/data/"
   substreams:
     - name: mesh
       format: netcdf
-      pattern: "/Users/guo.2154/workspace/data/20210421_sim7_CORE_60to30E2r2.mpassi.rst.0011-01-01_00000.nc"
+      filenames: "20210421_sim7_CORE_60to30E2r2.mpassi.rst.0011-01-01_00000.nc"
       static: true
       vars:
         - name: xCell
@@ -30,8 +31,7 @@ stream:
         - name: verticesOnEdge
     - name: data
       format: netcdf
-      pattern: "/Users/guo.2154/workspace/data/20210421_sim7_CORE_60to30E2r2.mpaso.hist.am.timeSeriesStatsMonthly.*.nc"
-      default: true # optional: default stream
+      filenames: "20210421_sim7_CORE_60to30E2r2.mpaso.hist.am.timeSeriesStatsMonthly.*.nc"
       vars:
         - name: xtime # the name will be the variable name in netCDF if possible_names is not given
           possible_names: 

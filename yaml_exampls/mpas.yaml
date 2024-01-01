@@ -1,9 +1,10 @@
 stream:
   name: mpas
+  path_prefix: "/Users/guo.2154/workspace/data/mpas-o-velocities/"
   substreams:
     - name: mesh
       format: netcdf
-      pattern: "/Users/guo.2154/workspace/data/mpas-o-velocities/output.nc"
+      filenames: "output.nc"
       static: true
       vars:
         - name: xCell
@@ -30,7 +31,7 @@ stream:
         - name: verticesOnEdge
     - name: data
       format: netcdf
-      pattern: "/Users/guo.2154/workspace/data/mpas-o-velocities/output.nc"
+      filenames: "output.nc"
       vars:
         - name: xtime # the name will be the variable name in netCDF if possible_names is not given
           possible_names: 

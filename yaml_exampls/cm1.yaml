@@ -3,7 +3,7 @@ stream:
   substreams:
     - name: cm1
       format: netcdf
-      pattern: "/Users/guo.2154/workspace/data/cm1/les_ShearBoundLayer/*.nc"
+      filenames: "/Users/guo.2154/workspace/data/cm1/les_ShearBoundLayer/*.nc"
       vars:
         - name: time
         - name: ztop

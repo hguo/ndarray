@@ -1,9 +1,10 @@
 stream:
   name: supernova
+  path_prefix: "/data/supernova/"
   substreams:
     - name: files
       format: binary
-      pattern: "/data/supernova/E_*.dat"
+      filenames: "E_*.dat"
       vars:
         - name: f
           dtype: float32
