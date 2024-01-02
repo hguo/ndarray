@@ -141,6 +141,8 @@ static inline int file_extension(const std::string& f)
     return FILE_EXT_VTI;
   else if (m("vtp"))
     return FILE_EXT_VTP;
+  else if (m("pvtu")) // must check pvtu before vtu
+    return FILE_EXT_PVTU;
   else if (m("vtu"))
     return FILE_EXT_VTU;
   else if (m("vtk"))

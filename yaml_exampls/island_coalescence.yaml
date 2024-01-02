@@ -1,9 +1,10 @@
 stream:
   name: island
+  dimensions: [256, 256]
   substreams:
     - name: pvtu
-      format: pvtu
-      filenames: "/data/data_lanl_island_coalescence/restart-amr2/Cycle*/data.pvtu"
+      format: vtu_resample
+      filenames: "Cycle*/data.pvtu"
       vars:
         - name: B
         - name: V

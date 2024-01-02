@@ -263,6 +263,7 @@ public: // vti i/o
 public: // vtk data array
 #if NDARRAY_HAVE_VTK
   static std::shared_ptr<ndarray_base> new_from_vtk_data_array(vtkSmartPointer<vtkDataArray> da);
+  static std::shared_ptr<ndarray_base> new_from_vtk_image_data(vtkSmartPointer<vtkImageData> da, const std::string varname);
   vtkSmartPointer<vtkDataArray> to_vtk_data_array(std::string varname=std::string()) const; 
   virtual int vtk_data_type() const = 0;
 #endif
@@ -384,8 +385,26 @@ inline void ndarray_base::read_vtk_image_data_file(const std::string& filename, 
 }
   
 #if NDARRAY_HAVE_VTK
+inline std::shared_ptr<ndarray_base> ndarray_base::new_from_vtk_image_data(
+    vtkSmartPointer<vtkImageData> vti,
+    std::string varname)
+{
+  if (!vti)
+    fatal("the input vtkImageData is null");
+
+  vtkSmartPointer<vtkDataArray> arr = vti->GetPointData()->GetArray(varname.c_str());
+
+  auto p = new_by_vtk_dtype( arr->GetDataType());
+  p->from_vtk_image_data(vti, varname);
+
+  return p;
+}
+
 inline std::shared_ptr<ndarray_base> ndarray_base::new_from_vtk_data_array(vtkSmartPointer<vtkDataArray> da)
 {
+  if (!da)
+    fatal("the input vtkDataArray is null");
+
   auto p = new_by_vtk_dtype( da->GetDataType() );
   p->from_vtk_data_array(da);
 

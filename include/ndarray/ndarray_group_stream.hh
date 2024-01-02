@@ -4,6 +4,12 @@
 #include <ndarray/ndarray_group.hh>
 #include <yaml-cpp/yaml.h>
 
+#if NDARRAY_HAVE_VTK
+#include <vtkXMLPUnstructuredGridReader.h>
+#include <vtkXMLUnstructuredGridReader.h>
+#include <vtkResampleToImage.h>
+#endif
+
 namespace ndarray {
 
 enum {
@@ -15,6 +21,7 @@ enum {
   STREAM_HDF5,
   STREAM_ADIOS2,
   STREAM_VTU,
+  STREAM_VTU_RESAMPLE,
   STREAM_VTI,
   STREAM_PNG,
   STREAM_AMIRA,
@@ -61,6 +68,8 @@ struct stream {
   void new_substream_from_yaml(YAML::Node);
 
   void set_path_prefix(const std::string p) { path_prefix = p; }
+  
+  bool has_dimensions() const { return !dimensions.empty(); }
 
 public:
   std::vector<std::shared_ptr<substream>> substreams;
@@ -69,6 +78,9 @@ public:
   std::string path_prefix;
 
   MPI_Comm comm;
+  
+  // dimensions (all substreams and their variables will use the same dimensions if specified)
+  std::vector<int> dimensions;
 
 #if NDARRAY_HAVE_ADIOS2
   adios2::ADIOS adios;
@@ -85,6 +97,9 @@ struct substream {
   virtual void read(int, std::shared_ptr<ndarray_group>) = 0;
 
   virtual bool require_input_files() = 0;
+  virtual bool require_dimensions() = 0;
+
+  bool has_dimensions() const { return !dimensions.empty(); }
 
   // status
   bool is_enabled = true;
@@ -101,6 +116,9 @@ struct substream {
   int total_timesteps = 0;
   int current_file_index = 0;
 
+  // optional dimensions (all variables will use the same dimensions if specified)
+  std::vector<int> dimensions;
+
   // reference to the parent stream
   stream &stream_;
 
@@ -113,7 +131,8 @@ struct substream {
 
 struct substream_binary : public substream {
   substream_binary(stream& s) : substream(s) {}
-  virtual bool require_input_files() { return true; }
+  bool require_input_files() { return true; }
+  bool require_dimensions() { return true; }
   
   void initialize(YAML::Node);
   
@@ -122,7 +141,8 @@ struct substream_binary : public substream {
 
 struct substream_netcdf : public substream {
   substream_netcdf(stream& s) : substream(s) {}
-  virtual bool require_input_files() { return true; }
+  bool require_input_files() { return true; }
+  bool require_dimensions() { return false; }
   
   void initialize(YAML::Node);
   void read(int, std::shared_ptr<ndarray_group>);
@@ -132,7 +152,8 @@ struct substream_netcdf : public substream {
 
 struct substream_h5 : public substream {
   substream_h5(stream& s) : substream(s) {}
-  virtual bool require_input_files() { return true; }
+  bool require_input_files() { return true; }
+  bool require_dimensions() { return false; }
   
   void initialize(YAML::Node);
   void read(int, std::shared_ptr<ndarray_group>);
@@ -142,7 +163,8 @@ struct substream_h5 : public substream {
 
 struct substream_adios2 : public substream {
   substream_adios2(stream& s) : substream(s) {}
-  virtual bool require_input_files() { return true; }
+  bool require_input_files() { return true; }
+  bool require_dimensions() { return false; }
   
   void initialize(YAML::Node);
   void read(int, std::shared_ptr<ndarray_group>);
@@ -150,7 +172,8 @@ struct substream_adios2 : public substream {
 
 struct substream_vti : public substream {
   substream_vti(stream& s) : substream(s) {}
-  virtual bool require_input_files() { return true; }
+  bool require_input_files() { return true; }
+  bool require_dimensions() { return false; }
   
   void initialize(YAML::Node);
   void read(int, std::shared_ptr<ndarray_group>);
@@ -158,6 +181,21 @@ struct substream_vti : public substream {
 
 struct substream_vti_o : public substream {
   substream_vti_o(stream& s) : substream(s) {}
+  bool require_input_files() { return false; }
+  bool require_dimensions() { return false; }
+};
+
+struct substream_vtu_resample : public substream {
+  substream_vtu_resample(stream& s) : substream(s) {}
+  bool require_input_files() { return true; }
+  bool require_dimensions() { return true; }
+  
+  void initialize(YAML::Node);
+  void read(int, std::shared_ptr<ndarray_group>);
+
+public:
+  bool has_bounds = false;
+  std::array<double, 3> lb, ub;
 };
 
 
@@ -178,6 +216,11 @@ inline void stream::parse_yaml(const std::string filename)
   if (auto yprefix = yroot["path_prefix"]) {
     if (this->path_prefix.empty())
       this->path_prefix = yprefix.as<std::string>();
+  }
+  
+  if (auto ydimensions = yroot["dimensions"]) { // this will override all dimensions in all substreams and variables
+      for (auto i = 0; i < ydimensions.size(); i ++)
+        dimensions.push_back(ydimensions[i].as<int>());
   }
 
   if (auto ysubstreams = yroot["substreams"]) { // has substreams
@@ -247,8 +290,10 @@ inline void stream::new_substream_from_yaml(YAML::Node y)
       sub.reset(new substream_adios2(*this));
     else if (format == "vti")
       sub.reset(new substream_vti(*this));
+    else if (format == "vtu_resample")
+      sub.reset(new substream_vtu_resample(*this));
     else
-      throw NDARRAY_ERR_STREAM_FORMAT;
+      fatal(NDARRAY_ERR_STREAM_FORMAT);
   }
   
   if (auto yvars = y["vars"]) { // has variable list
@@ -301,6 +346,21 @@ inline void stream::new_substream_from_yaml(YAML::Node y)
       sub->is_enabled = false;
     } else 
       fatal(msg);
+  }
+  
+  if (auto ydimensions = y["dimensions"]) {
+      for (auto i = 0; i < ydimensions.size(); i ++)
+        sub->dimensions.push_back(ydimensions[i].as<int>());
+
+      for (auto &var : sub->variables) // overriding variables as well
+        var.dimensions = this->dimensions; 
+  }
+    
+  if (this->has_dimensions()) {
+    warn("Overriding substream's dimensions with the stream's dimensions");
+    sub->dimensions = this->dimensions;
+    for (auto &var : sub->variables)
+      var.dimensions = this->dimensions; // overriding variables as well
   }
 
   if (sub->is_enabled)
@@ -431,10 +491,10 @@ inline void substream_vti::read(int i, std::shared_ptr<ndarray_group> g)
   vtkSmartPointer<vtkImageData> vti = reader->GetOutput();
 
   for (const auto &var : variables) {
-    auto array = vti->GetPointData()->GetArray( var.name.c_str() );
+    // auto array = vti->GetPointData()->GetArray( var.name.c_str() );
     // array->PrintSelf(std::cerr, vtkIndent(4));
 
-    std::shared_ptr<ndarray_base> p = ndarray_base::new_from_vtk_data_array(array);
+    std::shared_ptr<ndarray_base> p = ndarray_base::new_from_vtk_image_data(vti, var.name); // 
     g->set(var.name, p);
   }
 
@@ -534,6 +594,60 @@ inline void substream_h5::read(int i, std::shared_ptr<ndarray_group> g)
   }
 #else
   fatal(NDARRAY_ERR_NOT_BUILT_WITH_HDF5);
+#endif
+}
+
+///////////
+inline void substream_vtu_resample::initialize(YAML::Node y)
+{
+  this->total_timesteps = filenames.size();
+
+  if (!this->has_dimensions())
+    fatal("missing dimensions for vtu_resample");
+}
+
+inline void substream_vtu_resample::read(int i, std::shared_ptr<ndarray_group> g)
+{
+  const auto f = filenames[i];
+
+#if NDARRAY_HAVE_VTK
+  vtkSmartPointer<vtkUnstructuredGrid> grid;
+  
+  const int ext = file_extension(f);
+  if (ext == FILE_EXT_VTU) {
+    vtkSmartPointer<vtkXMLUnstructuredGridReader> reader = vtkSmartPointer<vtkXMLUnstructuredGridReader>::New();
+    reader->SetFileName(f.c_str());
+    reader->Update();
+    grid = reader->GetOutput();
+  } else if (ext == FILE_EXT_PVTU) {
+    vtkSmartPointer<vtkXMLPUnstructuredGridReader> reader = vtkSmartPointer<vtkXMLPUnstructuredGridReader>::New();
+    reader->SetFileName(f.c_str());
+    reader->Update();
+    grid = reader->GetOutput();
+  }
+
+  vtkSmartPointer<vtkResampleToImage> resample = vtkSmartPointer<vtkResampleToImage>::New();
+  std::array<int, 3> dims = {1, 1, 1};
+  for (int i = 0; i < this->dimensions.size(); i ++)
+    dims[i] = this->dimensions[i];
+  resample->SetSamplingDimensions(dims[0], dims[1], dims[2]);
+
+  if (this->has_bounds) {
+    resample->SetUseInputBounds(false);
+    resample->SetSamplingBounds(lb[0], lb[1], lb[2], ub[0], ub[1], ub[2]);
+  } else 
+    resample->SetUseInputBounds(true);
+  
+  resample->SetInputDataObject(grid);
+  resample->Update();
+
+  vtkSmartPointer<vtkImageData> vti = resample->GetOutput();
+  for (const auto &var : variables) {
+    // auto array = vti->GetPointData()->GetArray( var.name.c_str() );
+
+    std::shared_ptr<ndarray_base> p = ndarray_base::new_from_vtk_image_data(vti, var.name); // TODO: check possible names
+    g->set(var.name, p);
+  }
 #endif
 }
 
