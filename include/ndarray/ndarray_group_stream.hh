@@ -13,19 +13,24 @@
 namespace ndarray {
 
 enum {
-  STREAM_NONE = 0, // invalid
-  STREAM_SYNTHETIC,
-  STREAM_BINARY,
-  STREAM_NETCDF,
-  STREAM_PNETCDF,
-  STREAM_HDF5,
-  STREAM_ADIOS2,
-  STREAM_VTU,
-  STREAM_VTU_RESAMPLE,
-  STREAM_VTI,
-  STREAM_PNG,
-  STREAM_AMIRA,
-  STREAM_NUMPY
+  SUBSTREAM_NONE = 0, // invalid
+  SUBSTREAM_SYNTHETIC,
+  SUBSTREAM_BINARY,
+  SUBSTREAM_NETCDF,
+  SUBSTREAM_PNETCDF,
+  SUBSTREAM_HDF5,
+  SUBSTREAM_ADIOS2,
+  SUBSTREAM_VTU,
+  SUBSTREAM_VTU_RESAMPLE,
+  SUBSTREAM_VTI,
+  SUBSTREAM_PNG,
+  SUBSTREAM_AMIRA,
+  SUBSTREAM_NUMPY
+};
+
+enum {
+  SUBSTREAM_DIR_INPUT, 
+  SUBSTREAM_DIR_OUTPUT
 };
 
 struct variable {
@@ -96,6 +101,7 @@ struct substream {
   virtual int locate_timestep_file_index(int);
   virtual void read(int, std::shared_ptr<ndarray_group>) = 0;
 
+  virtual int direction() = 0;
   virtual bool require_input_files() = 0;
   virtual bool require_dimensions() = 0;
 
@@ -108,7 +114,7 @@ struct substream {
   // yaml properties
   bool is_static = false;
   std::string name;
-  std::string file_name_pattern; // file name file_name_pattern
+  std::string filename_pattern; 
 
   // files and timesteps
   std::vector<std::string> filenames;
@@ -133,6 +139,7 @@ struct substream_binary : public substream {
   substream_binary(stream& s) : substream(s) {}
   bool require_input_files() { return true; }
   bool require_dimensions() { return true; }
+  int direction() { return SUBSTREAM_DIR_INPUT;}
   
   void initialize(YAML::Node);
   
@@ -143,6 +150,7 @@ struct substream_netcdf : public substream {
   substream_netcdf(stream& s) : substream(s) {}
   bool require_input_files() { return true; }
   bool require_dimensions() { return false; }
+  int direction() { return SUBSTREAM_DIR_INPUT;}
   
   void initialize(YAML::Node);
   void read(int, std::shared_ptr<ndarray_group>);
@@ -154,6 +162,7 @@ struct substream_h5 : public substream {
   substream_h5(stream& s) : substream(s) {}
   bool require_input_files() { return true; }
   bool require_dimensions() { return false; }
+  int direction() { return SUBSTREAM_DIR_INPUT;}
   
   void initialize(YAML::Node);
   void read(int, std::shared_ptr<ndarray_group>);
@@ -165,6 +174,7 @@ struct substream_adios2 : public substream {
   substream_adios2(stream& s) : substream(s) {}
   bool require_input_files() { return true; }
   bool require_dimensions() { return false; }
+  int direction() { return SUBSTREAM_DIR_INPUT;}
   
   void initialize(YAML::Node);
   void read(int, std::shared_ptr<ndarray_group>);
@@ -174,6 +184,7 @@ struct substream_vti : public substream {
   substream_vti(stream& s) : substream(s) {}
   bool require_input_files() { return true; }
   bool require_dimensions() { return false; }
+  int direction() { return SUBSTREAM_DIR_INPUT;}
   
   void initialize(YAML::Node);
   void read(int, std::shared_ptr<ndarray_group>);
@@ -183,12 +194,19 @@ struct substream_vti_o : public substream {
   substream_vti_o(stream& s) : substream(s) {}
   bool require_input_files() { return false; }
   bool require_dimensions() { return false; }
+  int direction() { return SUBSTREAM_DIR_OUTPUT;}
+
+  void initialize(YAML::Node);
+  void read(int, std::shared_ptr<ndarray_group>);
+
+  std::vector<std::string> variables_to_write; // must have the same dimensions
 };
 
 struct substream_vtu_resample : public substream {
   substream_vtu_resample(stream& s) : substream(s) {}
   bool require_input_files() { return true; }
   bool require_dimensions() { return true; }
+  int direction() { return SUBSTREAM_DIR_INPUT;}
   
   void initialize(YAML::Node);
   void read(int, std::shared_ptr<ndarray_group>);
@@ -292,6 +310,8 @@ inline void stream::new_substream_from_yaml(YAML::Node y)
       sub.reset(new substream_vti(*this));
     else if (format == "vtu_resample")
       sub.reset(new substream_vtu_resample(*this));
+    else if (format == "vti_output")
+      sub.reset(new substream_vti_o(*this));
     else
       fatal(NDARRAY_ERR_STREAM_FORMAT);
   }
@@ -318,10 +338,14 @@ inline void stream::new_substream_from_yaml(YAML::Node y)
 
   if (auto yfilenames = y["filenames"]) {
     if (yfilenames.IsScalar()) { // file name pattern
-      const auto filename_pattern = path_prefix + "/" + yfilenames.as<std::string>();
-      sub->filenames = ::ndarray::glob(filename_pattern);
-      fprintf(stderr, "substream %s, filename_pattern=%s, found %zu files.\n", 
-          sub->name.c_str(), filename_pattern.c_str(), sub->filenames.size());
+      sub->filename_pattern = path_prefix.empty() ? yfilenames.as<std::string>() : 
+        path_prefix + "/" + yfilenames.as<std::string>();
+
+      if (sub->direction() == SUBSTREAM_DIR_INPUT) {
+        sub->filenames = ::ndarray::glob(sub->filename_pattern);
+        fprintf(stderr, "input substream '%s', filename_pattern=%s, found %zu files.\n", 
+            sub->name.c_str(), sub->filename_pattern.c_str(), sub->filenames.size());
+      }
     }
     else if (yfilenames.IsSequence()) {
       for (auto i = 0; i < yfilenames.size(); i ++)
@@ -338,8 +362,8 @@ inline void stream::new_substream_from_yaml(YAML::Node y)
   if (auto ystatic = y["static"])
     sub->is_static = ystatic.as<bool>();
 
-  if (sub->filenames.empty()) {
-    const std::string msg = "cannot find any files associated with substream " + sub->name;
+  if (sub->require_input_files() && sub->filenames.empty()) {
+    const std::string msg = "cannot find any files associated with substream " + sub->name + ", pattern=" + sub->filename_pattern;
     
     if (sub->is_optional) {
       warn(msg);
@@ -472,6 +496,26 @@ inline void substream_binary::read(int i, std::shared_ptr<ndarray_group> g)
   }
 
   fclose(fp);
+}
+
+///////////
+inline void substream_vti_o::initialize(YAML::Node y) 
+{
+}
+
+inline void substream_vti_o::read(int i, std::shared_ptr<ndarray_group> g)
+{
+  const auto f = series_filename(this->filename_pattern, i);
+  fprintf(stderr, "writing step %d, f=%s\n", i, f.c_str());
+
+#if NDARRAY_HAVE_VTK
+  vtkSmartPointer<vtkImageData> vti = vtkImageData::New();
+
+  // TODO
+
+#else
+  fatal(NDARRAY_ERR_NOT_BUILT_WITH_VTK);
+#endif
 }
 
 ///////////
