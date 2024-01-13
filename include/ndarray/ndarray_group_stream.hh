@@ -198,8 +198,6 @@ struct substream_vti_o : public substream {
 
   void initialize(YAML::Node);
   void read(int, std::shared_ptr<ndarray_group>);
-
-  std::vector<std::string> variables_to_write; // must have the same dimensions
 };
 
 struct substream_vtu_resample : public substream {
@@ -511,7 +509,31 @@ inline void substream_vti_o::read(int i, std::shared_ptr<ndarray_group> g)
 #if NDARRAY_HAVE_VTK
   vtkSmartPointer<vtkImageData> vti = vtkImageData::New();
 
-  // TODO
+  // assuming all variables have the same shape
+  bool first = true;
+  for (const auto &var : this->variables) {
+    auto arr = g->get(var.name);
+
+    if (first) {
+      if (arr->multicomponents()) {
+        if (arr->nd() == 3) vti->SetDimensions(arr->shapef(1), arr->shapef(2), 1);
+        else vti->SetDimensions(arr->shapef(1), arr->shapef(2), arr->shapef(3)); // nd == 4
+      } else {
+        if (arr->nd() == 2) vti->SetDimensions(arr->shapef(0), arr->shapef(1), 1);
+        else vti->SetDimensions(arr->shapef(0), arr->shapef(1), arr->shapef(2)); // nd == 3
+      }
+      first = false;
+    }
+
+    auto da = arr->to_vtk_data_array();
+    da->SetName(var.name.c_str());
+    vti->GetPointData()->AddArray(da);
+  }
+
+  vtkSmartPointer<vtkXMLImageDataWriter> writer = vtkXMLImageDataWriter::New();
+  writer->SetFileName(f.c_str());
+  writer->SetInputData(vti);
+  writer->Write();
 
 #else
   fatal(NDARRAY_ERR_NOT_BUILT_WITH_VTK);

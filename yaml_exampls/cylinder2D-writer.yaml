@@ -1,0 +1,13 @@
+stream:
+  name: cylinder2D
+  substreams:
+    - name: input
+      format: vti
+      filenames: "/Users/guo.2154/workspace/data/cylinder2D/*.vti"
+      vars:
+        - name: vector
+    - name: output
+      format: vti_output
+      filenames: "./cylindar2D-%05d.vti"
+      vars:
+        - name: vector

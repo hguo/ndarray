@@ -11,6 +11,14 @@ struct ndarray_group : public std::map<std::string, std::shared_ptr<ndarray_base
 
   bool has(const std::string key) const { return this->find(key) != this->end(); }
 
+  std::shared_ptr<ndarray_base> get(const std::string key) const {
+    auto it = this->find(key);
+    if (it != this->end())
+      return it->second;
+    else
+      return nullptr;
+  }
+
   void set(const std::string key, std::shared_ptr<ndarray_base> ptr) { this->emplace(key, ptr); }
   template <typename T> void set(const std::string key, const ndarray<T> &arr);
 
@@ -21,7 +29,7 @@ struct ndarray_group : public std::map<std::string, std::shared_ptr<ndarray_base
 
   void remove(const std::string key);
 
-  template <typename T> ndarray<T> get(const std::string key) { return *get_ptr<T>(key); }
+  template <typename T> ndarray<T> get_arr(const std::string key) { return *get_ptr<T>(key); }
 
   // template <typename ... Args> ndarray_group(Args&&... args);
 
