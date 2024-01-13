@@ -41,3 +41,15 @@ endif ()
 
 add_executable (dryrun dryrun.cpp)
 target_link_libraries (dryrun ndarray)
+
+
+install (TARGETS ndarray
+  EXPORT ndarrayTargets
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  # ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+)
+
+install (EXPORT ndarrayTargets
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/ndarray
+  NAMESPACE ndarray::)
