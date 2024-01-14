@@ -169,10 +169,10 @@ configure_package_config_file(
   ${CMAKE_CURRENT_SOURCE_DIR}/cmake/ndarrayConfig.cmake.in
   ${CMAKE_CURRENT_BINARY_DIR}/ndarrayConfig.cmake
   PATH_VARS NDARRAY_INCLUDE_DIR 
-  INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/ndarray
+  INSTALL_DESTINATION ${CMAKE_INSTALL_PREFIX}/cmake/ndarray
   NO_CHECK_REQUIRED_COMPONENTS_MACRO)
 install (FILES ${CMAKE_CURRENT_BINARY_DIR}/ndarrayConfig.cmake
-  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/ndarray/)
+  DESTINATION ${CMAKE_INSTALL_PREFIX}/cmake/ndarray/)
 
 
 add_subdirectory (src)

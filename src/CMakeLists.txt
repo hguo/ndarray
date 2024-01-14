@@ -51,5 +51,5 @@ install (TARGETS ndarray
 )
 
 install (EXPORT ndarrayTargets
-  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/ndarray
+  DESTINATION ${CMAKE_INSTALL_PREFIX}/cmake/ndarray
   NAMESPACE ndarray::)
