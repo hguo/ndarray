@@ -3,7 +3,7 @@
 
 #include <ndarray/config.hh>
 
-namespace ndarray {
+namespace ftk {
 
 enum {
   NDARRAY_DEVICE_HOST,

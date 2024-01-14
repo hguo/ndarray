@@ -11,7 +11,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-namespace ndarray {
+namespace ftk {
 
 enum {
   FILE_EXT_NULL = 0,

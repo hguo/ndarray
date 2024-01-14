@@ -27,7 +27,7 @@ int main(int argc, char **argv)
 
   fprintf(stderr, "input yaml file: %s\n", input_yaml_filename.c_str());
 
-  std::shared_ptr<ndarray::stream> stream(new ndarray::stream);
+  std::shared_ptr<ftk::stream> stream(new ftk::stream);
 
   if (!data_path_prefix.empty())
     stream->set_path_prefix( data_path_prefix );

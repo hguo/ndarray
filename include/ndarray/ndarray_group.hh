@@ -4,7 +4,7 @@
 #include <ndarray/ndarray.hh>
 #include <map>
 
-namespace ndarray {
+namespace ftk {
 
 struct ndarray_group : public std::map<std::string, std::shared_ptr<ndarray_base>> {
   ndarray_group() {}

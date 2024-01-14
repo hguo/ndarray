@@ -22,7 +22,7 @@
 #include <pybind11/numpy.h>
 #endif
 
-namespace ndarray {
+namespace ftk {
 
 template <typename T>
 struct ndarray : public ndarray_base {

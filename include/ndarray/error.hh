@@ -2,9 +2,11 @@
 #define __NDARRAY_ERROR_HH
 
 #include <ndarray/config.hh>
+#include <string>
+#include <iostream>
 #include <execinfo.h>
 
-namespace ndarray {
+namespace ftk {
 
 enum {
   NDARRAY_ERR_NOT_IMPLEMENTED = 1,
@@ -71,31 +73,31 @@ inline std::string err2str(int e)
   case NDARRAY_ERR_FILE_FORMAT: return "file format error";
   case NDARRAY_ERR_FILE_FORMAT_AMIRA: return "file format error with AmiraMesh data";
   case NDARRAY_ERR_FILE_UNRECOGNIZED_EXTENSION: return "unrecognized file extension";
-  case NDARRAY_ERR_NOT_BUILT_WITH_ADIOS2: return "FTK not compiled with ADIOS2";
-  case NDARRAY_ERR_NOT_BUILT_WITH_ADIOS1: return "FTK not compiled with ADIOS1";
-  case NDARRAY_ERR_NOT_BUILT_WITH_BOOST: return "FTK not compiled with Boost";
-  case NDARRAY_ERR_NOT_BUILT_WITH_CGAL: return "FTK not compiled with CGAL";
-  case NDARRAY_ERR_NOT_BUILT_WITH_CUDA: return "FTK not compiled with CUDA";
-  case NDARRAY_ERR_NOT_BUILT_WITH_GMP: return "FTK not compiled with GMP";
-  case NDARRAY_ERR_NOT_BUILT_WITH_HDF5: return "FTK not compiled with HDF5";
-  case NDARRAY_ERR_NOT_BUILT_WITH_HIPSYCL: return "FTK not compiled with hipSYCL";
-  case NDARRAY_ERR_NOT_BUILT_WITH_KOKKOS: return "FTK not compiled with Kokkos";
-  case NDARRAY_ERR_NOT_BUILT_WITH_LEVELDB: return "FTK not compiled with LevelDB";
-  case NDARRAY_ERR_NOT_BUILT_WITH_METIS: return "FTK not compiled with Metis";
-  case NDARRAY_ERR_NOT_BUILT_WITH_MPI: return "FTK not compiled with MPI";
-  case NDARRAY_ERR_NOT_BUILT_WITH_MPSOLVE: return "FTK not compiled with MPSolve";
-  case NDARRAY_ERR_NOT_BUILT_WITH_NETCDF: return "FTK not compiled with NetCDF";
-  case NDARRAY_ERR_NOT_BUILT_WITH_OPENMP: return "FTK not compiled with OpenMP";
-  case NDARRAY_ERR_NOT_BUILT_WITH_PARAVIEW: return "FTK not compiled with ParaView";
-  case NDARRAY_ERR_NOT_BUILT_WITH_PNETCDF: return "FTK not compiled with Parallel-NetCDF";
-  case NDARRAY_ERR_NOT_BUILT_WITH_PNG: return "FTK not compiled with PNG";
-  case NDARRAY_ERR_NOT_BUILT_WITH_PYBIND11: return "FTK not compiled with PyBind11";
-  case NDARRAY_ERR_NOT_BUILT_WITH_ROCKSDB: return "FTK not compiled with RocksDB";
-  case NDARRAY_ERR_NOT_BUILT_WITH_QT5: return "FTK not compiled with Qt5";
-  case NDARRAY_ERR_NOT_BUILT_WITH_QT: return "FTK not compiled with Qt";
-  case NDARRAY_ERR_NOT_BUILT_WITH_TBB: return "FTK not compiled with TBB";
-  case NDARRAY_ERR_NOT_BUILT_WITH_VTK: return "FTK not compiled with VTK";
-  case NDARRAY_ERR_NDARRAY_MULTIDIMENSIONAL_COMPONENTS: return "FTK only supports one dim for components";
+  case NDARRAY_ERR_NOT_BUILT_WITH_ADIOS2: return "ndarray not compiled with ADIOS2";
+  case NDARRAY_ERR_NOT_BUILT_WITH_ADIOS1: return "ndarray not compiled with ADIOS1";
+  case NDARRAY_ERR_NOT_BUILT_WITH_BOOST: return "ndarray not compiled with Boost";
+  case NDARRAY_ERR_NOT_BUILT_WITH_CGAL: return "ndarray not compiled with CGAL";
+  case NDARRAY_ERR_NOT_BUILT_WITH_CUDA: return "ndarray not compiled with CUDA";
+  case NDARRAY_ERR_NOT_BUILT_WITH_GMP: return "ndarray not compiled with GMP";
+  case NDARRAY_ERR_NOT_BUILT_WITH_HDF5: return "ndarray not compiled with HDF5";
+  case NDARRAY_ERR_NOT_BUILT_WITH_HIPSYCL: return "ndarray not compiled with hipSYCL";
+  case NDARRAY_ERR_NOT_BUILT_WITH_KOKKOS: return "ndarray not compiled with Kokkos";
+  case NDARRAY_ERR_NOT_BUILT_WITH_LEVELDB: return "ndarray not compiled with LevelDB";
+  case NDARRAY_ERR_NOT_BUILT_WITH_METIS: return "ndarray not compiled with Metis";
+  case NDARRAY_ERR_NOT_BUILT_WITH_MPI: return "ndarray not compiled with MPI";
+  case NDARRAY_ERR_NOT_BUILT_WITH_MPSOLVE: return "ndarray not compiled with MPSolve";
+  case NDARRAY_ERR_NOT_BUILT_WITH_NETCDF: return "ndarray not compiled with NetCDF";
+  case NDARRAY_ERR_NOT_BUILT_WITH_OPENMP: return "ndarray not compiled with OpenMP";
+  case NDARRAY_ERR_NOT_BUILT_WITH_PARAVIEW: return "ndarray not compiled with ParaView";
+  case NDARRAY_ERR_NOT_BUILT_WITH_PNETCDF: return "ndarray not compiled with Parallel-NetCDF";
+  case NDARRAY_ERR_NOT_BUILT_WITH_PNG: return "ndarray not compiled with PNG";
+  case NDARRAY_ERR_NOT_BUILT_WITH_PYBIND11: return "ndarray not compiled with PyBind11";
+  case NDARRAY_ERR_NOT_BUILT_WITH_ROCKSDB: return "ndarray not compiled with RocksDB";
+  case NDARRAY_ERR_NOT_BUILT_WITH_QT5: return "ndarray not compiled with Qt5";
+  case NDARRAY_ERR_NOT_BUILT_WITH_QT: return "ndarray not compiled with Qt";
+  case NDARRAY_ERR_NOT_BUILT_WITH_TBB: return "ndarray not compiled with TBB";
+  case NDARRAY_ERR_NOT_BUILT_WITH_VTK: return "ndarray not compiled with VTK";
+  case NDARRAY_ERR_NDARRAY_MULTIDIMENSIONAL_COMPONENTS: return "ndarray only supports one dim for components";
   case NDARRAY_ERR_NDARRAY_UNSUPPORTED_DIMENSIONALITY: return "unsupported data dimensionality";
   case NDARRAY_ERR_NDARRAY_RESHAPE_EMPTY: return "unable to reshape empty array";
   case NDARRAY_ERR_NDARRAY_RESHAPE_DEVICE: return "reshaping a device ndarray is not supported";

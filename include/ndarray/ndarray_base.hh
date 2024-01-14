@@ -51,7 +51,7 @@
 #include <adios_error.h>
 #endif
 
-namespace ndarray {
+namespace ftk {
 
 enum {
   NDARRAY_ENDIAN_LITTLE = 0,

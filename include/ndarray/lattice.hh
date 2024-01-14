@@ -10,7 +10,7 @@
 #include <ostream>
 #include <limits>
 
-namespace ndarray {
+namespace ftk {
 
 struct lattice {
   friend class lattice_partitioner;

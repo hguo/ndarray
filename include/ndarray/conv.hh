@@ -5,7 +5,7 @@
 #include <string>
 #include <ndarray/ndarray.hh>
 
-namespace ndarray {
+namespace ftk {
 
 // 2D convolutions
 template <typename T>

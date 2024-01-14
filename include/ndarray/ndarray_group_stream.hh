@@ -10,7 +10,7 @@
 #include <vtkResampleToImage.h>
 #endif
 
-namespace ndarray {
+namespace ftk {
 
 enum {
   SUBSTREAM_NONE = 0, // invalid
@@ -340,7 +340,7 @@ inline void stream::new_substream_from_yaml(YAML::Node y)
         path_prefix + "/" + yfilenames.as<std::string>();
 
       if (sub->direction() == SUBSTREAM_DIR_INPUT) {
-        sub->filenames = ::ndarray::glob(sub->filename_pattern);
+        sub->filenames = glob(sub->filename_pattern);
         fprintf(stderr, "input substream '%s', filename_pattern=%s, found %zu files.\n", 
             sub->name.c_str(), sub->filename_pattern.c_str(), sub->filenames.size());
       }
