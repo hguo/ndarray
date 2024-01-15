@@ -311,7 +311,7 @@ inline void stream::new_substream_from_yaml(YAML::Node y)
     else if (format == "vti_output")
       sub.reset(new substream_vti_o(*this));
     else
-      fatal(NDARRAY_ERR_STREAM_FORMAT);
+      nd::fatal(nd::ERR_STREAM_FORMAT);
   }
   
   if (auto yvars = y["vars"]) { // has variable list
@@ -364,10 +364,10 @@ inline void stream::new_substream_from_yaml(YAML::Node y)
     const std::string msg = "cannot find any files associated with substream " + sub->name + ", pattern=" + sub->filename_pattern;
     
     if (sub->is_optional) {
-      warn(msg);
+      nd::warn(msg);
       sub->is_enabled = false;
     } else 
-      fatal(msg);
+      nd::fatal(msg);
   }
   
   if (auto ydimensions = y["dimensions"]) {
@@ -379,7 +379,7 @@ inline void stream::new_substream_from_yaml(YAML::Node y)
   }
     
   if (this->has_dimensions()) {
-    warn("Overriding substream's dimensions with the stream's dimensions");
+    nd::warn("Overriding substream's dimensions with the stream's dimensions");
     sub->dimensions = this->dimensions;
     for (auto &var : sub->variables)
       var.dimensions = this->dimensions; // overriding variables as well
@@ -430,7 +430,7 @@ inline void variable::parse_yaml(YAML::Node y)
       for (auto i = 0; i < ydims.size(); i ++) 
         this->dimensions.push_back( ydims[i].as<int>() );
     } else 
-      throw NDARRAY_ERR_STREAM_FORMAT;
+      throw nd::ERR_STREAM_FORMAT;
   }
 
   if (auto yendian = y["endian"]) {
@@ -536,7 +536,7 @@ inline void substream_vti_o::read(int i, std::shared_ptr<ndarray_group> g)
   writer->Write();
 
 #else
-  fatal(NDARRAY_ERR_NOT_BUILT_WITH_VTK);
+  nd::fatal(nd::ERR_NOT_BUILT_WITH_VTK);
 #endif
 }
 
@@ -565,7 +565,7 @@ inline void substream_vti::read(int i, std::shared_ptr<ndarray_group> g)
   }
 
 #else
-  fatal(NDARRAY_ERR_NOT_BUILT_WITH_VTK);
+  nd::fatal(nd::ERR_NOT_BUILT_WITH_VTK);
 #endif
 }
 
@@ -596,7 +596,7 @@ inline void substream_adios2::read(int i, std::shared_ptr<ndarray_group> g)
       if (var.is_optional)
         continue;
       else {
-        fatal("cannot find variable " + var.name);
+        nd::fatal("cannot find variable " + var.name);
         return;
       }
     } else {
@@ -609,7 +609,7 @@ inline void substream_adios2::read(int i, std::shared_ptr<ndarray_group> g)
   }
 
 #else
-  fatal(NDARRAY_ERR_NOT_BUILT_WITH_ADIOS2);
+  nd::fatal(nd::ERR_NOT_BUILT_WITH_ADIOS2);
 #endif
 }
 
@@ -639,7 +639,7 @@ inline void substream_h5::read(int i, std::shared_ptr<ndarray_group> g)
         if (var.is_optional)
           continue;
         else {
-          fatal("cannot read variable " + var.name);
+          nd::fatal("cannot read variable " + var.name);
           return;
         }
       } else { 
@@ -659,7 +659,7 @@ inline void substream_h5::read(int i, std::shared_ptr<ndarray_group> g)
     H5Fclose(fid);
   }
 #else
-  fatal(NDARRAY_ERR_NOT_BUILT_WITH_HDF5);
+  nd::fatal(nd::ERR_NOT_BUILT_WITH_HDF5);
 #endif
 }
 
@@ -669,7 +669,7 @@ inline void substream_vtu_resample::initialize(YAML::Node y)
   this->total_timesteps = filenames.size();
 
   if (!this->has_dimensions())
-    fatal("missing dimensions for vtu_resample");
+    nd::fatal("missing dimensions for vtu_resample");
 }
 
 inline void substream_vtu_resample::read(int i, std::shared_ptr<ndarray_group> g)
@@ -794,7 +794,7 @@ inline void substream_netcdf::read(int i, std::shared_ptr<ndarray_group> g)
   NC_SAFE_CALL( nc_close(ncid) );
 
 #else
-  fatal(NDARRAY_ERR_NOT_BUILT_WITH_NETCDF);
+  nd::fatal(nd::ERR_NOT_BUILT_WITH_NETCDF);
 #endif
 }
 
@@ -831,7 +831,7 @@ inline void substream_netcdf::initialize(YAML::Node y)
     fprintf(stderr, "filename=%s, nt=%zu\n", f.c_str(), nt);
   }
 #else
-  fatal(NDARRAY_ERR_NOT_BUILT_WITH_NETCDF);
+  nd::fatal(nd::ERR_NOT_BUILT_WITH_NETCDF);
 #endif
 }
 

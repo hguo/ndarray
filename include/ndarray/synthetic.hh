@@ -2,8 +2,8 @@
 #ifndef _HYPERMESH_SYNTHETIC_DATA_H
 #define _HYPERMESH_SYNTHETIC_DATA_H
 
-#include <ftk/ndarray.hh>
-#include <ftk/mesh/lattice.hh>
+#include <ndarray/ndarray.hh>
+#include <ndarray/lattice.hh>
 
 namespace ftk {
 

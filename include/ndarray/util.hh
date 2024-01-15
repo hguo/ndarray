@@ -6,6 +6,7 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
+#include <regex>
 #include <glob.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -102,6 +103,12 @@ static std::string remove_file_extension(const std::string& f)
   return f.substr(0, lastindex); 
 }
 
+static inline bool starts_with(std::string const & value, std::string const & starting)
+{
+  if (value.find(starting) == 0) return true;
+  else return false;
+}
+
 static inline bool ends_with(std::string const & value, std::string const & ending)
 {
   if (ending.size() > value.size()) return false;
@@ -119,6 +126,16 @@ static inline std::string to_lower_cases(std::string str)
 static inline bool ends_with_lower(const std::string& str, const std::string& ending)
 {
   return ends_with(to_lower_cases(str), to_lower_cases(ending));
+}
+
+// https://stackoverflow.com/questions/9435385/split-a-string-using-c11
+static inline std::vector<std::string> split(const std::string& input, const std::string& regex) {
+    // passing -1 as the submatch index parameter performs splitting
+    std::regex re(regex);
+    std::sregex_token_iterator
+        first{input.begin(), input.end(), re, -1},
+        last;
+    return {first, last};
 }
 
 static inline int file_extension(const std::string& f)

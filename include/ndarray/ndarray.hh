@@ -561,7 +561,7 @@ void ndarray<T>::bil_add_block_raw(const std::string& filename,
 
   BIL_Add_block_raw(nd(), domain.data(), st.data(), sz.data(), filename.c_str(), mpi_dtype(), (void**)&p[0]);
 #else
-  fatal(NDARRAY_ERR_NOT_BUILT_WITH_MPI);
+  nd::fatal(nd::ERR_NOT_BUILT_WITH_MPI);
 #endif
 }
 
@@ -600,7 +600,7 @@ void ndarray<T>::read_binary_file(FILE *fp, int endian)
 #endif
 
   if (s != nelem())
-    warn(NDARRAY_ERR_FILE_CANNOT_READ_EXPECTED_BYTES);
+    nd::warn(nd::ERR_FILE_CANNOT_READ_EXPECTED_BYTES);
 }
 
 template <typename T>
@@ -780,13 +780,13 @@ inline void ndarray<T>::read_vtk_image_data_file_sequence(const std::string& pat
 template<typename T>
 inline void ndarray<T>::read_vtk_image_data_file_sequence(const std::string& pattern)
 {
-  fatal(NDARRAY_ERR_NOT_BUILT_WITH_VTK);
+  nd::fatal(nd::ERR_NOT_BUILT_WITH_VTK);
 }
 
 template<typename T>
 inline void ndarray<T>::to_vtk_image_data_file(const std::string& filename, const std::string) const 
 {
-  fatal(NDARRAY_ERR_NOT_BUILT_WITH_VTK);
+  nd::fatal(nd::ERR_NOT_BUILT_WITH_VTK);
 }
 #endif
 
@@ -831,7 +831,7 @@ void ndarray<T>::reshapef(const std::vector<size_t> &dims_)
     s.resize(dims.size());
 
     if (dims.size() == 0)
-      fatal(NDARRAY_ERR_NDARRAY_RESHAPE_EMPTY);
+      nd::fatal(nd::ERR_NDARRAY_RESHAPE_EMPTY);
 
     for (size_t i = 0; i < nd(); i ++)
       if (i == 0) s[i] = 1;
@@ -839,7 +839,7 @@ void ndarray<T>::reshapef(const std::vector<size_t> &dims_)
 
     p.resize(s[nd()-1]*dims[nd()-1]);
   } else 
-    fatal(NDARRAY_ERR_NDARRAY_RESHAPE_DEVICE);
+    nd::fatal(nd::ERR_NDARRAY_RESHAPE_DEVICE);
 }
 
 template <typename T>
@@ -935,8 +935,8 @@ inline void ndarray<T>::read_bp(adios2::IO &io, adios2::Engine &reader, adios2::
       reader.Get<T>(var, p);
     }
   } else {
-    throw NDARRAY_ERR_ADIOS2_VARIABLE_NOT_FOUND;
-    // fatal(NDARRAY_ERR_ADIOS2_VARIABLE_NOT_FOUND);
+    throw nd::ERR_ADIOS2_VARIABLE_NOT_FOUND;
+    // nd::fatal(nd::ERR_ADIOS2_VARIABLE_NOT_FOUND);
   }
 }
 
@@ -952,10 +952,10 @@ inline void ndarray<T>::read_bp(adios2::IO &io, adios2::Engine &reader, const st
 template <typename T>
 bool ndarray<T>::read_bp_legacy(ADIOS_FILE *fp, const std::string& varname)
 {
-  warn("reading bp file with legacy ADIOS1 API..");
+  nd::warn("reading bp file with legacy ADIOS1 API..");
   ADIOS_VARINFO *avi = adios_inq_var(fp, varname.c_str());
   if (avi == NULL)
-    throw NDARRAY_ERR_ADIOS2_VARIABLE_NOT_FOUND;
+    throw nd::ERR_ADIOS2_VARIABLE_NOT_FOUND;
 
   adios_inq_var_stat(fp, avi, 0, 0);
   adios_inq_var_blockinfo(fp, avi);
@@ -1018,7 +1018,7 @@ bool ndarray<T>::read_bp_legacy(const std::string& filename, const std::string& 
   adios_read_close(fp);
   return succ;
 #else
-  fatal(NDARRAY_ERR_NOT_BUILT_WITH_ADIOS1);
+  nd::fatal(nd::ERR_NOT_BUILT_WITH_ADIOS1);
   return false;
 #endif
 }
@@ -1030,7 +1030,7 @@ inline void ndarray<T>::to_device(int dev, int id)
   if (dev == NDARRAY_DEVICE_CUDA) {
 #if NDARRAY_HAVE_CUDA
     if (this->device_type == NDARRAY_DEVICE_CUDA) { // alreay on gpu
-      warn("array already on device");
+      nd::warn("array already on device");
     } else {
       this->device_type = NDARRAY_DEVICE_CUDA;
       this->device_id = id;
@@ -1042,17 +1042,17 @@ inline void ndarray<T>::to_device(int dev, int id)
       p.clear();
     }
 #else
-    fatal(NDARRAY_ERR_NOT_BUILT_WITH_CUDA);
+    nd::fatal(nd::ERR_NOT_BUILT_WITH_CUDA);
 #endif
   } else 
-    fatal(NDARRAY_ERR_NDARRAY_UNKNOWN_DEVICE);
+    nd::fatal(nd::ERR_NDARRAY_UNKNOWN_DEVICE);
 }
 
 template <typename T>
 inline void ndarray<T>::to_host()
 {
   if (this->device_type == NDARRAY_DEVICE_HOST) {
-    warn("array already on host");
+    nd::warn("array already on host");
   } else if (this->device_type == NDARRAY_DEVICE_CUDA) {
 #if NDARRAY_HAVE_CUDA
     if (this->device_type == NDARRAY_DEVICE_CUDA) {
@@ -1067,12 +1067,12 @@ inline void ndarray<T>::to_host()
       this->device_id = 0;
       devptr = nullptr;
     } else 
-      fatal("array not on device");
+      nd::fatal("array not on device");
 #else
-    fatal(NDARRAY_ERR_NOT_BUILT_WITH_CUDA);
+    nd::fatal(nd::ERR_NOT_BUILT_WITH_CUDA);
 #endif
   } else
-    fatal(NDARRAY_ERR_NDARRAY_UNKNOWN_DEVICE);
+    nd::fatal(nd::ERR_NDARRAY_UNKNOWN_DEVICE);
 }
 
 template <typename T>
@@ -1087,7 +1087,7 @@ template <typename T>
 bool ndarray<T>::read_file(const std::string& filename, const std::string varname, MPI_Comm comm)
 {
   if (!file_exists(filename)) {
-    warn(NDARRAY_ERR_FILE_NOT_FOUND);
+    nd::warn(nd::ERR_FILE_NOT_FOUND);
     return false;
   }
 
@@ -1096,7 +1096,7 @@ bool ndarray<T>::read_file(const std::string& filename, const std::string varnam
   else if (ext == FILE_EXT_NETCDF) read_netcdf(filename, varname, comm);
   else if (ext == FILE_EXT_VTI) read_vtk_image_data_file(filename, varname);
   else if (ext == FILE_EXT_HDF5) read_h5(filename, varname);
-  else fatal(NDARRAY_ERR_FILE_UNRECOGNIZED_EXTENSION);
+  else nd::fatal(nd::ERR_FILE_UNRECOGNIZED_EXTENSION);
 
   return true; // TODO: return read_* results
 }
@@ -1141,7 +1141,7 @@ inline bool ndarray<T>::read_h5_did(hid_t did)
     reshapef(1);
     H5Dread(did, h5_mem_type_id(), H5S_ALL, H5S_ALL, H5P_DEFAULT, p.data());
   } else 
-    fatal("unsupported h5 extent type");
+    nd::fatal("unsupported h5 extent type");
 
   return true;
 }
@@ -1269,7 +1269,7 @@ ndarray<T> ndarray<T>::get_transpose() const
             a.f(l, k, j, i) = f(i, j, k, l);
     return a;
   } else {
-    fatal(NDARRAY_ERR_NDARRAY_UNSUPPORTED_DIMENSIONALITY);
+    nd::fatal(nd::ERR_NDARRAY_UNSUPPORTED_DIMENSIONALITY);
     return a;
   }
 }
@@ -1353,7 +1353,7 @@ void ndarray<T>::to_png(const std::string& filename) const
   else if (nd() == 3 && dimf(0) <= 4) 
     buf.reshapef({4, dimf(1), dimf(2)});
   else 
-    fatal("unable to save to png");
+    nd::fatal("unable to save to png");
 
   // TODO
 }
@@ -1385,7 +1385,7 @@ inline bool ndarray<float>::read_amira(const std::string& filename)
 
   FILE *fp = fopen(filename.c_str(), "rb"); 
   if (!fp) {
-    warn(NDARRAY_ERR_FILE_CANNOT_OPEN, filename);
+    nd::warn(nd::ERR_FILE_CANNOT_OPEN, filename);
     return false;
   }
 
@@ -1394,7 +1394,7 @@ inline bool ndarray<float>::read_amira(const std::string& filename)
   buffer[2047] = '\0';
 
   if (!strstr(buffer, "# AmiraMesh BINARY-LITTLE-ENDIAN 2.1")) {
-    warn(NDARRAY_ERR_FILE_FORMAT_AMIRA, filename);
+    nd::warn(nd::ERR_FILE_FORMAT_AMIRA, filename);
     fclose(fp);
     return false;
   }
@@ -1427,7 +1427,7 @@ inline bool ndarray<float>::read_amira(const std::string& filename)
       || xmin > xmax || ymin > ymax || zmin > zmax
       || !bIsUniform || NumComponents <= 0)
   {
-    warn(NDARRAY_ERR_FILE_FORMAT_AMIRA);
+    nd::warn(nd::ERR_FILE_FORMAT_AMIRA);
     fclose(fp);
     return false;
   }
@@ -1496,7 +1496,7 @@ bool ndarray<T>::mlerp(const F x[], T v[]) const
     for (size_t i = 0; i < dims[0]; i ++)
       v[i] = 0;
   else 
-    fatal(NDARRAY_ERR_NOT_IMPLEMENTED);
+    nd::fatal(nd::ERR_NOT_IMPLEMENTED);
   
   // fprintf(stderr, "w=%f, %f\n", v[0], v[1]);
   // fprintf(stderr, "mu=%f, %f\n", mu[0], mu[1]);
@@ -1528,7 +1528,7 @@ bool ndarray<T>::mlerp(const F x[], T v[]) const
         // fprintf(stderr, "k=%d, verts=%zu, %zu, %zu, coef=%f, val=%f\n", k, verts[0], verts[1], verts[2], coef, val);
       }
     } else 
-      fatal(NDARRAY_ERR_NOT_IMPLEMENTED);
+      nd::fatal(nd::ERR_NOT_IMPLEMENTED);
   }
 
   // fprintf(stderr, "v=%f, %f\n", v[0], v[1]);
@@ -1587,7 +1587,7 @@ inline std::shared_ptr<ndarray_base> ndarray_base::new_by_dtype(int type)
   else if (type == NDARRAY_DTYPE_CHAR)
     p.reset(new ndarray<char>);
   else
-    fatal(NDARRAY_ERR_NOT_IMPLEMENTED);
+    nd::fatal(nd::ERR_NOT_IMPLEMENTED);
 
   return p;
 }
@@ -1608,9 +1608,9 @@ inline std::shared_ptr<ndarray_base> ndarray_base::new_by_vtk_dtype(int type)
   else if (type == VTK_UNSIGNED_CHAR)
     p.reset(new ndarray<unsigned char>);
   else 
-    fatal(NDARRAY_ERR_NOT_IMPLEMENTED);
+    nd::fatal(nd::ERR_NOT_IMPLEMENTED);
 #else
-  fatal(NDARRAY_ERR_NOT_BUILT_WITH_VTK);
+  nd::fatal(nd::ERR_NOT_BUILT_WITH_VTK);
 #endif
 
   return p;
@@ -1632,9 +1632,9 @@ inline std::shared_ptr<ndarray_base> ndarray_base::new_by_nc_dtype(int typep)
   else if (typep == NC_CHAR)
     p.reset(new ndarray<char>);
   else 
-    fatal(NDARRAY_ERR_NOT_IMPLEMENTED);
+    nd::fatal(nd::ERR_NOT_IMPLEMENTED);
 #else
-  fatal(NDARRAY_ERR_NOT_BUILT_WITH_NETCDF);
+  nd::fatal(nd::ERR_NOT_BUILT_WITH_NETCDF);
 #endif
   
   return p;
@@ -1659,9 +1659,9 @@ inline std::shared_ptr<ndarray_base> ndarray_base::new_by_adios2_dtype(const std
   else if (type == adios2::GetType<char>())
     p.reset(new ndarray<char>);
   else 
-    fatal(NDARRAY_ERR_NOT_IMPLEMENTED);
+    nd::fatal(nd::ERR_NOT_IMPLEMENTED);
 #else
-  warn(NDARRAY_ERR_NOT_BUILT_WITH_ADIOS2);
+  nd::warn(nd::ERR_NOT_BUILT_WITH_ADIOS2);
 #endif
   return p;
 }
@@ -1686,7 +1686,7 @@ inline std::shared_ptr<ndarray_base> ndarray_base::new_by_h5_dtype(hid_t type)
   else if (H5Tequal(type, H5T_NATIVE_CHAR) > 0)
     p.reset(new ndarray<char>);
   else
-    fatal(NDARRAY_ERR_NOT_IMPLEMENTED);
+    nd::fatal(nd::ERR_NOT_IMPLEMENTED);
 
   return p;
 }

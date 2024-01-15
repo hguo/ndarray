@@ -4,7 +4,7 @@
 #include <ndarray/ndarray.hh>
 // #include <ndarray/mesh/simplicial_regular_mesh.hh>
 
-namespace ndarray {
+namespace ftk {
 
 // derive 2D gradients for 2D scalar field
 template <typename T>

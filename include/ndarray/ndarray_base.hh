@@ -6,6 +6,7 @@
 #include <ndarray/device.hh>
 #include <ndarray/lattice.hh>
 #include <ndarray/util.hh>
+#include <ndarray/murmurhash2.hh>
 #include <vector>
 #include <array>
 #include <numeric>
@@ -209,13 +210,13 @@ public: // netcdf
   void to_netcdf_unlimited_time(int ncid, int varid) const;
   void to_netcdf_multivariate_unlimited_time(int ncid, int varids[]) const;
 
-  template <typename ContainerType> // std::vector<std::string>
+  template <typename ContainerType=std::vector<std::string>> // std::vector<std::string>
   static int probe_netcdf_varid(int ncid, const ContainerType& possible_varnames, MPI_Comm comm);
 
-  template <typename ContainerType> // std::vector<std::string>
+  template <typename ContainerType=std::vector<std::string>> // std::vector<std::string>
   bool try_read_netcdf(int ncid, const ContainerType& possible_varnames, const size_t st[], const size_t sz[], MPI_Comm comm = MPI_COMM_WORLD);
 
-  template <typename ContainerType> // std::vector<std::string>
+  template <typename ContainerType=std::vector<std::string>> // std::vector<std::string>
   bool try_read_netcdf(int ncid, const ContainerType& possible_varnames, MPI_Comm comm = MPI_COMM_WORLD);
 
   virtual int nc_dtype() const = 0;
@@ -380,7 +381,7 @@ inline void ndarray_base::read_vtk_image_data_file(const std::string& filename, 
   reader->Update();
   from_vtk_image_data(reader->GetOutput(), array_name);
 #else
-  fatal(NDARRAY_ERR_NOT_BUILT_WITH_VTK);
+  nd::fatal(nd::NOT_BUILT_WITH_VTK);
 #endif
 }
   
@@ -390,7 +391,7 @@ inline std::shared_ptr<ndarray_base> ndarray_base::new_from_vtk_image_data(
     std::string varname)
 {
   if (!vti)
-    fatal("the input vtkImageData is null");
+    nd::fatal("the input vtkImageData is null");
 
   vtkSmartPointer<vtkDataArray> arr = vti->GetPointData()->GetArray(varname.c_str());
 
@@ -403,7 +404,7 @@ inline std::shared_ptr<ndarray_base> ndarray_base::new_from_vtk_image_data(
 inline std::shared_ptr<ndarray_base> ndarray_base::new_from_vtk_data_array(vtkSmartPointer<vtkDataArray> da)
 {
   if (!da)
-    fatal("the input vtkDataArray is null");
+    nd::fatal("the input vtkDataArray is null");
 
   auto p = new_by_vtk_dtype( da->GetDataType() );
   p->from_vtk_data_array(da);
@@ -422,7 +423,7 @@ inline bool ndarray_base::read_h5(const std::string& filename, const std::string
     return succ;
   }
 #else 
-  fatal(NDARRAY_ERR_NOT_BUILT_WITH_HDF5);
+  nd::fatal(nd::NOT_BUILT_WITH_HDF5);
   return false;
 #endif
 }
@@ -474,13 +475,13 @@ inline void ndarray_base::read_bp(const std::string& filename, const std::string
 #if NDARRAY_HAVE_ADIOS1
     read_bp_legacy(filename, varname, comm);
 #else
-    throw NDARRAY_ERR_ADIOS2;
+    throw nd::ERR_ADIOS2;
 #endif
   }
   
   // if (empty()) read_bp_legacy(filename, varname, comm); 
 #else
-  warn(NDARRAY_ERR_NOT_BUILT_WITH_ADIOS2);
+  warn(nd::NOT_BUILT_WITH_ADIOS2);
   read_bp_legacy(filename, varname, comm);
 #endif
 }
@@ -502,7 +503,7 @@ inline vtkSmartPointer<vtkDataArray> ndarray_base::to_vtk_data_array(std::string
     d->SetNumberOfComponents(1);
     d->SetNumberOfTuples(nelem());
   } else {
-    fatal(NDARRAY_ERR_NDARRAY_MULTIDIMENSIONAL_COMPONENTS);
+    nd::fatal(nd::ERR_NDARRAY_MULTIDIMENSIONAL_COMPONENTS);
   }
   memcpy(d->GetVoidPointer(0), this->pdata(), elem_size() * nelem()); // nelem());
   return d;
@@ -524,7 +525,7 @@ inline void ndarray_base::read_netcdf(const std::string& filename, const std::st
   {
     int rtn = nc_inq_varid(ncid, varname.c_str(), &varid);
     if (rtn == NC_ENOTVAR)
-      throw NDARRAY_ERR_NETCDF_MISSING_VARIABLE;
+      throw nd::ERR_NETCDF_MISSING_VARIABLE;
   }
 
   // NC_SAFE_CALL( nc_inq_varid(ncid, varname.c_str(), &varid) );
@@ -532,7 +533,7 @@ inline void ndarray_base::read_netcdf(const std::string& filename, const std::st
   read_netcdf(ncid, varid, comm);
   NC_SAFE_CALL( nc_close(ncid) );
 #else
-  fatal(NDARRAY_ERR_NOT_BUILT_WITH_NETCDF);
+  nd::fatal(nd::NOT_BUILT_WITH_NETCDF);
 #endif
 }
 
@@ -554,9 +555,9 @@ inline void ndarray_base::read_netcdf(int ncid, int varid, int ndims, const size
   } else if (nc_dtype() == NC_CHAR) {
     NC_SAFE_CALL( nc_get_vara_text(ncid, varid, starts, sizes, (char*)pdata()) );
   } else
-    fatal(NDARRAY_ERR_NOT_IMPLEMENTED);
+    nd::fatal(nd::ERR_NOT_IMPLEMENTED);
 #else
-  fatal(NDARRAY_ERR_NOT_BUILT_WITH_NETCDF);
+  nd::fatal(nd::NOT_BUILT_WITH_NETCDF);
 #endif
 }
 
@@ -581,9 +582,9 @@ inline void ndarray_base::to_netcdf(int ncid, int varid, const size_t st[], cons
   } else if (nc_dtype() == NC_INT) {
     NC_SAFE_CALL( nc_put_vara_int(ncid, varid, st, sz, (int*)pdata()) );
   } else 
-    fatal(NDARRAY_ERR_NOT_IMPLEMENTED);
+    nd::fatal(nd::ERR_NOT_IMPLEMENTED);
 #else
-  fatal(NDARRAY_ERR_NOT_BUILT_WITH_NETCDF);
+  nd::fatal(nd::NOT_BUILT_WITH_NETCDF);
 #endif
 }
 
@@ -641,7 +642,7 @@ inline void ndarray_base::read_netcdf(int ncid, int varid, const size_t starts[]
 
   read_netcdf(ncid, varid, ndims, starts, sizes, comm);
 #else
-  fatal(NDARRAY_ERR_NOT_BUILT_WITH_NETCDF);
+  nd::fatal(nd::NOT_BUILT_WITH_NETCDF);
 #endif
 }
 
@@ -665,7 +666,7 @@ inline void ndarray_base::read_netcdf_timestep(int ncid, int varid, int t, MPI_C
   set_has_time(true);
 
 #else
-  fatal(NDARRAY_ERR_NOT_BUILT_WITH_NETCDF);
+  nd::fatal(nd::NOT_BUILT_WITH_NETCDF);
 #endif
 }
 
@@ -684,7 +685,7 @@ inline void ndarray_base::read_netcdf(int ncid, int varid, MPI_Comm comm)
   
   read_netcdf(ncid, varid, starts, sizes, comm);
 #else
-  fatal(NDARRAY_ERR_NOT_BUILT_WITH_NETCDF);
+  nd::fatal(nd::NOT_BUILT_WITH_NETCDF);
 #endif
 }
 
@@ -695,13 +696,13 @@ inline void ndarray_base::read_netcdf(int ncid, const std::string& varname, MPI_
   const int rtn = nc_inq_varid(ncid, varname.c_str(), &varid);
     
   if (rtn == NC_EBADID)
-    throw NDARRAY_ERR_NETCDF_FILE_NOT_OPEN;
+    throw nd::ERR_NETCDF_FILE_NOT_OPEN;
   else if (rtn == NC_ENOTVAR)
-    throw NDARRAY_ERR_NETCDF_MISSING_VARIABLE;
+    throw nd::ERR_NETCDF_MISSING_VARIABLE;
   else // no error; variable found
     read_netcdf(ncid, varid, comm);
 #else
-  fatal(NDARRAY_ERR_NOT_BUILT_WITH_NETCDF);
+  nd::fatal(nd::NOT_BUILT_WITH_NETCDF);
 #endif
 }
 
@@ -712,7 +713,7 @@ inline void ndarray_base::read_netcdf(int ncid, const std::string& varname, cons
   NC_SAFE_CALL( nc_inq_varid(ncid, varname.c_str(), &varid) );
   read_netcdf(ncid, varid, starts, sizes, comm);
 #else
-  fatal(NDARRAY_ERR_NOT_BUILT_WITH_NETCDF);
+  nd::fatal(nd::NOT_BUILT_WITH_NETCDF);
 #endif
 }
 
@@ -729,7 +730,7 @@ inline int ndarray_base::probe_netcdf_varid(
     const int rtn = nc_inq_varid(ncid, varname.c_str(), &varid);
 
     if (rtn == NC_EBADID)
-      return false; // throw NDARRAY_ERR_NETCDF_FILE_NOT_OPEN;
+      return false; // throw nd::ERR_NETCDF_FILE_NOT_OPEN;
     else if (rtn == NC_ENOTVAR)
       continue;
     else // no error; variable found
@@ -738,7 +739,7 @@ inline int ndarray_base::probe_netcdf_varid(
 
   return varid;
 #else
-  fatal(NDARRAY_ERR_NOT_BUILT_WITH_NETCDF);
+  nd::fatal(nd::NOT_BUILT_WITH_NETCDF);
   return -1;
 #endif
 }
@@ -789,11 +790,11 @@ inline void ndarray_base::read_netcdf(const std::string& filename, const std::st
   read_netcdf(ncid, varid, starts, sizes, comm);
   NC_SAFE_CALL( nc_close(ncid) );
 #else
-  fatal(NDARRAY_ERR_NOT_BUILT_WITH_NETCDF);
+  nd::fatal(nd::NOT_BUILT_WITH_NETCDF);
 #endif
 }
 
-std::ostream& ndarray_base::print_shapef(std::ostream& os) const
+inline std::ostream& ndarray_base::print_shapef(std::ostream& os) const
 {
   os << "nd=" << nd() << ", array_dims={";
   for (size_t i = 0; i < dims.size(); i ++) 
