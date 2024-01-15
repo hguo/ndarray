@@ -44,26 +44,40 @@ stream:
             - normalVelocity
             - timeMonthly_avg_normalVelocity
           dimensions: auto
+          dtype: float64
+          multicomponents: true # if the inputs are not multicomponents, the resulting array will be made multicomponents
         - name: vertVelocityTop
           possible_names:
             - vertVelocityTop
             - timeMonthly_avg_vertVelocityTop
+          dtype: float64
+          multicomponents: true
         - name: salinity
           optional: true
+          dtype: float64
+          multicomponents: true
         - name: temperature
           optional: true
+          dtype: float64
+          multicomponents: true
         - name: zTop
           possible_names:
             - zTop
             - timeMonthly_avg_zTop
           optional: true
+          dtype: float64
+          multicomponents: true
         - name: zMid
           possible_names:
             - zMid
             - timeMonthly_avg_zMid
           optional: true
+          dtype: float64
+          multicomponents: true
         - name: layerThickness
           possible_names: 
             - layerThickness
             - timeMonthly_avg_layerThickness
           optional: true
+          dtype: float64
+          multicomponents: true
