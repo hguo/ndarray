@@ -29,7 +29,10 @@ struct ndarray_group : public std::map<std::string, std::shared_ptr<ndarray_base
 
   void remove(const std::string key);
 
-  template <typename T> ndarray<T> get_arr(const std::string key) { return *get_ptr<T>(key); }
+  template <typename T> ndarray<T> get_arr(const std::string key) {
+    if (has(key)) return *get_ptr<T>(key); 
+    else return ndarray<T>();
+  }
 
   // template <typename ... Args> ndarray_group(Args&&... args);
 
@@ -66,6 +69,7 @@ inline void ndarray_group::print_info(std::ostream& os) const
 
   for (const auto &kv : *this) {
     os << " - name: " << kv.first.c_str() << ", ";
+    os << "type: " << ndarray_base::dtype2str( kv.second->type() ) << ", ";
     kv.second->print_shapef(os);
     os << std::endl;
   }

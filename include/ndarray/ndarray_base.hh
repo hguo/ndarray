@@ -816,6 +816,24 @@ inline std::ostream& ndarray_base::print_shapef(std::ostream& os) const
   return os;
 }
 
+inline std::string ndarray_base::dtype2str(int dtype) 
+{
+  if (dtype == NDARRAY_DTYPE_CHAR)
+    return "char";
+  else if (dtype == NDARRAY_DTYPE_UNSIGNED_CHAR)
+    return "uchar";
+  else if (dtype == NDARRAY_DTYPE_INT)
+    return "int32";
+  else if (dtype == NDARRAY_DTYPE_UNSIGNED_INT)
+    return "uint32";
+  else if (dtype == NDARRAY_DTYPE_FLOAT)
+    return "float32";
+  else if (dtype == NDARRAY_DTYPE_DOUBLE)
+    return "float64";
+  else 
+    return "";
+}
+
 inline int ndarray_base::str2dtype(const std::string str)
 {
   if (str == "char")

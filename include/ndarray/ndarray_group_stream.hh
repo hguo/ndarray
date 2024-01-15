@@ -752,7 +752,12 @@ inline void substream_netcdf::read(int i, std::shared_ptr<ndarray_group> g)
       // create a new array
       int type;
       NC_SAFE_CALL( nc_inq_vartype(ncid, varid, &type) );
-      std::shared_ptr<ndarray_base> p = ndarray_base::new_by_nc_dtype(type);
+
+      std::shared_ptr<ndarray_base> p;
+      if (var.is_dtype_auto)
+        p = ndarray_base::new_by_nc_dtype(type);
+      else
+        p = ndarray_base::new_by_dtype(var.dtype);
    
       // check if the variable has unlimited dimension
       int unlimited_recid;
