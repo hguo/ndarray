@@ -46,6 +46,9 @@ struct variable {
   bool is_dtype_auto = true;
   int dtype = NDARRAY_DTYPE_UNKNOWN;
 
+  bool is_multicomponents_auto = true;
+  bool multicomponents = false;
+
   bool is_offset_auto = true; // only apply to binary
   size_t offset = 0;
 
@@ -407,6 +410,11 @@ inline void variable::parse_yaml(YAML::Node y)
     this->dtype = ndarray_base::str2dtype( ydtype.as<std::string>() );
     if (this->dtype != NDARRAY_DTYPE_UNKNOWN)
       this->is_dtype_auto = false;
+  }
+
+  if (auto ymulticomponents = y["multicomponents"]) {
+    this->is_multicomponents_auto = false;
+    this->multicomponents = ymulticomponents.as<bool>();
   }
 
   if (auto yoffset = y["offset"]) {
@@ -777,6 +785,9 @@ inline void substream_netcdf::read(int i, std::shared_ptr<ndarray_group> g)
         p->read_netcdf_timestep(ncid, varid, i - first_timestep_per_file[fi], comm);
       else 
         p->read_netcdf(ncid, varid, comm);
+
+      if (var.multicomponents)
+        p->make_multicomponents();
 
       g->set(var.name, p);
 
