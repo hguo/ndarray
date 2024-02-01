@@ -16,6 +16,10 @@
 #include <cassert>
 #include <random>
 
+#if NDARRAY_HAVE_MPI
+#include <mpi.h>
+#endif
+
 #if NDARRAY_HAVE_VTK
 #include <vtkSmartPointer.h>
 #include <vtkDataArray.h>
@@ -381,7 +385,7 @@ inline void ndarray_base::read_vtk_image_data_file(const std::string& filename, 
   reader->Update();
   from_vtk_image_data(reader->GetOutput(), array_name);
 #else
-  nd::fatal(nd::NOT_BUILT_WITH_VTK);
+  nd::fatal(nd::ERR_NOT_BUILT_WITH_VTK);
 #endif
 }
   
@@ -481,7 +485,7 @@ inline void ndarray_base::read_bp(const std::string& filename, const std::string
   
   // if (empty()) read_bp_legacy(filename, varname, comm); 
 #else
-  warn(nd::NOT_BUILT_WITH_ADIOS2);
+  warn(nd::ERR_NOT_BUILT_WITH_ADIOS2);
   read_bp_legacy(filename, varname, comm);
 #endif
 }

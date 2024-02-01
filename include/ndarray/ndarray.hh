@@ -559,7 +559,7 @@ void ndarray<T>::bil_add_block_raw(const std::string& filename,
     sz.push_back(ext.size(i));
   }
 
-  BIL_Add_block_raw(nd(), domain.data(), st.data(), sz.data(), filename.c_str(), mpi_dtype(), (void**)&p[0]);
+  // BIL_Add_block_raw(nd(), domain.data(), st.data(), sz.data(), filename.c_str(), mpi_dtype(), (void**)&p[0]);
 #else
   nd::fatal(nd::ERR_NOT_BUILT_WITH_MPI);
 #endif

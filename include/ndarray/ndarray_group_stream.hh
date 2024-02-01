@@ -349,8 +349,20 @@ inline void stream::new_substream_from_yaml(YAML::Node y)
       }
     }
     else if (yfilenames.IsSequence()) {
-      for (auto i = 0; i < yfilenames.size(); i ++)
-        sub->filenames.push_back(yfilenames[i].as<std::string>());
+      for (auto i = 0; i < yfilenames.size(); i ++) { // still, apply a pattern search
+        const std::string mypattern = path_prefix.empty() ? yfilenames[i].as<std::string>() : 
+          path_prefix + "/" + yfilenames.as<std::string>();
+
+        if (sub->direction() == SUBSTREAM_DIR_INPUT) {
+          const auto filenames = glob(mypattern);
+          sub->filenames.insert(sub->filenames.end(), filenames.begin(), filenames.end());
+        }
+          
+        fprintf(stderr, "input substream '%s', found %zu files.\n", 
+            sub->name.c_str(), sub->filenames.size());
+        
+        // sub->filenames.push_back(yfilenames[i].as<std::string>());
+      }
     }
   }
 
