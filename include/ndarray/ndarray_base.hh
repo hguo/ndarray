@@ -427,7 +427,7 @@ inline bool ndarray_base::read_h5(const std::string& filename, const std::string
     return succ;
   }
 #else 
-  nd::fatal(nd::NOT_BUILT_WITH_HDF5);
+  nd::fatal(nd::ERR_NOT_BUILT_WITH_HDF5);
   return false;
 #endif
 }
@@ -537,7 +537,7 @@ inline void ndarray_base::read_netcdf(const std::string& filename, const std::st
   read_netcdf(ncid, varid, comm);
   NC_SAFE_CALL( nc_close(ncid) );
 #else
-  nd::fatal(nd::NOT_BUILT_WITH_NETCDF);
+  nd::fatal(nd::ERR_NOT_BUILT_WITH_NETCDF);
 #endif
 }
 
@@ -577,7 +577,7 @@ inline void ndarray_base::read_netcdf(int ncid, int varid, int ndims, const size
     nd::fatal(nd::ERR_NOT_IMPLEMENTED);
 
 #else
-  nd::fatal(nd::NOT_BUILT_WITH_NETCDF);
+  nd::fatal(nd::ERR_NOT_BUILT_WITH_NETCDF);
 #endif
 }
 
@@ -604,7 +604,7 @@ inline void ndarray_base::to_netcdf(int ncid, int varid, const size_t st[], cons
   } else 
     nd::fatal(nd::ERR_NOT_IMPLEMENTED);
 #else
-  nd::fatal(nd::NOT_BUILT_WITH_NETCDF);
+  nd::fatal(nd::ERR_NOT_BUILT_WITH_NETCDF);
 #endif
 }
 
@@ -662,7 +662,7 @@ inline void ndarray_base::read_netcdf(int ncid, int varid, const size_t starts[]
 
   read_netcdf(ncid, varid, ndims, starts, sizes, comm);
 #else
-  nd::fatal(nd::NOT_BUILT_WITH_NETCDF);
+  nd::fatal(nd::ERR_NOT_BUILT_WITH_NETCDF);
 #endif
 }
 
@@ -686,7 +686,7 @@ inline void ndarray_base::read_netcdf_timestep(int ncid, int varid, int t, MPI_C
   set_has_time(true);
 
 #else
-  nd::fatal(nd::NOT_BUILT_WITH_NETCDF);
+  nd::fatal(nd::ERR_NOT_BUILT_WITH_NETCDF);
 #endif
 }
 
@@ -705,7 +705,7 @@ inline void ndarray_base::read_netcdf(int ncid, int varid, MPI_Comm comm)
   
   read_netcdf(ncid, varid, starts, sizes, comm);
 #else
-  nd::fatal(nd::NOT_BUILT_WITH_NETCDF);
+  nd::fatal(nd::ERR_NOT_BUILT_WITH_NETCDF);
 #endif
 }
 
@@ -722,7 +722,7 @@ inline void ndarray_base::read_netcdf(int ncid, const std::string& varname, MPI_
   else // no error; variable found
     read_netcdf(ncid, varid, comm);
 #else
-  nd::fatal(nd::NOT_BUILT_WITH_NETCDF);
+  nd::fatal(nd::ERR_NOT_BUILT_WITH_NETCDF);
 #endif
 }
 
@@ -733,7 +733,7 @@ inline void ndarray_base::read_netcdf(int ncid, const std::string& varname, cons
   NC_SAFE_CALL( nc_inq_varid(ncid, varname.c_str(), &varid) );
   read_netcdf(ncid, varid, starts, sizes, comm);
 #else
-  nd::fatal(nd::NOT_BUILT_WITH_NETCDF);
+  nd::fatal(nd::ERR_NOT_BUILT_WITH_NETCDF);
 #endif
 }
 
@@ -759,7 +759,7 @@ inline int ndarray_base::probe_netcdf_varid(
 
   return varid;
 #else
-  nd::fatal(nd::NOT_BUILT_WITH_NETCDF);
+  nd::fatal(nd::ERR_NOT_BUILT_WITH_NETCDF);
   return -1;
 #endif
 }
@@ -810,7 +810,7 @@ inline void ndarray_base::read_netcdf(const std::string& filename, const std::st
   read_netcdf(ncid, varid, starts, sizes, comm);
   NC_SAFE_CALL( nc_close(ncid) );
 #else
-  nd::fatal(nd::NOT_BUILT_WITH_NETCDF);
+  nd::fatal(nd::ERR_NOT_BUILT_WITH_NETCDF);
 #endif
 }
 
