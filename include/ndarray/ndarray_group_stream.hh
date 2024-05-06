@@ -2,6 +2,7 @@
 #define _NDARRAY_NDARRAY_GROUP_STREAM_HH
 
 #include <ndarray/ndarray_group.hh>
+#include <ndarray/synthetic.hh>
 #include <yaml-cpp/yaml.h>
 
 #if NDARRAY_HAVE_VTK
@@ -138,6 +139,17 @@ struct substream {
   MPI_Comm comm = MPI_COMM_WORLD;
 };
 
+struct substream_synthetic : public substream {
+  substream_synthetic(stream& s) : substream(s) {}
+  bool require_input_files() { return false; } 
+  bool require_dimensions() { return true; }
+  int direction() { return SUBSTREAM_DIR_INPUT;}
+
+  void initialize(YAML::Node);
+
+  void read(int, std::shared_ptr<ndarray_group>);
+};
+
 struct substream_binary : public substream {
   substream_binary(stream& s) : substream(s) {}
   bool require_input_files() { return true; }
@@ -247,15 +259,18 @@ inline void stream::parse_yaml(const std::string filename)
       // fprintf(stderr, "substream %d\n", i);
       
       auto ysubstream = ysubstreams[i];
-    
-      std::string format = ysubstream["format"].as<std::string>();
-      if (format == "adios2" && !has_adios2_substream) {
-        // here's where adios2 is initialized
-        has_adios2_substream = true;
+   
+      if (auto yformat = ysubstream["format"]) {
+        std::string format = yformat.as<std::string>();
+        if (format == "adios2" && !has_adios2_substream) {
+          // here's where adios2 is initialized
+          has_adios2_substream = true;
 #if NDARRAY_HAVE_ADIOS2
-        io = adios.DeclareIO("BPReader");
+          io = adios.DeclareIO("BPReader");
 #endif
-      }
+        }
+      } else 
+        fatal(nd::ERR_STREAM_FORMAT);
 
       new_substream_from_yaml(ysubstream);
     }
@@ -299,7 +314,9 @@ inline void stream::new_substream_from_yaml(YAML::Node y)
 
   if (auto yformat = y["format"]) {
     std::string format = yformat.as<std::string>();
-    if (format == "binary")
+    if (format == "synthetic")
+      sub.reset(new substream_synthetic(*this));
+    else if (format == "binary")
       sub.reset(new substream_binary(*this));
     else if (format == "netcdf")
       sub.reset(new substream_netcdf(*this));
@@ -490,6 +507,27 @@ inline int substream::locate_timestep_file_index(int i)
   return -1; // not found
 }
 
+
+///////////
+inline void substream_synthetic::initialize(YAML::Node y)
+{
+  this->total_timesteps = 10; // FIXME
+}
+
+inline void substream_synthetic::read(int i, std::shared_ptr<ndarray_group> g)
+{
+  fprintf(stderr, "read syn..\n");
+  for (const auto &var : variables) {
+    if (var.name == "woven") {
+      fprintf(stderr, "read syn woven..\n");
+      const auto arr = synthetic_woven_2D<double>(
+          var.dimensions[0], 
+          var.dimensions[1],
+          0.0, 1.0); // t, scaling_factor
+      g->set(var.name, arr);
+    }
+  }
+}
 
 ///////////
 inline void substream_binary::initialize(YAML::Node y)

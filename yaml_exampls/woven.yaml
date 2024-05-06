@@ -1,9 +1,10 @@
-synthetic:
+stream:
   name: woven
-  args:
-    dimensions: 32,32
-    scale: 1.0
-    scalar: f
-    gradient: grad
-    jacobian: J
-    time: true
+  substreams:
+    - name: woven
+      format: synthetic
+      vars:
+        - name: woven
+          dimensions: [32, 32]
+          dtype: float32
+          scale: 1.0

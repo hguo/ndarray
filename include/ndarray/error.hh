@@ -114,6 +114,7 @@ inline std::string err2str(int e)
   case ERR_MESH_UNSUPPORTED_FORMAT: return "unsupported mesh format";
   case ERR_MESH_NONSIMPLICIAL: return "unsupported nonsimplicial mesh";
   case ERR_MESH_EMPTY: return "empty mesh";
+  case ERR_STREAM_FORMAT: return "wrong stream format";
   default: return "unknown error: " + std::to_string(e);
   }
 }
@@ -141,9 +142,10 @@ inline void fatal(int err, std::string str = "")
   std::cerr << "[NDARRAY FATAL] " << err2str(err);
   if (str.length()) std::cerr << ": " << str;
   std::cerr << std::endl;
-  
-  print_backtrace();
-  exit(1);
+ 
+  throw err;
+  // print_backtrace();
+  // exit(1);
 }
 
 inline void warn(int err, std::string str = "")
