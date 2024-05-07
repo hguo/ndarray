@@ -4,7 +4,6 @@ stream:
     - name: woven
       format: synthetic
       vars:
-        - name: woven
+        - name: scalar
           dimensions: [32, 32]
           dtype: float32
-          scale: 1.0

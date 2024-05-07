@@ -146,8 +146,16 @@ struct substream_synthetic : public substream {
   int direction() { return SUBSTREAM_DIR_INPUT;}
 
   void initialize(YAML::Node);
+};
 
+struct substream_synthetic_woven : public substream_synthetic {
+  substream_synthetic_woven(stream& s) : substream_synthetic(s) {}
+
+  void initialize(YAML::Node);
   void read(int, std::shared_ptr<ndarray_group>);
+
+  double scaling_factor = 15.0;
+  double t0 = 1e-4, delta = 0.1;
 };
 
 struct substream_binary : public substream {
@@ -311,11 +319,20 @@ inline std::shared_ptr<ndarray_group> stream::read(int i)
 inline void stream::new_substream_from_yaml(YAML::Node y)
 {
   std::shared_ptr<substream> sub;
+ 
+  std::string name;
+  if (auto yname = y["name"])
+    // sub->name = yname.as<std::string>();
+    name = yname.as<std::string>();
 
   if (auto yformat = y["format"]) {
     std::string format = yformat.as<std::string>();
-    if (format == "synthetic")
-      sub.reset(new substream_synthetic(*this));
+    if (format == "synthetic") {
+      if (name == "woven")
+        sub.reset(new substream_synthetic_woven(*this));
+      else 
+        fatal(nd::ERR_STREAM_FORMAT);
+    }
     else if (format == "binary")
       sub.reset(new substream_binary(*this));
     else if (format == "netcdf")
@@ -333,7 +350,9 @@ inline void stream::new_substream_from_yaml(YAML::Node y)
     else
       nd::fatal(nd::ERR_STREAM_FORMAT);
   }
-  
+ 
+  sub->name = name;
+
   if (auto yvars = y["vars"]) { // has variable list
     for (auto i = 0; i < yvars.size(); i ++) {
       variable var;
@@ -350,9 +369,6 @@ inline void stream::new_substream_from_yaml(YAML::Node y)
       fprintf(stderr, "--name=%s\n", varname.c_str());
   }
 #endif
-
-  if (auto yname = y["name"])
-    sub->name = yname.as<std::string>();
 
   if (auto yfilenames = y["filenames"]) {
     if (yfilenames.IsScalar()) { // file name pattern
@@ -511,23 +527,42 @@ inline int substream::locate_timestep_file_index(int i)
 ///////////
 inline void substream_synthetic::initialize(YAML::Node y)
 {
-  this->total_timesteps = 10; // FIXME
+
+  if (auto ytimesteps = y["timesteps"])
+    this->total_timesteps = ytimesteps.as<int>();
+  else 
+    this->total_timesteps = 10;
 }
 
-inline void substream_synthetic::read(int i, std::shared_ptr<ndarray_group> g)
+///////////
+inline void substream_synthetic_woven::initialize(YAML::Node y)
 {
-  fprintf(stderr, "read syn..\n");
-  for (const auto &var : variables) {
-    if (var.name == "woven") {
-      fprintf(stderr, "read syn woven..\n");
-      const auto arr = synthetic_woven_2D<double>(
-          var.dimensions[0], 
-          var.dimensions[1],
-          0.0, 1.0); // t, scaling_factor
-      g->set(var.name, arr);
-    }
+  substream_synthetic::initialize(y);
+
+  if (auto yscaling_factor = y["scaling_factor"])
+    this->scaling_factor = yscaling_factor.as<double>();
+
+  if (auto ydelta = y["delta"])
+    this->delta = ydelta.as<double>();
+
+  if (auto yt0 = y["t0"])
+    this->t0 = yt0.as<double>();
+}
+
+inline void substream_synthetic_woven::read(int i, std::shared_ptr<ndarray_group> g)
+{
+  // fprintf(stderr, "read syn..\n");
+  for (const auto &var : variables) { // there should be only one variable
+    // fprintf(stderr, "read syn woven..\n");
+    const auto arr = synthetic_woven_2D<double>(
+        var.dimensions[0], 
+        var.dimensions[1],
+        t0 + delta * i, 
+        scaling_factor);
+    g->set(var.name, arr);
   }
 }
+
 
 ///////////
 inline void substream_binary::initialize(YAML::Node y)

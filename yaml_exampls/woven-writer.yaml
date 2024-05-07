@@ -1,0 +1,17 @@
+stream:
+  name: woven
+  substreams:
+    - name: woven
+      format: synthetic
+      timesteps: 100
+      scaling_factor: 20.0
+      delta: 0.2
+      vars:
+        - name: scalar
+          dimensions: [32, 32]
+          dtype: float32
+    - name: output
+      format: vti_output
+      filenames: "./woven-%05d.vti"
+      vars:
+        - name: scalar
