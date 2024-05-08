@@ -547,16 +547,16 @@ inline void substream_synthetic_woven::initialize(YAML::Node y)
 
   if (auto yt0 = y["t0"])
     this->t0 = yt0.as<double>();
+
+  assert(has_dimensions());
 }
 
 inline void substream_synthetic_woven::read(int i, std::shared_ptr<ndarray_group> g)
 {
-  // fprintf(stderr, "read syn..\n");
-  for (const auto &var : variables) { // there should be only one variable
-    // fprintf(stderr, "read syn woven..\n");
+  for (const auto &var : variables) { // normally, there should be only one variable
     const auto arr = synthetic_woven_2D<double>(
-        var.dimensions[0], 
-        var.dimensions[1],
+        this->dimensions[0], 
+        this->dimensions[1],
         t0 + delta * i, 
         scaling_factor);
     g->set(var.name, arr);

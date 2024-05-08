@@ -3,7 +3,7 @@ stream:
   substreams:
     - name: woven
       format: synthetic
+      dimensions: [32, 32]
       vars:
         - name: scalar
-          dimensions: [32, 32]
           dtype: float32
