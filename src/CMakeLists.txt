@@ -6,7 +6,7 @@ if (NDARRAY_HAVE_ADIOS2)
 endif ()
 
 if (NDARRAY_HAVE_VTK)
-  target_link_libraries (ndarray VTK::CommonCore VTK::IOLegacy VTK::IOXML VTK::IOParallelXML)
+  target_link_libraries (ndarray VTK::CommonCore VTK::CommonDataModel VTK::IOLegacy VTK::IOXML VTK::IOParallelXML VTK::FiltersSources)
 endif ()
 
 if (NDARRAY_HAVE_NETCDF)
