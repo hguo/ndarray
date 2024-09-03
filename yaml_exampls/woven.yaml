@@ -4,6 +4,7 @@ stream:
     - name: woven
       format: synthetic
       dimensions: [32, 32]
+      timesteps: 100
       vars:
         - name: scalar
           dtype: float32

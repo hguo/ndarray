@@ -6,7 +6,7 @@ if (NDARRAY_HAVE_ADIOS2)
 endif ()
 
 if (NDARRAY_HAVE_VTK)
-  target_link_libraries (ndarray ${VTK_LIBRARIES})
+  target_link_libraries (ndarray VTK::CommonCore VTK::IOLegacy VTK::IOXML VTK::IOParallelXML)
 endif ()
 
 if (NDARRAY_HAVE_NETCDF)
@@ -18,16 +18,15 @@ if (NDARRAY_HAVE_PNETCDF)
 endif ()
 
 if (NDARRAY_HAVE_HDF5)
-  target_link_libraries (ndarray ${HDF5_LIBRARIES})
+  target_link_libraries (ndarray HDF5::HDF5)
 endif ()
 
 if (NDARRAY_HAVE_MPI)
-  # add_subdirectory (bil)
-  target_link_libraries (ndarray ${MPI_C_LIBRARIES} ${MPI_CXX_LIBRARIES})
+  target_link_libraries (ndarray MPI::MPI_C MPI::MPI_CXX)
 endif ()
 
 if (NDARRAY_HAVE_PNG)
-  target_link_libraries (ndarray ${PNG_LIBRARIES})
+  target_link_libraries (ndarray PNG::PNG)
 endif ()
 
 if (NDARRAY_HAVE_OPENMP)
