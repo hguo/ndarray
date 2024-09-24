@@ -290,8 +290,9 @@ inline std::shared_ptr<ndarray_group> stream::read_static()
   std::shared_ptr<ndarray_group> g(new ndarray_group);
   
   for (auto sub : this->substreams)
-    if (sub->is_enabled && sub->is_static)
+    if (sub->is_enabled && sub->is_static) {
       sub->read(0, g);
+    }
 
   return g;
 }
@@ -814,10 +815,13 @@ inline void substream_vtu_resample::read(int i, std::shared_ptr<ndarray_group> g
 inline void substream_netcdf::read(int i, std::shared_ptr<ndarray_group> g)
 {
   int fi = this->locate_timestep_file_index(i);
-  if (fi < -1) 
-    return;
+
+  if (this->is_static) fi = 0;
+  if (fi < 0) return;
 
   const std::string f = filenames[fi];
+
+  fprintf(stderr, "static=%d, filename=%s, i=%d, fi=%d, filenames.size=%zu\n", this->is_static, f.c_str(), i, fi, filenames.size());
 
 #if NDARRAY_HAVE_NETCDF
   int ncid, rtn;

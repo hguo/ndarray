@@ -38,11 +38,11 @@ if (NDARRAY_HAVE_CUDA)
 endif ()
 
 
-add_executable (dryrun dryrun.cpp)
-target_link_libraries (dryrun ndarray)
+add_executable (ndarray-dryrun dryrun.cpp)
+target_link_libraries (ndarray-dryrun ndarray)
 
 
-install (TARGETS ndarray
+install (TARGETS ndarray ndarray-dryrun
   EXPORT ndarrayTargets
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
