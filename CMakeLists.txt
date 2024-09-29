@@ -20,6 +20,7 @@ endfunction ()
 ndarray_option (ADIOS2 "Use ADIOS2" FALSE)
 ndarray_option (CUDA "Use CUDA" FALSE) # experimental
 ndarray_option (HDF5 "Use HDF5" FALSE)
+ndarray_option (HENSON "Use HENSON" FALSE) # experimental
 ndarray_option (MPI "Use MPI" FALSE)
 ndarray_option (NETCDF "Use NetCDF" FALSE)
 ndarray_option (OpenMP "Use OpenMP" FALSE)
@@ -103,6 +104,28 @@ if (HDF5_FOUND)
   set (NDARRAY_HAVE_HDF5 TRUE)
   include_directories (${HDF5_INCLUDE_DIRS})
 endif ()
+
+
+# Henson
+if (NDARRAY_USE_HENSON STREQUAL AUTO)
+  # do nothing
+elseif (NDARRAY_USE_HENSON)
+  if                          (NOT DEFINED HENSON AND DEFINED ENV{HENSON})
+      set                     (HENSON $ENV{HENSON})
+  endif                       ()
+
+  if                          (HENSON)
+      set                     (HENSON_LIBRARY ${HENSON}/lib/libhenson.a)
+      set                     (HENSON_PMPI_LIBRARY ${HENSON}/lib/libhenson-pmpi.so)
+  else                        ()
+      message                 ("Looking for Henson")
+      find_package            (henson REQUIRED)
+  endif                       ()
+  message                     ("HENSON_LIBRARY = ${HENSON_LIBRARY}")
+  message                     ("HENSON_PMPI_LIBRARY = ${HENSON_PMPI_LIBRARY}")
+  # set                         (libraries ${libraries} ${HENSON_PMPI_LIBRARY} ${HENSON_LIBRARY})
+endif ()
+
 
 if (NDARRAY_USE_PNETCDF STREQUAL AUTO)
   find_package (PNetCDF QUIET)
@@ -238,6 +261,10 @@ if (${NDARRAY_HAVE_HDF5})
   message("      Include path:      ${HDF5_INCLUDE_DIRS}")
   message("      Definitions:       ${HDF5_DEFINITIONS}")
   message("      Libraries:         ${HDF5_LIBRARIES}")
+endif ()
+message("    HENSON:      ${NDARRAY_USE_HENSON}")
+if (${NDARRAY_USE_HENSON})
+  message("      Libraries:         ${HENSON_PMPI_LIBRARY} ${HENSON_LIBRARY}")
 endif ()
 message("    MPI:         ${NDARRAY_USE_MPI} ${MPI_FOUND}")
 if (${NDARRAY_HAVE_MPI})

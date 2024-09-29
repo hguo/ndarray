@@ -1,3 +1,12 @@
+if (NDARRAY_HAVE_HENSON)
+  if                          (NOT APPLE)
+     set                      (linker_flags "-pie -Wl,--export-dynamic")
+     set                      (linker_flags "${linker_flags} -Wl,-u,henson_set_contexts,-u,henson_set_namemap")
+  else                        ()
+     set                      (linker_flags "-Wl,-u,_henson_set_contexts,-u,_henson_set_namemap")
+  endif                       (NOT APPLE)
+endif ()
+
 add_library (ndarray SHARED ndarray.cpp)
 target_link_libraries (ndarray yaml-cpp::yaml-cpp)
 
@@ -21,6 +30,10 @@ if (NDARRAY_HAVE_HDF5)
   target_link_libraries (ndarray HDF5::HDF5)
 endif ()
 
+if (NDARRAY_HAVE_HENSON)
+  target_link_libraries (ndarray ${HENSON_PMPI_LIBRARY} ${HENSON_LIBRARY})
+endif ()
+
 if (NDARRAY_HAVE_MPI)
   target_link_libraries (ndarray MPI::MPI_C MPI::MPI_CXX)
 endif ()
@@ -39,7 +52,7 @@ endif ()
 
 
 add_executable (ndarray-dryrun dryrun.cpp)
-target_link_libraries (ndarray-dryrun ndarray)
+target_link_libraries (ndarray-dryrun PRIVATE ndarray)
 
 
 install (TARGETS ndarray ndarray-dryrun
