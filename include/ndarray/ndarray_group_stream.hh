@@ -3,6 +3,7 @@
 
 #include <ndarray/ndarray_group.hh>
 #include <ndarray/synthetic.hh>
+#include <ndarray/fdpool.hh>
 #include <yaml-cpp/yaml.h>
 
 #if NDARRAY_HAVE_VTK
@@ -824,14 +825,8 @@ inline void substream_netcdf::read(int i, std::shared_ptr<ndarray_group> g)
   fprintf(stderr, "static=%d, filename=%s, i=%d, fi=%d, filenames.size=%zu\n", this->is_static, f.c_str(), i, fi, filenames.size());
 
 #if NDARRAY_HAVE_NETCDF
-  int ncid, rtn;
-#if NC_HAS_PARALLEL
-  rtn = nc_open_par(f.c_str(), NC_NOWRITE, comm, MPI_INFO_NULL, &ncid);
-  if (rtn != NC_NOERR)
-    NC_SAFE_CALL( nc_open(f.c_str(), NC_NOWRITE, &ncid) );
-#else
-  NC_SAFE_CALL( nc_open(f.c_str(), NC_NOWRITE, &ncid) );
-#endif
+  auto &pool = fdpool_nc::get_instance();
+  int ncid = pool.open(f, comm);
 
   for (const auto &var : variables) {
     int varid = -1;
@@ -896,7 +891,7 @@ inline void substream_netcdf::read(int i, std::shared_ptr<ndarray_group> g)
     }
   }
 
-  NC_SAFE_CALL( nc_close(ncid) );
+  // NC_SAFE_CALL( nc_close(ncid) );
 
 #else
   nd::fatal(nd::ERR_NOT_BUILT_WITH_NETCDF);
@@ -906,15 +901,9 @@ inline void substream_netcdf::read(int i, std::shared_ptr<ndarray_group> g)
 inline void substream_netcdf::initialize(YAML::Node y) 
 {
 #if NDARRAY_HAVE_NETCDF
+  auto &pool = fdpool_nc::get_instance();
   for (const auto f : this->filenames) {
-    int ncid, rtn;
-#if NC_HAS_PARALLEL
-    rtn = nc_open_par(f.c_str(), NC_NOWRITE, comm, MPI_INFO_NULL, &ncid);
-    if (rtn != NC_NOERR)
-      NC_SAFE_CALL( nc_open(f.c_str(), NC_NOWRITE, &ncid) );
-#else
-    NC_SAFE_CALL( nc_open(f.c_str(), NC_NOWRITE, &ncid) );
-#endif
+    int ncid = pool.open(f, comm);
 
     size_t nt = 0;
     int unlimited_recid;
@@ -928,7 +917,7 @@ inline void substream_netcdf::initialize(YAML::Node y)
       has_unlimited_time_dimension = false;
     }
 
-    NC_SAFE_CALL( nc_close(ncid) );
+    // NC_SAFE_CALL( nc_close(ncid) );
     
     timesteps_per_file.push_back(nt);
     first_timestep_per_file.push_back( this->total_timesteps );
