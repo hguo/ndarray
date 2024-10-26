@@ -2,6 +2,14 @@
 #define _NDARRAY_FDPOOL_H
 
 #include <ndarray/config.hh>
+#if NDARRAY_HAVE_MPI
+#include <mpi.h>
+#endif
+#if NDARRAY_HAVE_NETCDF
+#include <netcdf.h>
+#endif
+
+#include <map>
 
 namespace ftk {
 
@@ -40,8 +48,7 @@ inline int fdpool_nc::open(const std::string& f, MPI_Comm comm)
 #endif
 #endif
     
-    fprintf(stderr, "[fdpool] opened netcdf file %s, ncid=%d.\n", 
-        f.c_str(), ncid);
+    // fprintf(stderr, "[fdpool] opened netcdf file %s, ncid=%d.\n", f.c_str(), ncid);
 
     pool[f] = ncid;
     return ncid;
@@ -53,8 +60,7 @@ inline void fdpool_nc::close_all()
 {
   for (const auto &kv : pool) {
 #if NDARRAY_HAVE_NETCDF
-    fprintf(stderr, "[fdpool] closing netcdf file %s, ncid=%d.\n", 
-        kv.first.c_str(), kv.second);
+    // fprintf(stderr, "[fdpool] closing netcdf file %s, ncid=%d.\n", kv.first.c_str(), kv.second);
     
     NC_SAFE_CALL( nc_close(kv.second) );
 #endif

@@ -2,6 +2,7 @@
 #define _NDARRAY_IO_UTIL_HH
 
 #include <ndarray/config.hh>
+#include <ndarray/fdpool.hh>
 #include <algorithm>
 #include <iostream>
 #include <fstream>
@@ -31,6 +32,14 @@ enum {
   FILE_EXT_PLY, // surface
   FILE_EXT_STL  // surface
 };
+
+static void ndarray_init(MPI_Comm = MPI_COMM_WORLD) { }
+
+static void ndarray_finalize() // free-up singletons
+{
+  auto &ncpool = fdpool_nc::get_instance();
+  ncpool.close_all();
+}
 
 static inline std::string series_filename(
     const std::string& pattern, int k)

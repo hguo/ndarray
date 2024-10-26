@@ -10,6 +10,7 @@ int main(int argc, char **argv)
 #if NDARRAY_HAVE_MPI
   MPI_Init(&argc, &argv);
 #endif
+  ftk::ndarray_init();
 
   cxxopts::Options options(argv[0]);
   options.add_options()
@@ -41,6 +42,8 @@ int main(int argc, char **argv)
     auto g = stream->read(i);
     g->print_info(std::cerr);
   }
+
+  ftk::ndarray_finalize();
 
 #if NDARRAY_HAVE_MPI
   MPI_Finalize();
