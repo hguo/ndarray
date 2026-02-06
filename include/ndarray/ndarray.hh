@@ -9,6 +9,10 @@
 #include <cuda_runtime.h>
 #endif
 
+#if NDARRAY_HAVE_SYCL
+#include <CL/sycl.hpp>
+#endif
+
 #if NDARRAY_HAVE_MPI
 #include <mpi.h>
 // #include <ndarray/external/bil/bil.h>
@@ -352,11 +356,24 @@ public: // pybind11
   
   int nc_dtype() const;
 
-public:
+public: // device management
   void to_device(int device, int id=0);
   void to_host();
+  void copy_to_device(int device, int id=0);   // copy to device, keep host data
+  void copy_from_device();                     // copy from device to host, keep device data
+
+  bool is_on_device() const { return device_type != NDARRAY_DEVICE_HOST; }
+  bool is_on_host() const { return device_type == NDARRAY_DEVICE_HOST; }
+  int get_device_type() const { return device_type; }
+  int get_device_id() const { return device_id; }
 
   void *get_devptr() { return devptr; }
+  const void *get_devptr() const { return devptr; }
+
+#if NDARRAY_HAVE_SYCL
+  void set_sycl_queue(sycl::queue* q) { sycl_queue_ptr = q; }
+  sycl::queue* get_sycl_queue() { return sycl_queue_ptr; }
+#endif
 
 public: // statistics & misc
   std::tuple<T, T> min_max() const;
@@ -370,10 +387,14 @@ public: // statistics & misc
 
 private:
   std::vector<T> p;
-  
+
   int device_type = NDARRAY_DEVICE_HOST;
   int device_id = 0;
   void *devptr = NULL;
+
+#if NDARRAY_HAVE_SYCL
+  sycl::queue* sycl_queue_ptr = nullptr;  // Optional: user can provide their own queue
+#endif
 };
 
 //////////////////////////////////
@@ -1029,7 +1050,7 @@ inline void ndarray<T>::to_device(int dev, int id)
 {
   if (dev == NDARRAY_DEVICE_CUDA) {
 #if NDARRAY_HAVE_CUDA
-    if (this->device_type == NDARRAY_DEVICE_CUDA) { // alreay on gpu
+    if (this->device_type == NDARRAY_DEVICE_CUDA) { // already on gpu
       nd::warn("array already on device");
     } else {
       this->device_type = NDARRAY_DEVICE_CUDA;
@@ -1037,14 +1058,44 @@ inline void ndarray<T>::to_device(int dev, int id)
 
       cudaSetDevice(id);
       cudaMalloc(&devptr, sizeof(T) * nelem());
-      cudaMemcpy(devptr, p.data(), sizeof(T) * p.size(), 
+      cudaMemcpy(devptr, p.data(), sizeof(T) * p.size(),
           cudaMemcpyHostToDevice);
       p.clear();
     }
 #else
     nd::fatal(nd::ERR_NOT_BUILT_WITH_CUDA);
 #endif
-  } else 
+  } else if (dev == NDARRAY_DEVICE_SYCL) {
+#if NDARRAY_HAVE_SYCL
+    if (this->device_type == NDARRAY_DEVICE_SYCL) {
+      nd::warn("array already on SYCL device");
+    } else {
+      this->device_type = NDARRAY_DEVICE_SYCL;
+      this->device_id = id;
+
+      // Use provided queue or create default queue
+      sycl::queue* q = sycl_queue_ptr;
+      bool own_queue = false;
+      if (q == nullptr) {
+        q = new sycl::queue(sycl::default_selector{});
+        own_queue = true;
+      }
+
+      // Allocate device memory
+      devptr = sycl::malloc_device<T>(nelem(), *q);
+
+      // Copy data to device
+      q->memcpy(devptr, p.data(), sizeof(T) * p.size()).wait();
+
+      // Clean up temporary queue if we created it
+      if (own_queue) delete q;
+
+      p.clear();
+    }
+#else
+    nd::fatal(nd::ERR_NOT_BUILT_WITH_SYCL);
+#endif
+  } else
     nd::fatal(nd::ERR_NDARRAY_UNKNOWN_DEVICE);
 }
 
@@ -1057,19 +1108,150 @@ inline void ndarray<T>::to_host()
 #if NDARRAY_HAVE_CUDA
     if (this->device_type == NDARRAY_DEVICE_CUDA) {
       p.resize(nelem());
-      
+
       cudaSetDevice(this->device_id);
-      cudaMemcpy(p.data(), devptr, sizeof(T) * p.size(), 
+      cudaMemcpy(p.data(), devptr, sizeof(T) * p.size(),
           cudaMemcpyDeviceToHost);
       cudaFree(devptr);
-     
+
       this->device_type = NDARRAY_DEVICE_HOST;
       this->device_id = 0;
       devptr = nullptr;
-    } else 
+    } else
       nd::fatal("array not on device");
 #else
     nd::fatal(nd::ERR_NOT_BUILT_WITH_CUDA);
+#endif
+  } else if (this->device_type == NDARRAY_DEVICE_SYCL) {
+#if NDARRAY_HAVE_SYCL
+    p.resize(nelem());
+
+    // Use provided queue or create default queue
+    sycl::queue* q = sycl_queue_ptr;
+    bool own_queue = false;
+    if (q == nullptr) {
+      q = new sycl::queue(sycl::default_selector{});
+      own_queue = true;
+    }
+
+    // Copy data from device
+    q->memcpy(p.data(), devptr, sizeof(T) * p.size()).wait();
+
+    // Free device memory
+    sycl::free(devptr, *q);
+
+    // Clean up temporary queue if we created it
+    if (own_queue) delete q;
+
+    this->device_type = NDARRAY_DEVICE_HOST;
+    this->device_id = 0;
+    devptr = nullptr;
+#else
+    nd::fatal(nd::ERR_NOT_BUILT_WITH_SYCL);
+#endif
+  } else
+    nd::fatal(nd::ERR_NDARRAY_UNKNOWN_DEVICE);
+}
+
+template <typename T>
+inline void ndarray<T>::copy_to_device(int dev, int id)
+{
+  if (dev == NDARRAY_DEVICE_CUDA) {
+#if NDARRAY_HAVE_CUDA
+    if (this->device_type == NDARRAY_DEVICE_CUDA) {
+      nd::warn("array already on CUDA device");
+    } else if (this->device_type != NDARRAY_DEVICE_HOST) {
+      nd::fatal("array is on a different device type");
+    } else {
+      this->device_type = NDARRAY_DEVICE_CUDA;
+      this->device_id = id;
+
+      cudaSetDevice(id);
+      cudaMalloc(&devptr, sizeof(T) * nelem());
+      cudaMemcpy(devptr, p.data(), sizeof(T) * p.size(),
+          cudaMemcpyHostToDevice);
+      // Note: p is NOT cleared, keeping data on both host and device
+    }
+#else
+    nd::fatal(nd::ERR_NOT_BUILT_WITH_CUDA);
+#endif
+  } else if (dev == NDARRAY_DEVICE_SYCL) {
+#if NDARRAY_HAVE_SYCL
+    if (this->device_type == NDARRAY_DEVICE_SYCL) {
+      nd::warn("array already on SYCL device");
+    } else if (this->device_type != NDARRAY_DEVICE_HOST) {
+      nd::fatal("array is on a different device type");
+    } else {
+      this->device_type = NDARRAY_DEVICE_SYCL;
+      this->device_id = id;
+
+      // Use provided queue or create default queue
+      sycl::queue* q = sycl_queue_ptr;
+      bool own_queue = false;
+      if (q == nullptr) {
+        q = new sycl::queue(sycl::default_selector{});
+        own_queue = true;
+      }
+
+      // Allocate device memory
+      devptr = sycl::malloc_device<T>(nelem(), *q);
+
+      // Copy data to device
+      q->memcpy(devptr, p.data(), sizeof(T) * p.size()).wait();
+
+      // Clean up temporary queue if we created it
+      if (own_queue) delete q;
+
+      // Note: p is NOT cleared, keeping data on both host and device
+    }
+#else
+    nd::fatal(nd::ERR_NOT_BUILT_WITH_SYCL);
+#endif
+  } else
+    nd::fatal(nd::ERR_NDARRAY_UNKNOWN_DEVICE);
+}
+
+template <typename T>
+inline void ndarray<T>::copy_from_device()
+{
+  if (this->device_type == NDARRAY_DEVICE_HOST) {
+    nd::warn("array is on host, nothing to copy");
+  } else if (this->device_type == NDARRAY_DEVICE_CUDA) {
+#if NDARRAY_HAVE_CUDA
+    if (p.empty()) {
+      p.resize(nelem());
+    }
+
+    cudaSetDevice(this->device_id);
+    cudaMemcpy(p.data(), devptr, sizeof(T) * p.size(),
+        cudaMemcpyDeviceToHost);
+    // Note: device memory is NOT freed
+#else
+    nd::fatal(nd::ERR_NOT_BUILT_WITH_CUDA);
+#endif
+  } else if (this->device_type == NDARRAY_DEVICE_SYCL) {
+#if NDARRAY_HAVE_SYCL
+    if (p.empty()) {
+      p.resize(nelem());
+    }
+
+    // Use provided queue or create default queue
+    sycl::queue* q = sycl_queue_ptr;
+    bool own_queue = false;
+    if (q == nullptr) {
+      q = new sycl::queue(sycl::default_selector{});
+      own_queue = true;
+    }
+
+    // Copy data from device
+    q->memcpy(p.data(), devptr, sizeof(T) * p.size()).wait();
+
+    // Clean up temporary queue if we created it
+    if (own_queue) delete q;
+
+    // Note: device memory is NOT freed
+#else
+    nd::fatal(nd::ERR_NOT_BUILT_WITH_SYCL);
 #endif
   } else
     nd::fatal(nd::ERR_NDARRAY_UNKNOWN_DEVICE);
@@ -1158,7 +1340,7 @@ template <> inline hid_t ndarray<char>::h5_mem_type_id() { return H5T_NATIVE_CHA
 template <typename T>
 inline ndarray<T> ndarray<T>::slice(const lattice& l) const
 {
-  ndarray<T> array(l);
+  ndarray<T> array(l.sizes());
   for (auto i = 0; i < l.n(); i ++) {
     auto idx = l.from_integer(i);
     array[i] = f(idx);

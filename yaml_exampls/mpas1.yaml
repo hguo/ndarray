@@ -39,6 +39,7 @@ stream:
             - xtime_startMonthly
           dimensions: auto # by default auto
           optional: false # by default false
+          metadata: true
         - name: normalVelocity
           possible_names:
             - normalVelocity

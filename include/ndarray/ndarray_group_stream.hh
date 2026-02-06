@@ -138,6 +138,9 @@ struct substream {
 
   // communicator
   MPI_Comm comm = MPI_COMM_WORLD;
+
+  // metadata
+  std::vector<std::shared_ptr<ndarray_group>> metadata;
 };
 
 struct substream_synthetic : public substream {
@@ -813,8 +816,20 @@ inline void substream_vtu_resample::read(int i, std::shared_ptr<ndarray_group> g
 }
 
 ///////////
+// Helper function to copy metadata from source to destination ndarray_group
+inline void copy_array_group(std::shared_ptr<ndarray_group> dst, std::shared_ptr<ndarray_group> src)
+{
+  if (src) {
+    for (const auto &kv : *src) {
+      dst->set(kv.first, kv.second);
+    }
+  }
+}
+
+///////////
 inline void substream_netcdf::read(int i, std::shared_ptr<ndarray_group> g)
 {
+  copy_array_group(g, metadata[i]);
   int fi = this->locate_timestep_file_index(i);
 
   if (this->is_static) fi = 0;

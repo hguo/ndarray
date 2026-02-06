@@ -83,6 +83,7 @@ inline std::string err2str(int e)
   case ERR_NOT_BUILT_WITH_GMP: return "ndarray not compiled with GMP";
   case ERR_NOT_BUILT_WITH_HDF5: return "ndarray not compiled with HDF5";
   case ERR_NOT_BUILT_WITH_HIPSYCL: return "ndarray not compiled with hipSYCL";
+  case ERR_NOT_BUILT_WITH_SYCL: return "ndarray not compiled with SYCL";
   case ERR_NOT_BUILT_WITH_KOKKOS: return "ndarray not compiled with Kokkos";
   case ERR_NOT_BUILT_WITH_LEVELDB: return "ndarray not compiled with LevelDB";
   case ERR_NOT_BUILT_WITH_METIS: return "ndarray not compiled with Metis";

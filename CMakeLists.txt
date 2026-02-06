@@ -1,10 +1,11 @@
 cmake_minimum_required (VERSION 3.10)
-project (ndarray)
+project (ndarray VERSION 0.0.1 LANGUAGES CXX)
 
 include(GNUInstallDirs)
 # include (ExternalProject)
 
 option (NDARRAY_BUILD_TESTS "Build tests" OFF)
+option (NDARRAY_BUILD_EXAMPLES "Build examples" OFF)
 
 set (CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set (CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
@@ -19,6 +20,7 @@ endfunction ()
 
 ndarray_option (ADIOS2 "Use ADIOS2" FALSE)
 ndarray_option (CUDA "Use CUDA" FALSE) # experimental
+ndarray_option (SYCL "Use SYCL" FALSE) # experimental, cross-platform acceleration
 ndarray_option (HDF5 "Use HDF5" FALSE)
 ndarray_option (HENSON "Use HENSON" FALSE) # experimental
 ndarray_option (MPI "Use MPI" FALSE)
@@ -165,6 +167,16 @@ elseif (NDARRAY_USE_CUDA)
   set (NDARRAY_HAVE_CUDA TRUE)
 endif ()
 
+if (NDARRAY_USE_SYCL STREQUAL AUTO)
+  find_package (SYCL QUIET)
+  if (SYCL_FOUND)
+    set (NDARRAY_HAVE_SYCL TRUE)
+  endif ()
+elseif (NDARRAY_USE_SYCL)
+  find_package (SYCL REQUIRED)
+  set (NDARRAY_HAVE_SYCL TRUE)
+endif ()
+
 
 ### 
 
@@ -199,6 +211,11 @@ install (FILES ${CMAKE_CURRENT_BINARY_DIR}/ndarrayConfig.cmake
 
 
 add_subdirectory (src)
+
+# If NDARRAY_BUILD_EXAMPLES is on, build examples.
+if (NDARRAY_BUILD_EXAMPLES)
+  add_subdirectory (examples)
+endif ()
 
 # If NDARRAY_BUILD_TESTS is on, enable testing.
 if (NDARRAY_BUILD_TESTS)
@@ -254,6 +271,11 @@ if (${NDARRAY_HAVE_CUDA})
   message("      NVCC compiler:      ${CMAKE_CUDA_COMPILER}")
   message("      NVCC flags:         ${CMAKE_CUDA_FLAGS}")
   message("      Detected GPU count: ${DETECT_GPU_COUNT}")
+endif()
+message("    SYCL:        ${NDARRAY_USE_SYCL}")
+if (${NDARRAY_HAVE_SYCL})
+  message("      SYCL implementation: ${SYCL_IMPLEMENTATION}")
+  message("      SYCL compiler flags: ${SYCL_FLAGS}")
 endif()
 message("    HDF5:        ${NDARRAY_USE_HDF5} ${HDF5_FOUND}")
 if (${NDARRAY_HAVE_HDF5})
