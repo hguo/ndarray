@@ -1,8 +1,17 @@
 # Unit tests for ndarray library
 
-# Core functionality tests (no external dependencies)
+# Core functionality tests (may need optional backends for template instantiation)
 add_executable(test_ndarray_core test_ndarray_core.cpp)
 target_link_libraries(test_ndarray_core ${CMAKE_THREAD_LIBS_INIT})
+
+if (NDARRAY_HAVE_NETCDF)
+  target_link_libraries(test_ndarray_core netcdf)
+endif()
+
+if (NDARRAY_HAVE_HDF5)
+  target_link_libraries(test_ndarray_core ${HDF5_LIBRARIES})
+endif()
+
 add_test(NAME ndarray_core COMMAND test_ndarray_core)
 
 # I/O tests (may use optional backends)
