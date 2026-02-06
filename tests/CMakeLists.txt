@@ -28,6 +28,14 @@ endif()
 
 add_test(NAME ndarray_io COMMAND test_ndarray_io)
 
+# HDF5 functionality tests (requires HDF5 support)
+if (NDARRAY_HAVE_HDF5)
+  add_executable(test_ndarray_hdf5 test_ndarray_hdf5.cpp)
+  target_link_libraries(test_ndarray_hdf5 ${CMAKE_THREAD_LIBS_INIT})
+  target_link_libraries(test_ndarray_hdf5 ${HDF5_LIBRARIES})
+  add_test(NAME ndarray_hdf5 COMMAND test_ndarray_hdf5)
+endif()
+
 # Test summary
 message("")
 message("Unit tests configured:")
@@ -38,5 +46,6 @@ if (NDARRAY_HAVE_NETCDF)
 endif()
 if (NDARRAY_HAVE_HDF5)
   message("    + HDF5 support enabled")
+  message("  - test_ndarray_hdf5: HDF5 I/O operations")
 endif()
 message("")
