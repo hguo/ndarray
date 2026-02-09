@@ -3,7 +3,9 @@
 
 #include <ndarray/ndarray_group.hh>
 #include <ndarray/synthetic.hh>
+#if NDARRAY_HAVE_NETCDF
 #include <ndarray/fdpool.hh>
+#endif
 #include <yaml-cpp/yaml.h>
 
 #if NDARRAY_HAVE_VTK

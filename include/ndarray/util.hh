@@ -2,7 +2,9 @@
 #define _NDARRAY_IO_UTIL_HH
 
 #include <ndarray/config.hh>
+#if NDARRAY_HAVE_NETCDF
 #include <ndarray/fdpool.hh>
+#endif
 #include <algorithm>
 #include <iostream>
 #include <fstream>
@@ -33,12 +35,18 @@ enum {
   FILE_EXT_STL  // surface
 };
 
+#if NDARRAY_HAVE_MPI
 static void ndarray_init(MPI_Comm = MPI_COMM_WORLD) { }
+#else
+static void ndarray_init() { }
+#endif
 
 static void ndarray_finalize() // free-up singletons
 {
+#if NDARRAY_HAVE_NETCDF
   auto &ncpool = fdpool_nc::get_instance();
   ncpool.close_all();
+#endif
 }
 
 static inline std::string series_filename(
