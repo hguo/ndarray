@@ -25,6 +25,18 @@ Tests file input/output operations:
 - Optional: NetCDF I/O (if compiled with NetCDF support)
 - Optional: HDF5 I/O (if compiled with HDF5 support)
 
+### Stream Tests (`test_ndarray_stream.cpp`)
+Tests YAML stream functionality for reading time-series data:
+- YAML configuration parsing
+- Synthetic data streams (no external data files needed)
+- Static vs time-varying data
+- Multiple variables per stream
+- Sequential and random timestep access
+- Different array dimensions and data types
+- Error handling for invalid timesteps
+- Optional: NetCDF stream reading (if data files available)
+- Optional: MPI communicator usage (if compiled with MPI)
+
 ## Building and Running Tests
 
 ### Build Tests
@@ -51,12 +63,14 @@ ctest --output-on-failure
 ```bash
 ./test_ndarray_core
 ./test_ndarray_io
+./test_ndarray_stream
 ```
 
 Or using ctest:
 ```bash
 ctest -R ndarray_core
 ctest -R ndarray_io
+ctest -R ndarray_stream
 ```
 
 ## Test Configuration
@@ -107,6 +121,9 @@ See [.github/workflows/ci.yml](../.github/workflows/ci.yml) for CI configuration
 Current test coverage focuses on:
 - ✓ Core array operations (construction, access, manipulation)
 - ✓ Binary file I/O
+- ✓ YAML stream functionality (synthetic and NetCDF streams)
+- ✓ Time-series data reading
+- ✓ Static and time-varying data
 - ✓ Basic NetCDF/HDF5 operations (when available)
 - Future: Convolution operations
 - Future: MPI parallel operations

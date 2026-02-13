@@ -28,6 +28,20 @@ endif()
 
 add_test(NAME ndarray_io COMMAND test_ndarray_io)
 
+# Stream functionality tests (yaml streams)
+add_executable(test_ndarray_stream test_ndarray_stream.cpp)
+target_link_libraries(test_ndarray_stream ${CMAKE_THREAD_LIBS_INIT} yaml-cpp::yaml-cpp)
+
+if (NDARRAY_HAVE_NETCDF)
+  target_link_libraries(test_ndarray_stream netCDF::netcdf)
+endif()
+
+if (NDARRAY_HAVE_HDF5)
+  target_link_libraries(test_ndarray_stream ${HDF5_LIBRARIES})
+endif()
+
+add_test(NAME ndarray_stream COMMAND test_ndarray_stream)
+
 # HDF5 functionality tests (requires HDF5 support)
 if (NDARRAY_HAVE_HDF5)
   add_executable(test_ndarray_hdf5 test_ndarray_hdf5.cpp)
@@ -41,6 +55,7 @@ message("")
 message("Unit tests configured:")
 message("  - test_ndarray_core: Core array operations")
 message("  - test_ndarray_io: File I/O operations")
+message("  - test_ndarray_stream: YAML stream functionality")
 if (NDARRAY_HAVE_NETCDF)
   message("    + NetCDF support enabled")
 endif()
