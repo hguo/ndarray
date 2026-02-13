@@ -44,6 +44,7 @@ enum {
 struct variable {
   std::string name;
   std::vector<std::string> possible_names; // will prioritize possible_names by ordering
+  std::vector<std::string> name_patterns;  // wildcard patterns (e.g., "time*_avg_temperature")
 
   bool is_optional = false; // will be ignored if the format is binary
   
@@ -456,8 +457,13 @@ inline void variable::parse_yaml(YAML::Node y)
   if (auto ypvar = y["possible_names"]) {
     for (auto j = 0; j < ypvar.size(); j ++)
       this->possible_names.push_back(ypvar[j].as<std::string>());
-  } else 
+  } else
     this->possible_names.push_back( this->name );
+
+  if (auto ypatterns = y["name_patterns"]) {
+    for (auto j = 0; j < ypatterns.size(); j ++)
+      this->name_patterns.push_back(ypatterns[j].as<std::string>());
+  }
 
   if (auto ydtype = y["dtype"]) {
     this->dtype = ndarray_base::str2dtype( ydtype.as<std::string>() );
@@ -838,6 +844,7 @@ inline void substream_netcdf::read(int i, std::shared_ptr<ndarray_group> g)
     int varid = -1;
     std::string found_varname;
 
+    // Step 1: Try exact names from possible_names (fast path)
     for (const auto varname : var.possible_names) {
       int rtn = nc_inq_varid(ncid, varname.c_str(), &varid);
       // fprintf(stderr, "ncid=%d, varname=%s, possible_name=%s, varid=%d\n",
@@ -846,6 +853,26 @@ inline void substream_netcdf::read(int i, std::shared_ptr<ndarray_group> g)
       if (rtn == NC_NOERR) {
         found_varname = varname;
         break;
+      }
+    }
+
+    // Step 2: If not found, try wildcard patterns (slower but flexible)
+    if (varid < 0 && !var.name_patterns.empty()) {
+      auto available_vars = list_netcdf_variables(ncid);
+
+      for (const auto& pattern : var.name_patterns) {
+        for (const auto& available : available_vars) {
+          if (matches_pattern(available, pattern)) {
+            int rtn = nc_inq_varid(ncid, available.c_str(), &varid);
+            if (rtn == NC_NOERR) {
+              found_varname = available;
+              // fprintf(stderr, "[ndarray] Variable '%s' matched pattern '%s' -> '%s'\n",
+              //         var.name.c_str(), pattern.c_str(), available.c_str());
+              break;
+            }
+          }
+        }
+        if (varid >= 0) break;
       }
     }
 

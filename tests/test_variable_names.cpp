@@ -198,10 +198,10 @@ int main() {
                 "One substitution is distance 1");
 
     int dist = ftk::levenshtein_distance("normalVelocity", "normalVeolcity");
-    TEST_ASSERT(dist == 1, "Single typo should be distance 1");
+    TEST_ASSERT(dist == 2, "Character swap (transposition) is distance 2");
 
     std::cout << "    Distance('normalVelocity', 'normalVeolcity') = "
-              << dist << std::endl;
+              << dist << " (transposition = 2 operations)" << std::endl;
     std::cout << "    PASSED" << std::endl;
   }
 

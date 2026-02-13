@@ -1,0 +1,97 @@
+stream:
+  name: mpas_flexible
+  path_prefix: "/path/to/mpas-o-data/"
+  substreams:
+    - name: mesh
+      format: netcdf
+      filenames: "output.nc"
+      static: true
+      vars:
+        # Exact names for mesh variables (no ambiguity expected)
+        - name: xCell
+        - name: yCell
+        - name: zCell
+        - name: cellsOnCell
+        - name: verticesOnCell
+        - name: edgesOnCell
+
+    - name: data
+      format: netcdf
+      filenames: "output.*.nc"
+      vars:
+        # Example 1: Explicit possible_names (most reliable)
+        - name: normalVelocity
+          possible_names:
+            - normalVelocity                     # Standard output
+            - timeMonthly_avg_normalVelocity     # Monthly average
+            - timeYearly_avg_normalVelocity      # Yearly average
+          # These 3 are the ONLY acceptable names
+          # Order defines priority
+
+        # Example 2: Combine exact names + wildcard patterns
+        - name: temperature
+          possible_names:
+            - temperature        # Try exact first
+            - temp              # Try abbreviation
+          name_patterns:
+            - "time*_avg_temperature"  # Catch any time-averaged version
+            - "*temperature*"          # Last resort: anything with temperature
+          # First tries possible_names (fast)
+          # Then tries patterns (slower but flexible)
+
+        # Example 3: Patterns only (when you don't know all variants)
+        - name: salinity
+          name_patterns:
+            - "salinity"                # Exact (patterns support this too)
+            - "time*_avg_salinity"      # Any time average
+            - "*salinity*"              # Fuzzy match
+          # Useful when data source keeps changing variable names
+
+        # Example 4: Complex pattern for velocity components
+        - name: vertVelocity
+          possible_names:
+            - vertVelocityTop           # Most common
+          name_patterns:
+            - "vertVelocity*"           # vertVelocityTop, vertVelocityBottom
+            - "time*_avg_vertVelocity*" # Time-averaged variants
+
+        # Example 5: Optional variable with flexible matching
+        - name: ssh
+          possible_names:
+            - ssh
+            - sea_surface_height
+          name_patterns:
+            - "*ssh*"
+            - "*surface*height*"
+          optional: true
+          # Won't fail if not found, but tries hard to find it
+
+        # Example 6: Strict matching (no patterns)
+        - name: layerThickness
+          possible_names:
+            - layerThickness
+            - timeMonthly_avg_layerThickness
+          # No name_patterns = strict matching only
+          # Prevents accidental matches to layerThicknessGradient, etc.
+
+# Best Practices:
+#
+# 1. Use possible_names for known variants (fast, explicit)
+#    - Document supported data sources
+#    - Order by priority
+#
+# 2. Add name_patterns for future-proofing
+#    - When new MPAS versions add naming schemes
+#    - When you don't control the data source
+#
+# 3. Be specific before being general
+#    possible_names: [exact, names]      # Try first (fast)
+#    name_patterns: [specific*, *fuzzy*] # Fallback (slower)
+#
+# 4. Use optional: true for truly optional variables
+#    - Prevents error messages
+#    - Allows graceful degradation
+#
+# 5. Test with actual data files
+#    - Verify no unintended matches
+#    - Check performance (patterns are slower)
