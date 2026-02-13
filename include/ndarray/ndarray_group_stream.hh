@@ -3,6 +3,9 @@
 
 #include <ndarray/ndarray_group.hh>
 #include <ndarray/synthetic.hh>
+#if NDARRAY_HAVE_MPI
+#include <mpi.h>
+#endif
 #if NDARRAY_HAVE_NETCDF
 #include <ndarray/fdpool.hh>
 #endif

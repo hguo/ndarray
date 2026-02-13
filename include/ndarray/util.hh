@@ -2,6 +2,9 @@
 #define _NDARRAY_IO_UTIL_HH
 
 #include <ndarray/config.hh>
+#if NDARRAY_HAVE_MPI
+#include <mpi.h>
+#endif
 #if NDARRAY_HAVE_NETCDF
 #include <ndarray/fdpool.hh>
 #endif
