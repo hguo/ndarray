@@ -140,9 +140,6 @@ struct substream {
 
   // communicator
   MPI_Comm comm = MPI_COMM_WORLD;
-
-  // metadata
-  std::vector<std::shared_ptr<ndarray_group>> metadata;
 };
 
 struct substream_synthetic : public substream {
