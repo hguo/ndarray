@@ -29,6 +29,7 @@ ndarray_option (OpenMP "Use OpenMP" FALSE)
 ndarray_option (PNETCDF "Use parallel-netcdf" FALSE)
 ndarray_option (PNG "Use PNG" FALSE)
 ndarray_option (VTK "Use VTK" FALSE)
+ndarray_option (YAML "Use YAML (for stream functionality)" AUTO) # yaml-cpp for YAML streams
 
 set (CMAKE_CXX_STANDARD 17)
 set (CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -40,7 +41,15 @@ else ()
 endif ()
 
 find_package (Threads REQUIRED)
-find_package (yaml-cpp REQUIRED)
+
+if (NDARRAY_USE_YAML STREQUAL AUTO)
+  find_package (yaml-cpp QUIET)
+elseif (NDARRAY_USE_YAML)
+  find_package (yaml-cpp REQUIRED)
+endif ()
+if (yaml-cpp_FOUND)
+  set (NDARRAY_HAVE_YAML ON)
+endif ()
 
 if (NDARRAY_USE_ADIOS2 STREQUAL AUTO)
   find_package (ADIOS2 QUIET)

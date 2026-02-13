@@ -12,6 +12,7 @@
 #cmakedefine NDARRAY_HAVE_PNETCDF 1
 #cmakedefine NDARRAY_HAVE_PNG 1
 #cmakedefine NDARRAY_HAVE_VTK 1
+#cmakedefine NDARRAY_HAVE_YAML 1
 
 #cmakedefine NDARRAY_USE_BIG_ENDIAN 1
 #cmakedefine NDARRAY_USE_LITTLE_ENDIAN 1

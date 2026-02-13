@@ -28,19 +28,21 @@ endif()
 
 add_test(NAME ndarray_io COMMAND test_ndarray_io)
 
-# Stream functionality tests (yaml streams)
-add_executable(test_ndarray_stream test_ndarray_stream.cpp)
-target_link_libraries(test_ndarray_stream ${CMAKE_THREAD_LIBS_INIT} yaml-cpp::yaml-cpp)
+# Stream functionality tests (requires YAML support)
+if (NDARRAY_HAVE_YAML)
+  add_executable(test_ndarray_stream test_ndarray_stream.cpp)
+  target_link_libraries(test_ndarray_stream ${CMAKE_THREAD_LIBS_INIT} yaml-cpp::yaml-cpp)
 
-if (NDARRAY_HAVE_NETCDF)
-  target_link_libraries(test_ndarray_stream netCDF::netcdf)
+  if (NDARRAY_HAVE_NETCDF)
+    target_link_libraries(test_ndarray_stream netCDF::netcdf)
+  endif()
+
+  if (NDARRAY_HAVE_HDF5)
+    target_link_libraries(test_ndarray_stream ${HDF5_LIBRARIES})
+  endif()
+
+  add_test(NAME ndarray_stream COMMAND test_ndarray_stream)
 endif()
-
-if (NDARRAY_HAVE_HDF5)
-  target_link_libraries(test_ndarray_stream ${HDF5_LIBRARIES})
-endif()
-
-add_test(NAME ndarray_stream COMMAND test_ndarray_stream)
 
 # Zero-copy optimization test
 add_executable(test_zero_copy test_zero_copy.cpp)
@@ -51,6 +53,11 @@ add_test(NAME zero_copy COMMAND test_zero_copy)
 add_executable(test_variable_names test_variable_names.cpp)
 target_link_libraries(test_variable_names ${CMAKE_THREAD_LIBS_INIT})
 add_test(NAME variable_names COMMAND test_variable_names)
+
+# Vector conversion test
+add_executable(test_vector_conversion test_vector_conversion.cpp)
+target_link_libraries(test_vector_conversion ${CMAKE_THREAD_LIBS_INIT})
+add_test(NAME vector_conversion COMMAND test_vector_conversion)
 
 # HDF5 functionality tests (requires HDF5 support)
 if (NDARRAY_HAVE_HDF5)

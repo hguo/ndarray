@@ -1,6 +1,10 @@
 #ifndef _NDARRAY_NDARRAY_GROUP_STREAM_HH
 #define _NDARRAY_NDARRAY_GROUP_STREAM_HH
 
+#include <ndarray/config.hh>
+
+#if NDARRAY_HAVE_YAML
+
 #include <ndarray/ndarray_group.hh>
 #include <ndarray/synthetic.hh>
 #include <ndarray/variable_name_utils.hh>
@@ -979,6 +983,8 @@ inline void substream_netcdf::initialize(YAML::Node y)
 #endif
 }
 
-}
+} // namespace ftk
 
-#endif
+#endif // NDARRAY_HAVE_YAML
+
+#endif // _NDARRAY_NDARRAY_GROUP_STREAM_HH
