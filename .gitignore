@@ -7,4 +7,4 @@ docs/html
 dist/
 *.egg-info/
 __pycache__
-.vscode
+.vscodedocs/CRITICAL_ANALYSIS.md
