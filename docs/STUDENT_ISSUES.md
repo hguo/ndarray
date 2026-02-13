@@ -3,7 +3,7 @@
 ## Issue 1: Difficulty Converting std::vector to ndarray
 
 ### Problem
-Students reported: "不易将std vector转换成ndarray" (It's not easy to convert std::vector to ndarray)
+Students reported: "It's not easy to convert std::vector to ndarray"
 
 ### Root Cause
 Original API requires multiple steps:
