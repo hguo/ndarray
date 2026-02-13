@@ -42,6 +42,11 @@ endif()
 
 add_test(NAME ndarray_stream COMMAND test_ndarray_stream)
 
+# Zero-copy optimization test
+add_executable(test_zero_copy test_zero_copy.cpp)
+target_link_libraries(test_zero_copy ${CMAKE_THREAD_LIBS_INIT})
+add_test(NAME zero_copy COMMAND test_zero_copy)
+
 # HDF5 functionality tests (requires HDF5 support)
 if (NDARRAY_HAVE_HDF5)
   add_executable(test_ndarray_hdf5 test_ndarray_hdf5.cpp)
