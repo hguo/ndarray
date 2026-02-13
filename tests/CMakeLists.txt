@@ -5,7 +5,7 @@ add_executable(test_ndarray_core test_ndarray_core.cpp)
 target_link_libraries(test_ndarray_core ${CMAKE_THREAD_LIBS_INIT})
 
 if (NDARRAY_HAVE_NETCDF)
-  target_link_libraries(test_ndarray_core netcdf)
+  target_link_libraries(test_ndarray_core netCDF::netcdf)
 endif()
 
 if (NDARRAY_HAVE_HDF5)
@@ -19,7 +19,7 @@ add_executable(test_ndarray_io test_ndarray_io.cpp)
 target_link_libraries(test_ndarray_io ${CMAKE_THREAD_LIBS_INIT})
 
 if (NDARRAY_HAVE_NETCDF)
-  target_link_libraries(test_ndarray_io netcdf)
+  target_link_libraries(test_ndarray_io netCDF::netcdf)
 endif()
 
 if (NDARRAY_HAVE_HDF5)

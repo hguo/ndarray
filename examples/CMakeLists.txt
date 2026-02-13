@@ -10,7 +10,7 @@ add_executable(basic_usage basic_usage.cpp)
 target_link_libraries(basic_usage ${CMAKE_THREAD_LIBS_INIT})
 
 if (NDARRAY_HAVE_NETCDF)
-  target_link_libraries(basic_usage netcdf)
+  target_link_libraries(basic_usage netCDF::netcdf)
 endif()
 
 if (NDARRAY_HAVE_HDF5)
@@ -22,7 +22,7 @@ add_executable(io_operations io_operations.cpp)
 target_link_libraries(io_operations ${CMAKE_THREAD_LIBS_INIT})
 
 if (NDARRAY_HAVE_NETCDF)
-  target_link_libraries(io_operations netcdf)
+  target_link_libraries(io_operations netCDF::netcdf)
 endif()
 
 if (NDARRAY_HAVE_HDF5)
@@ -34,7 +34,7 @@ add_executable(convolution convolution.cpp)
 target_link_libraries(convolution ${CMAKE_THREAD_LIBS_INIT})
 
 if (NDARRAY_HAVE_NETCDF)
-  target_link_libraries(convolution netcdf)
+  target_link_libraries(convolution netCDF::netcdf)
 endif()
 
 if (NDARRAY_HAVE_HDF5)
@@ -47,7 +47,7 @@ if (NDARRAY_HAVE_MPI)
   target_link_libraries(parallel_mpi ${CMAKE_THREAD_LIBS_INIT})
 
   if (NDARRAY_HAVE_NETCDF)
-    target_link_libraries(parallel_mpi netcdf)
+    target_link_libraries(parallel_mpi netCDF::netcdf)
   endif()
 
   if (NDARRAY_HAVE_HDF5)
@@ -65,7 +65,7 @@ if (NDARRAY_HAVE_SYCL)
   target_link_libraries(sycl_acceleration ${CMAKE_THREAD_LIBS_INIT})
 
   if (NDARRAY_HAVE_NETCDF)
-    target_link_libraries(sycl_acceleration netcdf)
+    target_link_libraries(sycl_acceleration netCDF::netcdf)
   endif()
 
   if (NDARRAY_HAVE_HDF5)
@@ -81,7 +81,7 @@ if (NDARRAY_HAVE_CUDA OR NDARRAY_HAVE_SYCL)
   target_link_libraries(device_memory ${CMAKE_THREAD_LIBS_INIT})
 
   if (NDARRAY_HAVE_NETCDF)
-    target_link_libraries(device_memory netcdf)
+    target_link_libraries(device_memory netCDF::netcdf)
   endif()
 
   if (NDARRAY_HAVE_HDF5)
