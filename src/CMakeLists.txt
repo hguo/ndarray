@@ -8,7 +8,10 @@ if (NDARRAY_HAVE_HENSON)
 endif ()
 
 add_library (ndarray SHARED ndarray.cpp)
-target_link_libraries (ndarray yaml-cpp::yaml-cpp)
+
+if (NDARRAY_HAVE_YAML)
+  target_link_libraries (ndarray yaml-cpp::yaml-cpp)
+endif ()
 
 if (NDARRAY_HAVE_ADIOS2)
   target_link_libraries (ndarray adios2::adios2)
