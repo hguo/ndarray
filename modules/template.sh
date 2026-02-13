@@ -4,7 +4,7 @@
 
 # System information
 SITE_NAME="Your HPC Center Name"
-SYSTEM_NAME="System Name (e.g., Summit, Cori)"
+SYSTEM_NAME="System Name (e.g., Perlmutter, Frontier)"
 ARCHITECTURE="CPU/GPU architecture"
 
 echo "========================================"
