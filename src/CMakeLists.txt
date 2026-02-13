@@ -57,16 +57,27 @@ if (NDARRAY_HAVE_CUDA)
 endif ()
 
 
-add_executable (ndarray-dryrun dryrun.cpp)
-target_link_libraries (ndarray-dryrun PRIVATE ndarray)
+if (NDARRAY_HAVE_YAML)
+  add_executable (ndarray-dryrun dryrun.cpp)
+  target_link_libraries (ndarray-dryrun PRIVATE ndarray)
+endif ()
 
 
-install (TARGETS ndarray ndarray-dryrun
-  EXPORT ndarrayTargets
-  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-  # ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-)
+if (NDARRAY_HAVE_YAML)
+  install (TARGETS ndarray ndarray-dryrun
+    EXPORT ndarrayTargets
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    # ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  )
+else ()
+  install (TARGETS ndarray
+    EXPORT ndarrayTargets
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    # ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  )
+endif ()
 
 install (EXPORT ndarrayTargets
   DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/cmake/ndarray
