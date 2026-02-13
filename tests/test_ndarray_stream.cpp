@@ -122,7 +122,7 @@ int main() {
       // Check if scalar variable exists
       TEST_ASSERT(g0->has("scalar"), "Should have 'scalar' variable");
 
-      auto scalar0 = g0->get<float>("scalar");
+      auto scalar0 = g0->get_arr<float>("scalar");
       TEST_ASSERT(scalar0.size() > 0, "Scalar data should not be empty");
       TEST_ASSERT(scalar0.dim(0) == 16, "First dimension should be 16");
       TEST_ASSERT(scalar0.dim(1) == 16, "Second dimension should be 16");
@@ -167,9 +167,9 @@ int main() {
       TEST_ASSERT(g->has("pressure"), "Should have 'pressure' variable");
       TEST_ASSERT(g->has("velocity"), "Should have 'velocity' variable");
 
-      auto temp = g->get<float>("temperature");
-      auto pres = g->get<float>("pressure");
-      auto vel = g->get<float>("velocity");
+      auto temp = g->get_arr<float>("temperature");
+      auto pres = g->get_arr<float>("pressure");
+      auto vel = g->get_arr<float>("velocity");
 
       TEST_ASSERT(temp.size() == 16*16, "Temperature size should be 16*16");
       TEST_ASSERT(pres.size() == 16*16, "Pressure size should be 16*16");
@@ -200,7 +200,7 @@ int main() {
       TEST_ASSERT(g != nullptr, "Should read static data");
       TEST_ASSERT(g->has("coordinates"), "Should have 'coordinates' variable");
 
-      auto coords = g->get<float>("coordinates");
+      auto coords = g->get_arr<float>("coordinates");
       TEST_ASSERT(coords.size() == 32*32, "Static data size should be 32*32");
 
       std::cout << "    - Read static data successfully" << std::endl;
@@ -226,7 +226,7 @@ int main() {
       TEST_ASSERT(g != nullptr, "Should read timestep");
       TEST_ASSERT(g->has("data"), "Should have 'data' variable");
 
-      auto data = g->get<double>("data");
+      auto data = g->get_arr<double>("data");
       TEST_ASSERT(data.size() == 8*8, "Data size should be 8*8");
 
       std::cout << "    - Read float64 data successfully" << std::endl;
@@ -302,7 +302,7 @@ int main() {
     ftk::stream s2d;
     s2d.parse_yaml("test_stream_2d.yaml");
     auto g2d = s2d.read(0);
-    auto data2d = g2d->get<float>("scalar");
+    auto data2d = g2d->get_arr<float>("scalar");
     TEST_ASSERT(data2d.size() == 64*48, "2D array size correct");
     std::cout << "    - 2D array: [64, 48]" << std::endl;
 
@@ -311,7 +311,7 @@ int main() {
     ftk::stream ssmall;
     ssmall.parse_yaml("test_stream_small.yaml");
     auto gsmall = ssmall.read(0);
-    auto datasmall = gsmall->get<float>("scalar");
+    auto datasmall = gsmall->get_arr<float>("scalar");
     TEST_ASSERT(datasmall.size() == 4*4, "Small array size correct");
     std::cout << "    - Small array: [4, 4]" << std::endl;
 
@@ -320,7 +320,7 @@ int main() {
     ftk::stream slarge;
     slarge.parse_yaml("test_stream_large.yaml");
     auto glarge = slarge.read(0);
-    auto datalarge = glarge->get<float>("scalar");
+    auto datalarge = glarge->get_arr<float>("scalar");
     TEST_ASSERT(datalarge.size() == 256*256, "Large array size correct");
     std::cout << "    - Large array: [256, 256]" << std::endl;
 
@@ -397,7 +397,7 @@ int main() {
 
         auto g = s.read(0);
         if (g && g->has("scalar")) {
-          auto scalar = g->get<float>("scalar");
+          auto scalar = g->get_arr<float>("scalar");
           std::cout << "    - Read woven example data: " << scalar.size() << " elements" << std::endl;
         }
 
