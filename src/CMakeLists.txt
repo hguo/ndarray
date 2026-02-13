@@ -34,8 +34,11 @@ if (NDARRAY_HAVE_HENSON)
   target_link_libraries (ndarray ${HENSON_PMPI_LIBRARY} ${HENSON_LIBRARY})
 endif ()
 
-if (NDARRAY_HAVE_MPI)
-  target_link_libraries (ndarray MPI::MPI_C MPI::MPI_CXX)
+if (NDARRAY_HAVE_MPI AND TARGET MPI::MPI_CXX)
+  target_link_libraries (ndarray MPI::MPI_CXX)
+  if (TARGET MPI::MPI_C)
+    target_link_libraries (ndarray MPI::MPI_C)
+  endif ()
 endif ()
 
 if (NDARRAY_HAVE_PNG)

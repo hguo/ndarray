@@ -79,7 +79,7 @@ if (netCDF_FOUND)
     set (NDARRAY_USE_HDF5 ON)
   endif ()
   if (netCDF_HAS_PARALLEL)
-    set (NDARRAY_USE_MPI ON)
+    set (NDARRAY_USE_MPI AUTO)
   endif ()
 endif ()
 
