@@ -19,17 +19,13 @@ make -j8
 
 ## Available Configurations
 
-| Script | System | Tested | Description |
-|--------|--------|--------|-------------|
-| `nersc-cori.sh` | NERSC Cori | ✅ | Cray XC40, Intel Xeon |
-| `nersc-perlmutter.sh` | NERSC Perlmutter | ⚠️ | HPE Cray EX, AMD EPYC + NVIDIA A100 |
-| `tacc-stampede2.sh` | TACC Stampede2 | ✅ | Intel Xeon Phi KNL |
-| `ornl-summit.sh` | ORNL Summit | ⚠️ | IBM Power9 + NVIDIA V100 |
-| `minimal.sh` | Any system | ✅ | Minimal build, no optional deps |
-| `standard.sh` | Generic HPC | ✅ | Standard HPC with MPI + NetCDF |
+| Script | System | Description |
+|--------|--------|-------------|
+| `template.sh` | Template | Template for creating site-specific configs |
+| `minimal.sh` | Any system | Minimal build, no optional deps |
+| `standard.sh` | Generic HPC | Standard HPC with MPI + NetCDF |
 
-✅ = Tested and verified
-⚠️ = Configuration exists but needs testing
+Add site-specific configurations as needed for your HPC center.
 
 ## Contributing
 
