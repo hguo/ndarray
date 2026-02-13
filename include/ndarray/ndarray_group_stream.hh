@@ -3,6 +3,7 @@
 
 #include <ndarray/ndarray_group.hh>
 #include <ndarray/synthetic.hh>
+#include <ndarray/variable_name_utils.hh>
 #if NDARRAY_HAVE_MPI
 #include <mpi.h>
 #endif
@@ -835,17 +836,25 @@ inline void substream_netcdf::read(int i, std::shared_ptr<ndarray_group> g)
 
   for (const auto &var : variables) {
     int varid = -1;
+    std::string found_varname;
 
     for (const auto varname : var.possible_names) {
       int rtn = nc_inq_varid(ncid, varname.c_str(), &varid);
-      // fprintf(stderr, "ncid=%d, varname=%s, possible_name=%s, varid=%d\n", 
+      // fprintf(stderr, "ncid=%d, varname=%s, possible_name=%s, varid=%d\n",
       //     ncid, var.name.c_str(), varname.c_str(), varid);
 
-      if (rtn == NC_NOERR) 
+      if (rtn == NC_NOERR) {
+        found_varname = varname;
         break;
+      }
     }
 
     if (varid >= 0) { // succ
+      // Optionally log which name was actually used
+      if (found_varname != var.name && var.possible_names.size() > 1) {
+        // fprintf(stderr, "[ndarray] Variable '%s' found as '%s'\n",
+        //         var.name.c_str(), found_varname.c_str());
+      }
       // create a new array
       int type;
       NC_SAFE_CALL( nc_inq_vartype(ncid, varid, &type) );
@@ -892,7 +901,16 @@ inline void substream_netcdf::read(int i, std::shared_ptr<ndarray_group> g)
 
       // std::shared_ptr<ndarray_base> arr(new ndarray_base);
     } else { // failed
+      if (!var.is_optional) {
+        // Variable is required but not found - provide helpful error
+        std::string error_msg = create_variable_not_found_message(
+            var.possible_names, ncid);
+        fprintf(stderr, "[NDARRAY ERROR] %s", error_msg.c_str());
 
+        // For now, just warn instead of fatal error to maintain backward compatibility
+        // In future versions, this should throw or fatal
+        // nd::fatal(nd::ERR_NETCDF);
+      }
     }
   }
 

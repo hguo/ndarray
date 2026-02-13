@@ -47,6 +47,11 @@ add_executable(test_zero_copy test_zero_copy.cpp)
 target_link_libraries(test_zero_copy ${CMAKE_THREAD_LIBS_INIT})
 add_test(NAME zero_copy COMMAND test_zero_copy)
 
+# Variable name matching test
+add_executable(test_variable_names test_variable_names.cpp)
+target_link_libraries(test_variable_names ${CMAKE_THREAD_LIBS_INIT})
+add_test(NAME variable_names COMMAND test_variable_names)
+
 # HDF5 functionality tests (requires HDF5 support)
 if (NDARRAY_HAVE_HDF5)
   add_executable(test_ndarray_hdf5 test_ndarray_hdf5.cpp)
