@@ -831,11 +831,7 @@ inline void substream_netcdf::read(int i, std::shared_ptr<ndarray_group> g)
 
 #if NDARRAY_HAVE_NETCDF
   auto &pool = fdpool_nc::get_instance();
-#if NDARRAY_HAVE_MPI
   int ncid = pool.open(f, comm);
-#else
-  int ncid = pool.open(f);
-#endif
 
   for (const auto &var : variables) {
     int varid = -1;
@@ -912,11 +908,7 @@ inline void substream_netcdf::initialize(YAML::Node y)
 #if NDARRAY_HAVE_NETCDF
   auto &pool = fdpool_nc::get_instance();
   for (const auto f : this->filenames) {
-#if NDARRAY_HAVE_MPI
     int ncid = pool.open(f, comm);
-#else
-    int ncid = pool.open(f);
-#endif
 
     size_t nt = 0;
     int unlimited_recid;

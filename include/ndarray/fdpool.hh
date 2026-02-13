@@ -22,11 +22,7 @@ struct fdpool_nc {
     return instance;
   }
 
-#if NDARRAY_HAVE_MPI
   int open(const std::string& filename, MPI_Comm comm = MPI_COMM_WORLD);
-#else
-  int open(const std::string& filename);
-#endif
   void close_all();
 
 private:
@@ -36,19 +32,14 @@ private:
 };
 
 ////
-#if NDARRAY_HAVE_MPI
 inline int fdpool_nc::open(const std::string& f, MPI_Comm comm)
-#else
-inline int fdpool_nc::open(const std::string& f)
-#endif
 {
   auto it = pool.find(f);
   if (it == pool.end()) { // never opened
-    int ncid;
+    int ncid, rtn;
 
 #if NDARRAY_HAVE_NETCDF
-#if NDARRAY_HAVE_MPI && NC_HAS_PARALLEL
-    int rtn;
+#if NC_HAS_PARALLEL
     rtn = nc_open_par(f.c_str(), NC_NOWRITE, comm, MPI_INFO_NULL, &ncid);
     if (rtn != NC_NOERR)
       NC_SAFE_CALL( nc_open(f.c_str(), NC_NOWRITE, &ncid) );
