@@ -124,12 +124,12 @@ int main() {
 
       auto scalar0 = g0->get_arr<float>("scalar");
       TEST_ASSERT(scalar0.size() > 0, "Scalar data should not be empty");
-      TEST_ASSERT(scalar0.dim(0) == 16, "First dimension should be 16");
-      TEST_ASSERT(scalar0.dim(1) == 16, "Second dimension should be 16");
+      TEST_ASSERT(scalar0.dimf(0) == 16, "First dimension should be 16");
+      TEST_ASSERT(scalar0.dimf(1) == 16, "Second dimension should be 16");
 
       std::cout << "    - Read timestep 0 successfully" << std::endl;
-      std::cout << "    - Scalar shape: [" << scalar0.dim(0) << ", "
-                << scalar0.dim(1) << "]" << std::endl;
+      std::cout << "    - Scalar shape: [" << scalar0.dimf(0) << ", "
+                << scalar0.dimf(1) << "]" << std::endl;
       std::cout << "    - Scalar size: " << scalar0.size() << std::endl;
 
       // Read middle timestep
