@@ -38,6 +38,9 @@ struct ndarray : public ndarray_base {
   ndarray(const std::vector<size_t> &dims) {reshapef(dims);}
   ndarray(const std::vector<size_t> &dims, T val) {reshapef(dims, val);}
 
+  // Construct 1D array from std::vector data
+  explicit ndarray(const std::vector<T> &data) {copy_vector(data);}
+
   [[deprecated]] ndarray(const lattice& l) {reshapef(l.sizes());}
   [[deprecated]] ndarray(const T *a, const std::vector<size_t> &shape);
   
@@ -257,6 +260,25 @@ public:
 
 public: // subarray
   ndarray<T> subarray(const lattice&) const;
+
+public: // construction from data
+  // Create 1D array from std::vector data
+  static ndarray<T> from_vector_data(const std::vector<T>& data) {
+    ndarray<T> arr;
+    arr.copy_vector(data);
+    return arr;
+  }
+
+  // Create N-D array from std::vector data with specified shape
+  static ndarray<T> from_vector_data(const std::vector<T>& data, const std::vector<size_t>& shape) {
+    ndarray<T> arr;
+    arr.reshapef(shape);
+    size_t n = std::min(data.size(), arr.size());
+    for (size_t i = 0; i < n; i++) {
+      arr[i] = data[i];
+    }
+    return arr;
+  }
 
 public: // file i/o; automatically determine format based on extensions
   static ndarray<T> from_file(const std::string& filename, const std::string varname="", MPI_Comm comm = MPI_COMM_WORLD);
