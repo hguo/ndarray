@@ -180,10 +180,18 @@ public:
 //   virtual double af(size_t i0, size_t i1, size_t i2, size_t i3, size_t i4, size_t i5) const = 0;
 //   virtual double af(size_t i0, size_t i1, size_t i2, size_t i3, size_t i4, size_t i5, size_t i6) const = 0;
 
-public:  
+public:
+  // Set number of component dimensions (0=scalar, 1=vector, 2=tensor)
   void set_multicomponents(size_t c=1) {ncd = c;}
-  void make_multicomponents(); // make a non-multicomponent array to an array with 1 component
+
+  // Convert scalar array to vector array with 1 component: [nx, ny] → [1, nx, ny]
+  void make_multicomponents();
+
+  // Get number of component dimensions (ncd value)
   size_t multicomponents() const {return ncd;}
+
+  // Get total number of components (product of first ncd dimensions)
+  // Example: for shape [3, 100, 200] with ncd=1, returns 3
   size_t ncomponents() const;
 
   void set_has_time(bool b) { tv = b; }
@@ -279,8 +287,15 @@ public: // device/host
 
 protected:
   std::vector<size_t> dims, s;
-  size_t ncd = 0; // number of dimensions for components.  For 3D vector field, nd=4, ncd=1.  For 3D jacobian field, nd=5, ncd=2
-  bool tv = false; // wheter the last dimension is time
+
+  // ncd: number of leading dimensions that represent components (not spatial/temporal)
+  // ncd=0: scalar field, all dimensions are spatial (e.g., [nx, ny, nz])
+  // ncd=1: vector field, first dimension is components (e.g., [3, nx, ny, nz] for 3D velocity)
+  // ncd=2: tensor field, first two dimensions are components (e.g., [3, 3, nx, ny] for stress tensor)
+  // Total components = product of first ncd dimensions
+  size_t ncd = 0;
+
+  bool tv = false; // whether the last dimension is time
 };
 
 ////////
@@ -290,6 +305,10 @@ inline lattice ndarray_base::get_lattice() const {
 }
 
 inline size_t ndarray_base::ncomponents() const {
+  // Compute total number of components by multiplying the first ncd dimensions
+  // Examples:
+  //   [3, 100, 200] with ncd=1 → 3 components
+  //   [3, 3, 64, 64] with ncd=2 → 9 components
   size_t rtn = 1;
   for (size_t i = 0; i < multicomponents(); i ++)
     rtn *= dims[i];
