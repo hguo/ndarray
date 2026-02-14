@@ -59,6 +59,11 @@ add_executable(test_vector_conversion test_vector_conversion.cpp)
 target_link_libraries(test_vector_conversion ${CMAKE_THREAD_LIBS_INIT})
 add_test(NAME vector_conversion COMMAND test_vector_conversion)
 
+# F/C ordering demonstration
+add_executable(test_fc_ordering test_fc_ordering.cpp)
+target_link_libraries(test_fc_ordering ${CMAKE_THREAD_LIBS_INIT})
+add_test(NAME fc_ordering COMMAND test_fc_ordering)
+
 # HDF5 functionality tests (requires HDF5 support)
 if (NDARRAY_HAVE_HDF5)
   add_executable(test_ndarray_hdf5 test_ndarray_hdf5.cpp)

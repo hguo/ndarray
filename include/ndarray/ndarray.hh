@@ -111,7 +111,10 @@ struct ndarray : public ndarray_base {
   static ndarray<T> concat(const std::vector<ndarray<T>>& arrays);
   static ndarray<T> stack(const std::vector<ndarray<T>>& arrays);
 
-public: // f-style access
+public: // Column-major (Fortran-style) access: f(i0, i1, ...) where i0 varies fastest
+  // For a 2D array reshaped as (n0, n1):
+  //   f(i0, i1) accesses element at memory location: i0 + i1*n0
+  //   This matches Fortran's column-major convention where the first index varies fastest
   T& f(const std::vector<size_t>& idx) {return p[indexf(idx)];}
   const T& f(const std::vector<size_t>& idx) const {return p[indexf(idx)];}
   
@@ -137,7 +140,12 @@ public: // f-style access
   const T& f(size_t i0, size_t i1, size_t i2, size_t i3, size_t i4, size_t i5) const {return p[i0+i1*s[1]+i2*s[2]+i3*s[3]+i4*s[4]+i5*s[5]];}
   const T& f(size_t i0, size_t i1, size_t i2, size_t i3, size_t i4, size_t i5, size_t i6) const {return p[i0+i1*s[1]+i2*s[2]+i3*s[3]+i4*s[4]+i5*s[5]+i6*s[6]];}
 
-public: // c-style access
+public: // Row-major (C-style) access: c(i0, i1, ...) where the last index varies fastest
+  // For a 2D array reshaped as (n0, n1):
+  //   c(i0, i1) accesses element at memory location: i1 + i0*n1
+  //   This matches C's row-major convention where the last index varies fastest
+  //
+  // Note: Both f() and c() access the same underlying storage but with different indexing schemes
   T& c(const std::vector<size_t>& idx) {return p[indexc(idx)];}
   const T& c(const std::vector<size_t>& idx) const {return p[indexc(idx)];}
   
