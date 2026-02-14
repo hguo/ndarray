@@ -38,7 +38,8 @@ struct ndarray : public ndarray_base {
   ndarray(const std::vector<size_t> &dims) {reshapef(dims);}
   ndarray(const std::vector<size_t> &dims, T val) {reshapef(dims, val);}
 
-  // Construct 1D array from std::vector data
+  // Construct 1D array from std::vector data (disabled when T is size_t to avoid ambiguity)
+  template <typename U = T, typename std::enable_if<!std::is_same<U, size_t>::value, int>::type = 0>
   explicit ndarray(const std::vector<T> &data) {copy_vector(data);}
 
   [[deprecated]] ndarray(const lattice& l) {reshapef(l.sizes());}
