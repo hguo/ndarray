@@ -615,12 +615,8 @@ int main() {
 #endif
 
 #if NDARRAY_HAVE_HDF5
-  // Test 13: HDF5 stream with time series
-  // TODO: This test needs redesign - HDF5 stream treats each file as one timestep,
-  // but test creates multiple datasets per file with h5_name pattern.
-  // Current implementation limitation: h5_name patterns may not work as expected
-  // for multiple datasets per file. Needs investigation or different test approach.
-  if (false) {
+  // Test 13: HDF5 stream with time series (multiple timesteps per file)
+  {
     TEST_SECTION("HDF5 stream with time series data");
 
     try {
@@ -677,26 +673,36 @@ int main() {
       ftk::stream s;
       s.parse_yaml("test_stream_hdf5.yaml");
 
-      // Note: HDF5 stream with h5_name pattern counts files, not individual datasets
+      // With timesteps_per_file=3 and 2 files, we should have 6 total timesteps
       int actual_timesteps = s.total_timesteps();
-      std::cout << "    - Files in stream: " << actual_timesteps << std::endl;
-      TEST_ASSERT(actual_timesteps == 2, "HDF5 stream should have 2 files");
+      std::cout << "    - Total timesteps in stream: " << actual_timesteps << std::endl;
+      TEST_ASSERT(actual_timesteps == 6, "HDF5 stream should have 6 timesteps (2 files × 3 timesteps/file)");
 
-      // Read first file (contains 3 datasets: data_t0, data_t1, data_t2)
+      // Read first timestep (file 0, dataset data_t0)
       auto g0 = s.read(0);
-      TEST_ASSERT(g0 != nullptr, "Failed to read HDF5 file 0");
-      TEST_ASSERT(g0->has("pressure"), "Missing pressure variable");
+      TEST_ASSERT(g0 != nullptr, "Failed to read timestep 0");
+      TEST_ASSERT(g0->has("pressure"), "Missing pressure variable at timestep 0");
 
       auto p0 = g0->get_arr<double>("pressure");
       TEST_ASSERT(p0.size() == nx * ny, "Wrong HDF5 array size");
-      TEST_ASSERT(std::abs(p0[0] - 0.0) < 1e-10, "Wrong HDF5 data at file 0");
+      TEST_ASSERT(std::abs(p0[0] - 0.0) < 1e-10, "Wrong data at timestep 0 (file 0, t=0)");
 
-      // Read second file
+      // Read second timestep (file 0, dataset data_t1)
       auto g1 = s.read(1);
       auto p1 = g1->get_arr<double>("pressure");
-      TEST_ASSERT(std::abs(p1[0] - 150.0) < 1e-10, "Wrong HDF5 data at file 1");
+      TEST_ASSERT(std::abs(p1[0] - 50.0) < 1e-10, "Wrong data at timestep 1 (file 0, t=1)");
 
-      std::cout << "    - Successfully read HDF5 stream" << std::endl;
+      // Read fourth timestep (file 1, dataset data_t0)
+      auto g3 = s.read(3);
+      auto p3 = g3->get_arr<double>("pressure");
+      TEST_ASSERT(std::abs(p3[0] - 150.0) < 1e-10, "Wrong data at timestep 3 (file 1, t=0)");
+
+      // Read last timestep (file 1, dataset data_t2)
+      auto g5 = s.read(5);
+      auto p5 = g5->get_arr<double>("pressure");
+      TEST_ASSERT(std::abs(p5[0] - 250.0) < 1e-10, "Wrong data at timestep 5 (file 1, t=2)");
+
+      std::cout << "    - Successfully read all 6 timesteps from HDF5 stream" << std::endl;
       std::cout << "    PASSED" << std::endl;
 
       std::remove("test_stream_h5_t0.h5");
