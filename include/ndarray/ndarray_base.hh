@@ -194,7 +194,11 @@ public:
   // Example: for shape [3, 100, 200] with ncd=1, returns 3
   size_t ncomponents() const;
 
+  // Mark whether the last dimension represents time
+  // When tv=true, the array is time-series data: [...spatial_dims..., time_dim]
   void set_has_time(bool b) { tv = b; }
+
+  // Check if last dimension is time
   bool has_time() const { return tv; }
 
 public: // binary i/o
@@ -212,7 +216,9 @@ public: // netcdf
   void read_netcdf(int ncid, const std::string& varname, MPI_Comm comm=MPI_COMM_WORLD);
   void read_netcdf(int ncid, int varid, MPI_Comm comm=MPI_COMM_WORLD);
 
-  void read_netcdf_timestep(int ncid, int varid, int t, MPI_Comm comm=MPI_COMM_WORLD); // assuming the variable has an unlimited dimension
+  // Read a single timestep from NetCDF variable with unlimited dimension (typically time)
+  // Automatically sets has_time(true) after reading
+  void read_netcdf_timestep(int ncid, int varid, int t, MPI_Comm comm=MPI_COMM_WORLD);
   
   // void to_netcdf(int ncid, const std::string& varname);
   // void to_netcdf(int ncid, int varid);
@@ -295,7 +301,12 @@ protected:
   // Total components = product of first ncd dimensions
   size_t ncd = 0;
 
-  bool tv = false; // whether the last dimension is time
+  // tv: whether the last dimension represents time
+  // tv=false: static/spatial data only (e.g., [nx, ny, nz])
+  // tv=true: time-series data, last dimension is timesteps (e.g., [nx, ny, nt])
+  // Combined: [component_dims..., spatial_dims..., time_dim]
+  //           <----- ncd -----> <-- nd()-ncd-1 --> <-- tv -->
+  bool tv = false;
 };
 
 ////////

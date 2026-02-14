@@ -105,8 +105,14 @@ struct ndarray : public ndarray_base {
   ndarray<T> slice(const lattice&) const;
   ndarray<T> slice(const std::vector<size_t>& starts, const std::vector<size_t> &sizes) const;
 
-  ndarray<T> slice_time(size_t t) const; // assuming the last dimension is time, return an (n-1)-dimensional slice
-  std::vector<ndarray<T>> slice_time() const; // slice_time for all timesteps
+  // Extract a single timestep from time-series data (assumes last dim is time)
+  // Returns (n-1)-dimensional array without time dimension
+  // Example: [nx, ny, nt] → [nx, ny]
+  ndarray<T> slice_time(size_t t) const;
+
+  // Extract all timesteps as a vector of (n-1)-dimensional arrays
+  // Example: [nx, ny, nt] → vector of nt arrays of shape [nx, ny]
+  std::vector<ndarray<T>> slice_time() const;
 
   // merge multiple arrays into a multicomponent array
   static ndarray<T> concat(const std::vector<ndarray<T>>& arrays);
