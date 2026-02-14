@@ -1562,33 +1562,80 @@ pybind11::array_t<T, pybind11::array::c_style> ndarray<T>::to_numpy() const
 }
 #endif
 
-#if NDARRAY_HAVE_PNG // TODO
+#if NDARRAY_HAVE_PNG
+#include <ndarray/ndarray_png.hh>
+
+template <typename T>
+void ndarray<T>::read_png(const std::string& filename)
+{
+  std::vector<unsigned char> png_data;
+  int width, height, channels;
+
+  nd::read_png_file(filename, png_data, width, height, channels);
+
+  if (channels == 1) {
+    // Grayscale: shape is (height, width)
+    reshapef(height, width);
+  } else {
+    // RGB/RGBA: shape is (channels, height, width) - multicomponent
+    reshapef(channels, height, width);
+    set_multicomponents();
+  }
+
+  // Copy data with type conversion
+  for (size_t i = 0; i < png_data.size(); i++) {
+    p[i] = static_cast<T>(png_data[i]);
+  }
+}
+
 template <typename T>
 void ndarray<T>::to_png(const std::string& filename) const
 {
-  ndarray<unsigned char> buf;
-  if (nd() == 2) 
-    buf.reshapef({4, dimf(0), dimf(1)});
-  else if (nd() == 3 && dimf(0) <= 4) 
-    buf.reshapef({4, dimf(1), dimf(2)});
-  else 
-    nd::fatal("unable to save to png");
+  std::vector<unsigned char> png_data;
+  int width, height, channels;
 
-  // TODO
+  // Determine format from array shape
+  if (nd() == 2) {
+    // Grayscale: (height, width)
+    height = dimf(0);
+    width = dimf(1);
+    channels = 1;
+  } else if (nd() == 3 && multicomponents()) {
+    // RGB/RGBA: (channels, height, width)
+    channels = dimf(0);
+    height = dimf(1);
+    width = dimf(2);
+
+    if (channels != 3 && channels != 4) {
+      nd::fatal("PNG write requires 1 (gray), 3 (RGB), or 4 (RGBA) channels");
+    }
+  } else {
+    nd::fatal("Unable to save to PNG: array must be 2D (grayscale) or 3D multicomponent (RGB/RGBA)");
+  }
+
+  // Convert data to unsigned char
+  png_data.resize(nelem());
+  for (size_t i = 0; i < nelem(); i++) {
+    // Clamp to [0, 255]
+    T val = p[i];
+    if (val < T(0)) val = T(0);
+    if (val > T(255)) val = T(255);
+    png_data[i] = static_cast<unsigned char>(val);
+  }
+
+  nd::write_png_file(filename, png_data.data(), width, height, channels);
 }
 #else
 template <typename T>
 void ndarray<T>::read_png(const std::string& filename)
 {
-  fprintf(stderr, "[NDARRAY] fatal error: NDARRAY is not compiled with PNG.\n");
-  assert(false);
+  nd::fatal(nd::ERR_NOT_BUILT_WITH_PNG);
 }
 
 template <typename T>
 void ndarray<T>::to_png(const std::string& filename) const
 {
-  fprintf(stderr, "[NDARRAY] fatal error: NDARRAY is not compiled with PNG.\n");
-  assert(false);
+  nd::fatal(nd::ERR_NOT_BUILT_WITH_PNG);
 }
 #endif
 
@@ -1910,6 +1957,52 @@ inline std::shared_ptr<ndarray_base> ndarray_base::new_by_h5_dtype(hid_t type)
   return p;
 }
 #endif
+
+///////////
+// PNetCDF implementation
+///////////
+
+#if NDARRAY_HAVE_PNETCDF
+
+template <typename T>
+inline void ndarray<T>::read_pnetcdf_all(int ncid, int varid, const MPI_Offset *st, const MPI_Offset *sz)
+{
+  // Get variable dimensionality
+  int ndims;
+  PNC_SAFE_CALL(ncmpi_inq_varndims(ncid, varid, &ndims));
+
+  // Get dimensions
+  std::vector<MPI_Offset> dims(ndims);
+  for (int i = 0; i < ndims; i++) {
+    dims[i] = sz[i];
+  }
+
+  // Reshape array based on count
+  std::vector<size_t> shape(ndims);
+  for (int i = 0; i < ndims; i++) {
+    shape[i] = static_cast<size_t>(sz[i]);
+  }
+  reshapec(shape);  // Use C order for NetCDF compatibility
+
+  // Collective read based on type
+  if (std::is_same<T, float>::value) {
+    PNC_SAFE_CALL(ncmpi_get_vara_float_all(ncid, varid, st, sz, reinterpret_cast<float*>(p.data())));
+  } else if (std::is_same<T, double>::value) {
+    PNC_SAFE_CALL(ncmpi_get_vara_double_all(ncid, varid, st, sz, reinterpret_cast<double*>(p.data())));
+  } else if (std::is_same<T, int>::value) {
+    PNC_SAFE_CALL(ncmpi_get_vara_int_all(ncid, varid, st, sz, reinterpret_cast<int*>(p.data())));
+  } else if (std::is_same<T, unsigned int>::value) {
+    PNC_SAFE_CALL(ncmpi_get_vara_uint_all(ncid, varid, st, sz, reinterpret_cast<unsigned int*>(p.data())));
+  } else if (std::is_same<T, short>::value) {
+    PNC_SAFE_CALL(ncmpi_get_vara_short_all(ncid, varid, st, sz, reinterpret_cast<short*>(p.data())));
+  } else if (std::is_same<T, long long>::value) {
+    PNC_SAFE_CALL(ncmpi_get_vara_longlong_all(ncid, varid, st, sz, reinterpret_cast<long long*>(p.data())));
+  } else {
+    nd::fatal("Unsupported type for read_pnetcdf_all");
+  }
+}
+
+#endif // NDARRAY_HAVE_PNETCDF
 
 } // namespace ndarray
 
