@@ -20,7 +20,9 @@ endfunction ()
 
 ndarray_option (ADIOS2 "Use ADIOS2" FALSE)
 ndarray_option (CUDA "Use CUDA" FALSE) # experimental
+ndarray_option (HIP "Use HIP" FALSE) # experimental, AMD GPUs
 ndarray_option (SYCL "Use SYCL" FALSE) # experimental, cross-platform acceleration
+ndarray_option (EIGEN "Use Eigen" FALSE) # Eigen backend for conversion/interop
 ndarray_option (HDF5 "Use HDF5" FALSE)
 ndarray_option (HENSON "Use HENSON" FALSE) # experimental
 ndarray_option (MPI "Use MPI" FALSE)
@@ -29,6 +31,7 @@ ndarray_option (OpenMP "Use OpenMP" FALSE)
 ndarray_option (PNETCDF "Use parallel-netcdf" FALSE)
 ndarray_option (PNG "Use PNG" FALSE)
 ndarray_option (VTK "Use VTK" FALSE)
+ndarray_option (XTENSOR "Use xtensor" FALSE) # xtensor backend for conversion/interop
 ndarray_option (YAML "Use YAML (for stream functionality)" AUTO) # yaml-cpp for YAML streams
 
 set (CMAKE_CXX_STANDARD 17)
@@ -144,14 +147,42 @@ elseif (NDARRAY_USE_HENSON)
 endif ()
 
 
+find_package(PkgConfig)
 if (NDARRAY_USE_PNETCDF STREQUAL AUTO)
-  find_package (PNetCDF QUIET)
+  if (PKG_CONFIG_FOUND)
+    pkg_check_modules(PNETCDF QUIET pnetcdf)
+  endif()
+  # Fallback to manual detection if pkgconfig not found
+  if (NOT PNETCDF_FOUND AND DEFINED ENV{PNETCDF_DIR})
+    set(PNETCDF_INCLUDE_DIRS "$ENV{PNETCDF_DIR}/include")
+    set(PNETCDF_LIBRARY_DIRS "$ENV{PNETCDF_DIR}/lib")
+    find_library(PNETCDF_LIBRARIES NAMES pnetcdf PATHS ${PNETCDF_LIBRARY_DIRS} NO_DEFAULT_PATH)
+    if (EXISTS "${PNETCDF_INCLUDE_DIRS}/pnetcdf.h" AND PNETCDF_LIBRARIES)
+      set(PNETCDF_FOUND TRUE)
+    endif()
+  endif()
 elseif (NDARRAY_USE_PNETCDF)
-  find_package (PNetCDF REQUIRED)
+  if (PKG_CONFIG_FOUND)
+    pkg_check_modules(PNETCDF REQUIRED pnetcdf)
+  else()
+    # Manual detection required when pkgconfig not available
+    if (DEFINED ENV{PNETCDF_DIR})
+      set(PNETCDF_INCLUDE_DIRS "$ENV{PNETCDF_DIR}/include")
+      set(PNETCDF_LIBRARY_DIRS "$ENV{PNETCDF_DIR}/lib")
+      find_library(PNETCDF_LIBRARIES NAMES pnetcdf PATHS ${PNETCDF_LIBRARY_DIRS} NO_DEFAULT_PATH)
+      if (EXISTS "${PNETCDF_INCLUDE_DIRS}/pnetcdf.h" AND PNETCDF_LIBRARIES)
+        set(PNETCDF_FOUND TRUE)
+      else()
+        message(FATAL_ERROR "PNetCDF not found. Set PNETCDF_DIR environment variable.")
+      endif()
+    else()
+      message(FATAL_ERROR "PkgConfig not found and PNETCDF_DIR not set. Either install pkg-config or set PNETCDF_DIR environment variable.")
+    endif()
+  endif()
 endif()
 if (PNETCDF_FOUND)
   set (NDARRAY_HAVE_PNETCDF TRUE)
-  include_directories (${PNETCDF_INCLUDE_DIR})
+  include_directories (${PNETCDF_INCLUDE_DIRS})
 endif ()
 
 if (NDARRAY_USE_PNG STREQUAL AUTO)
@@ -182,6 +213,15 @@ elseif (NDARRAY_USE_CUDA)
   set (NDARRAY_HAVE_CUDA TRUE)
 endif ()
 
+if (NDARRAY_USE_HIP STREQUAL AUTO)
+  find_package (HIP QUIET)
+elseif (NDARRAY_USE_HIP)
+  find_package (HIP REQUIRED)
+endif ()
+if (HIP_FOUND)
+  set (NDARRAY_HAVE_HIP TRUE)
+endif ()
+
 if (NDARRAY_USE_SYCL STREQUAL AUTO)
   find_package (SYCL QUIET)
   if (SYCL_FOUND)
@@ -192,8 +232,34 @@ elseif (NDARRAY_USE_SYCL)
   set (NDARRAY_HAVE_SYCL TRUE)
 endif ()
 
+if (NDARRAY_USE_EIGEN STREQUAL AUTO)
+  find_package (Eigen3 QUIET NO_MODULE)
+elseif (NDARRAY_USE_EIGEN)
+  find_package (Eigen3 REQUIRED NO_MODULE)
+endif ()
+if (Eigen3_FOUND OR EIGEN3_FOUND)
+  set (NDARRAY_HAVE_EIGEN TRUE)
+  if (TARGET Eigen3::Eigen)
+    # Modern CMake target
+    set (EIGEN3_INCLUDE_DIR ${EIGEN3_INCLUDE_DIR})
+  endif ()
+  if (EIGEN3_INCLUDE_DIR)
+    include_directories (${EIGEN3_INCLUDE_DIR})
+  endif ()
+endif ()
 
-### 
+if (NDARRAY_USE_XTENSOR STREQUAL AUTO)
+  find_package (xtensor QUIET)
+elseif (NDARRAY_USE_XTENSOR)
+  find_package (xtensor REQUIRED)
+endif ()
+if (xtensor_FOUND)
+  set (NDARRAY_HAVE_XTENSOR TRUE)
+  # xtensor provides xtensor::xtensor target
+endif ()
+
+
+###
 
 set (NDARRAY_INCLUDE_DIR 
   ${CMAKE_CURRENT_SOURCE_DIR}/include
@@ -320,10 +386,10 @@ if (${NDARRAY_HAVE_OPENMP})
   message("      Flags:           ${OpenMP_CXX_FLAGS}")
   message("      Library:         ${OpenMP_CXX_LIBRARY}")
 endif ()
-message("    PNETCDF*:    ${NDARRAY_USE_PNETCDF} ${PNetCDF_FOUND}")
+message("    PNETCDF*:    ${NDARRAY_USE_PNETCDF} ${PNETCDF_FOUND}")
 if (${NDARRAY_HAVE_PNETCDF})
-  message("      Include path:   ${PNETCDF_INCLUDE_DIR}")
-  message("      Library:        ${PNETCDF_LIBRARY}")
+  message("      Include path:   ${PNETCDF_INCLUDE_DIRS}")
+  message("      Libraries:      ${PNETCDF_LIBRARIES}")
 endif ()
 message("    PNG:         ${NDARRAY_USE_PNG} ${PNG_FOUND}")
 if (${NDARRAY_HAVE_PNG})

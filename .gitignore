@@ -8,4 +8,4 @@ dist/
 *.egg-info/
 __pycache__
 .vscode
-docs/CRITICAL_ANALYSIS.md
+CRITICAL_ANALYSIS.md

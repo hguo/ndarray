@@ -8,32 +8,42 @@
 
 > **🤖 AI-Assisted Development**: Significant portions of this project's code, documentation, examples, and tests have been generated or enhanced with AI assistance (starting 2026). While functional, the code should be thoroughly reviewed and tested before use in critical applications.
 
-NDArray is a versatile multidimensional array C++ library that provides a unified interface for working with scientific data across multiple I/O formats including NetCDF, HDF5, ADIOS2, and binary data. The library is header-only when used without external dependencies, but requires linking against third-party libraries when using features like NetCDF, HDF5, or ADIOS2.
+NDArray is a **unified I/O abstraction library for time-varying scientific data** designed for HPC systems. It provides a consistent C++ interface for reading and writing multidimensional arrays across diverse scientific data formats (NetCDF, HDF5, ADIOS2, VTK), eliminating the need to learn multiple I/O APIs. The library is header-only when used without external dependencies, but requires linking against third-party libraries when using features like NetCDF, HDF5, or ADIOS2.
 
-## Features
+## Key Features
 
-- **Header-only core** - Easy integration for basic array operations without external dependencies
-- **Modern C++17** - Clean, type-safe template-based design
-- **Multiple I/O backends**:
-  - NetCDF (with parallel-netcdf support)
-  - HDF5
-  - ADIOS2 for high-performance I/O
-  - Binary data streams
-  - PNG images
-- **Parallel computing support**:
-  - MPI for distributed-memory parallelism
-  - OpenMP for shared-memory parallelism
-  - CUDA support (experimental)
-  - SYCL support (experimental, cross-platform acceleration)
-- **Rich array operations**:
-  - Flexible reshaping and slicing
-  - Convolution operations
-  - Gradient computation
-  - Lattice partitioning
-- **Scientific workflows**:
-  - VTK integration for visualization
-  - Henson support for in-situ analysis (experimental)
-  - Synthetic data generation utilities
+### Time-Varying Scientific Data Abstraction
+- **Unified API** for multiple scientific data formats - write once, support all formats
+- **Stream-based interface** for time-series data workflows
+- **Format interoperability** - read NetCDF, write HDF5 seamlessly
+- **Zero-copy optimization** for efficient memory usage with large datasets
+
+### HPC I/O Backends
+- **NetCDF** - Climate, ocean, atmosphere data (with parallel-netcdf support)
+- **HDF5** - General-purpose hierarchical data
+- **ADIOS2** - Extreme-scale parallel I/O
+- **VTK** - Visualization data formats
+- **Binary streams** - Custom binary formats
+- **PNG** - Image data
+
+### Parallel Computing Integration
+- **MPI** - Distributed-memory parallel I/O (collective writes)
+- **Parallel-NetCDF (PNetCDF)** - High-performance parallel NetCDF
+- **OpenMP** - Shared-memory parallelism
+- **CUDA** - GPU acceleration (experimental)
+- **SYCL** - Cross-platform heterogeneous acceleration (experimental)
+
+### Backend Interoperability
+- **Eigen integration** - Seamless conversion to/from Eigen matrices for linear algebra
+- **xtensor integration** - NumPy-like API with zero-copy views
+- Both backends optional, enabled via CMake
+
+### Array Operations
+- Modern C++17 template-based design
+- Flexible reshaping and slicing
+- Fortran and C-order indexing support
+- Exception-based error handling
+- Multi-component array support
 
 ## Requirements
 
@@ -44,15 +54,24 @@ NDArray is a versatile multidimensional array C++ library that provides a unifie
 
 ### Optional Dependencies
 All optional dependencies can be enabled with the `NDARRAY_USE_<NAME>` CMake options:
+
+**I/O Libraries**:
 - **ADIOS2** - High-performance I/O framework
 - **HDF5** - Hierarchical data format
 - **NetCDF** - Network Common Data Form
-- **MPI** - Message Passing Interface
-- **OpenMP** - Shared-memory parallelism
+- **PNetCDF** - Parallel-NetCDF
 - **VTK** - Visualization toolkit
 - **PNG** - Image I/O
+
+**Parallel Computing**:
+- **MPI** - Message Passing Interface
+- **OpenMP** - Shared-memory parallelism
 - **CUDA** - GPU acceleration (experimental)
 - **SYCL** - Cross-platform heterogeneous acceleration (experimental)
+
+**Backend Interoperability**:
+- **Eigen** - Linear algebra backend for conversion/interop
+- **xtensor** - NumPy-like tensor backend for conversion/interop
 
 **Note**: The library is header-only when no optional dependencies are used. Basic array operations, binary I/O, and core functionality work without linking. When using optional dependencies, you must link against the corresponding external libraries.
 
@@ -130,6 +149,57 @@ target_link_libraries(your_target
 
 ## Quick Start
 
+### Time-Varying Scientific Data Workflow (YAML-based Streams)
+
+This is the primary use case - **abstracting time-varying data as streams using YAML configuration files**:
+
+**1. Define stream in YAML** (`config.yaml`):
+```yaml
+stream:
+  path_prefix: /path/to/data
+  substreams:
+    - name: input
+      format: netcdf
+      filenames: "simulation_*.nc"
+      vars:
+        - name: temperature
+          possible_names: [temperature, temp, T]
+        - name: pressure
+          possible_names: [pressure, press, P]
+```
+
+**2. Read and process in C++**:
+```cpp
+#include <ndarray/ndarray_group_stream.hh>
+
+int main() {
+    // Parse YAML configuration
+    ftk::stream s;
+    s.parse_yaml("config.yaml");
+
+    // Process each timestep
+    for (int t = 0; t < s.total_timesteps(); t++) {
+        auto g = s.read(t);
+
+        // Zero-copy access to variables (no unnecessary allocations)
+        const auto& temperature = g->get_ref<float>("temperature");
+        const auto& pressure = g->get_ref<float>("pressure");
+
+        // Process data...
+        // (your analysis code here)
+    }
+
+    return 0;
+}
+```
+
+**Key benefits**:
+- **Configuration-driven** - Change formats, file paths, variable names in YAML without recompiling
+- **Format independence** - Switch between NetCDF, HDF5, ADIOS2, VTK by changing one line in YAML
+- **Variable aliasing** - Handle different naming conventions (`temperature` vs `temp` vs `T`)
+- **Zero-copy access** - `get_ref()` avoids memory allocation overhead
+- **Multi-file support** - Automatically handles datasets split across multiple files
+
 ### Basic Array Operations (Header-Only)
 
 These operations work without external dependencies:
@@ -188,6 +258,38 @@ std::vector<size_t> size = {30, 40, 50};
 auto slice = arr.slice(start, size);
 ```
 
+### Backend Interoperability (Eigen/xtensor)
+
+Seamlessly convert between ndarray and Eigen/xtensor for advanced computations:
+
+```cpp
+#include <ndarray/ndarray.hh>
+#include <ndarray/ndarray_eigen.hh>
+#include <Eigen/Dense>
+
+int main() {
+    // 1. Read data with ndarray
+    ftk::ndarray<double> temperature;
+    temperature.read_netcdf("climate.nc", "temperature");
+
+    // 2. Convert to Eigen for linear algebra
+    auto mat = ftk::ndarray_to_eigen(temperature);
+
+    // 3. Perform Eigen operations
+    Eigen::VectorXd col_means = mat.colwise().mean();
+
+    // 4. Convert back to ndarray
+    auto result = ftk::eigen_vector_to_ndarray(col_means);
+
+    // 5. Write to different format
+    result.write_h5("means.h5", "column_means");
+
+    return 0;
+}
+```
+
+See [docs/BACKENDS.md](docs/BACKENDS.md) for xtensor integration and zero-copy views.
+
 ### MPI Parallel I/O (Requires MPI and Parallel-NetCDF)
 
 ```cpp
@@ -228,28 +330,40 @@ ctest
 
 ## Documentation
 
+### User Guides
+
+- **[ARRAY_ACCESS.md](docs/ARRAY_ACCESS.md)** - Dimension queries and element access (`dimf`, `dimc`, `at`, `f`, `c`)
+- **[ZERO_COPY_OPTIMIZATION.md](docs/ZERO_COPY_OPTIMIZATION.md)** - Using `get_ref()` for efficient memory access
+- **[BACKENDS.md](docs/BACKENDS.md)** - Eigen and xtensor integration for interoperability
+- **[EXCEPTION_HANDLING.md](docs/EXCEPTION_HANDLING.md)** - Exception-based error handling guide
+- **[FDPOOL.md](docs/FDPOOL.md)** - NetCDF file descriptor pool (prevents double-opening)
+
 ### API Reference
 
 Key classes and functions:
 
 - `ftk::ndarray<T>` - Main templated array class
-  - `reshapef(dims...)` - Reshape array with new dimensions
-  - `fill(value)` - Fill array with constant value
+  - `reshapef(dims...)` - Reshape array with new dimensions (Fortran order)
+  - `get_ref<T>(key)` - Zero-copy reference access (for `ndarray_group`)
   - `slice(start, size)` - Extract sub-array
   - `read_netcdf()`, `write_netcdf()` - NetCDF I/O
   - `read_h5()`, `write_h5()` - HDF5 I/O
-  - `read_adios2()`, `write_adios2()` - ADIOS2 I/O
+  - `read_bp()`, `write_bp()` - ADIOS2 I/O
+  - `read_vtk_image_data_file()` - VTK I/O
 
-- `ftk::ndarray_group` - Manage groups of related arrays
+- `ftk::ndarray_group` - Manage groups of related arrays (for time-series data)
+- `ftk::stream` - Stream interface for time-varying datasets
 - `ftk::lattice` - Define regular grid structures
-- `ftk::conv` - Convolution operations
 
 ### Configuration Options
 
 The library automatically detects available dependencies based on CMake configuration. Check your build configuration:
 
 ```bash
-cmake .. -DNDARRAY_USE_NETCDF=AUTO
+cmake .. \
+  -DNDARRAY_USE_NETCDF=AUTO \
+  -DNDARRAY_USE_EIGEN=AUTO \
+  -DNDARRAY_USE_XTENSOR=AUTO
 # Configuration summary will show which features are enabled
 ```
 
