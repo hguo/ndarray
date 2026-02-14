@@ -583,30 +583,43 @@ Total combinations: 2^7 = 128 different builds
 - Document interaction with system-provided libraries
 - Module file examples
 
-### 9. Performance Considerations Not Addressed
+### 9. Performance Considerations
 
-#### 9.1 No Benchmarks
+**Context (User feedback)**: This library is primarily an **I/O abstraction** for time-varying datasets, not a compute library.
 
-**Missing**: Performance tests for:
-- Read/write speed
-- Memory usage
-- Parallel scaling (weak/strong)
-- Compression overhead
+**Design Intent**:
+- Read/write datasets in various formats (NetCDF, HDF5, ADIOS2, etc.)
+- Handle time-series data
+- Provide unified interface across formats
+- NOT intended for intensive computation
 
-#### 9.2 Memory Copies
+**Revised Assessment**: Performance focus should be on **I/O efficiency**, not computational performance.
 
-**Potential issue** (needs verification):
+#### 9.1 Relevant Performance Concerns
+
+**Should benchmark**:
+- Read/write speed for various formats
+- Parallel I/O scaling
+- Memory overhead of caching (fdpool, etc.)
+- File open/close performance
+
+**Not priorities** (per design intent):
+- Computational kernels (SIMD, vectorization, etc.)
+- In-memory operations
+- Cache-optimized algorithms
+
+#### 9.2 Memory Management
+
+**Current**: Value semantics with copy/move
 ```cpp
-// Does this copy data?
 ndarray<T> loaded = ndarray<T>::from_bp(filename, varname, step);
 ```
 
-If `from_bp` returns by value, it may:
-1. Allocate in `from_bp()`
-2. Copy to return value (copy constructor)
-3. Copy to `loaded` (copy assignment)
-
-**Better**: Move semantics or zero-copy where possible.
+**For I/O library**: This is **appropriate**:
+- Data lifetime clear
+- RAII cleanup
+- Move semantics available (C++17)
+- Small overhead acceptable for I/O-bound operations
 
 ### 10. Missing Functionality
 
@@ -803,6 +816,41 @@ stream:
 
 ---
 
+## HPC Context Acknowledgments
+
+Based on user feedback, several design decisions are intentional for HPC environments:
+
+### ✅ Appropriate for HPC
+
+1. **Build Complexity**
+   - Multiple conditional features expected on HPC systems
+   - Comparable to ADIOS2 and other HPC I/O libraries
+   - One-time build cost acceptable
+   - Flexibility for site-specific configurations is priority
+
+2. **Dependencies**
+   - HPC systems have custom-built MPI and I/O libraries
+   - Users are experts who understand module systems
+   - spack/modules handle dependency management
+
+3. **C++17 Standard** (Current)
+   - Already using C++17 (`CMAKE_CXX_STANDARD 17`)
+   - Good balance: modern features without cutting-edge requirements
+   - Widely available on HPC systems (GCC 7+, Clang 5+, Intel 19+)
+   - More conservative than C++20/23 (appropriate for HPC longevity)
+
+**Recommendation**: Keep C++17 as minimum. It provides:
+- Structured bindings
+- `std::optional`, `std::variant`
+- Fold expressions
+- Inline variables
+- `if constexpr`
+- Parallel algorithms (with execution policies)
+
+These features are useful without requiring bleeding-edge compilers.
+
+---
+
 ## Conclusion
 
 ### The Good
@@ -810,6 +858,8 @@ stream:
 - **Extensive documentation** - Well-written, comprehensive
 - **Good test structure** - Reasonable organization
 - **Covers important features** - Parallel I/O, time-series, multiple formats
+- **HPC-appropriate design** - Build system suitable for target environment
+- **C++17 standard** - Good balance of modern features and compatibility
 
 ### The Bad
 
@@ -825,7 +875,7 @@ stream:
 - **Dead code** - `if (false)` test left in
 - **No accountability** - Can't tell what actually works
 
-### Overall Grade: C- (Passing but problematic)
+### Overall Grade: C- (Passing but problematic, but HPC design justified)
 
 **Recommendation**:
 - **Stabilize existing code** before adding new features
