@@ -68,13 +68,20 @@ try {
 }
 ```
 
-## Performance Comparison
+## Performance Benefits
 
-| Operation | Old API | New API | Speedup |
-|-----------|---------|---------|---------|
-| Read 100MB array | 50ms | 0.001ms | 50,000x |
-| 100 reads | 5000ms | 0.1ms | 50,000x |
-| Memory usage | 200MB | 100MB | 2x less |
+The zero-copy API provides significant benefits:
+
+- **Eliminates unnecessary data copies**: No temporary std::vector allocation
+- **Reduces memory usage**: Only one copy of data instead of two
+- **Faster for repeated access**: Direct pointer access without copy overhead
+- **Lower latency**: Immediate access to data without copy delay
+
+Actual performance improvement depends on:
+- Array size (larger arrays benefit more)
+- Access patterns (repeated reads benefit more)
+- System memory bandwidth
+- Hardware configuration
 
 ## Migration Guide
 

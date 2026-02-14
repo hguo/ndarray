@@ -1,9 +1,12 @@
-# MPAS-Ocean Variable Naming Problems and Solutions
+# Scientific Data Variable Naming Conventions
 
 ## The Problem
 
-MPAS-Ocean datasets use inconsistent variable names across different output types:
+Scientific datasets often use inconsistent variable names across different output types, formats, processing stages, and modeling systems. This creates significant challenges for analysis tools that need to work across diverse data sources.
 
+### Common Naming Inconsistencies
+
+**Example 1: MPAS-Ocean temporal variations**
 ```bash
 # Instantaneous output
 normalVelocity
@@ -20,11 +23,23 @@ timeYearly_avg_normalVelocity
 ...
 ```
 
+**Example 2: Multi-model comparisons**
+- Climate Model A: `temp`, `u_wind`, `v_wind`
+- Climate Model B: `temperature`, `u_velocity`, `v_velocity`
+- Observations: `T`, `U`, `V`
+
+**Example 3: Processing pipeline variations**
+- Raw data: `SST_raw`
+- Quality controlled: `SST_qc`
+- Interpolated: `SST_interp`
+- Final product: `SST`
+
 **Impact:**
-- Code breaks when switching between output types
-- Need different YAML configs for each output type
+- Code breaks when switching between data sources
+- Need different configurations for each naming convention
 - Manual maintenance of variable name lists
 - Hard to write generic analysis tools
+- Limits code reusability across projects
 
 ## Current Solution (Partial)
 

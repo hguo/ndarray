@@ -8,7 +8,7 @@
 
 > **🤖 AI-Assisted Development**: Significant portions of this project's code, documentation, examples, and tests have been generated or enhanced with AI assistance (starting 2026). While functional, the code should be thoroughly reviewed and tested before use in critical applications.
 
-NDArray is a **unified I/O abstraction library for time-varying scientific data** designed for HPC systems. It provides a consistent C++ interface for reading and writing multidimensional arrays across diverse scientific data formats (NetCDF, HDF5, ADIOS2, VTK), eliminating the need to learn multiple I/O APIs. The library is header-only when used without external dependencies, but requires linking against third-party libraries when using features like NetCDF, HDF5, or ADIOS2.
+NDArray is a **unified I/O abstraction library for time-varying scientific data** designed for HPC systems. It provides a consistent C++ interface for reading and writing multidimensional arrays across diverse scientific data formats (NetCDF, HDF5, ADIOS2, VTK). The library is header-only when used without external dependencies, but requires linking against third-party libraries when using features like NetCDF, HDF5, or ADIOS2.
 
 ## Key Features
 
