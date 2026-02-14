@@ -328,6 +328,15 @@ inline void variable::parse_yaml(YAML::Node y)
   } else
     this->possible_names.push_back( this->name );
 
+  // Handle format-specific variable names (h5_name, nc_name, etc.)
+  // These are added to possible_names to support format-specific naming
+  if (auto yh5name = y["h5_name"]) {
+    this->possible_names.push_back(yh5name.as<std::string>());
+  }
+  if (auto yncname = y["nc_name"]) {
+    this->possible_names.push_back(yncname.as<std::string>());
+  }
+
   if (auto ypatterns = y["name_patterns"]) {
     for (auto j = 0; j < ypatterns.size(); j ++)
       this->name_patterns.push_back(ypatterns[j].as<std::string>());
