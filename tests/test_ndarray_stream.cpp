@@ -410,6 +410,367 @@ int main() {
     }
   }
 
+#if NDARRAY_HAVE_NETCDF
+  // Test 11: NetCDF stream with actual data files
+  {
+    TEST_SECTION("NetCDF stream with generated data");
+
+    // Create NetCDF test data files
+    try {
+      // Create test NetCDF file with time series
+      int ncid, varid, dimids[3];
+      const size_t nx = 8, ny = 10, nt = 5;
+
+      NC_SAFE_CALL( nc_create("test_stream_nc_t0.nc", NC_CLOBBER, &ncid) );
+
+      // Define dimensions
+      NC_SAFE_CALL( nc_def_dim(ncid, "time", NC_UNLIMITED, &dimids[0]) );
+      NC_SAFE_CALL( nc_def_dim(ncid, "y", ny, &dimids[1]) );
+      NC_SAFE_CALL( nc_def_dim(ncid, "x", nx, &dimids[2]) );
+
+      // Define variable
+      NC_SAFE_CALL( nc_def_var(ncid, "temperature", NC_DOUBLE, 3, dimids, &varid) );
+      NC_SAFE_CALL( nc_enddef(ncid) );
+
+      // Write data for first 3 timesteps
+      for (size_t t = 0; t < 3; t++) {
+        std::vector<double> data(nx * ny);
+        for (size_t i = 0; i < nx * ny; i++) {
+          data[i] = t * 100.0 + i;
+        }
+
+        size_t start[3] = {t, 0, 0};
+        size_t count[3] = {1, ny, nx};
+        NC_SAFE_CALL( nc_put_vara_double(ncid, varid, start, count, data.data()) );
+      }
+
+      NC_SAFE_CALL( nc_close(ncid) );
+
+      // Create second NetCDF file
+      NC_SAFE_CALL( nc_create("test_stream_nc_t1.nc", NC_CLOBBER, &ncid) );
+      NC_SAFE_CALL( nc_def_dim(ncid, "time", NC_UNLIMITED, &dimids[0]) );
+      NC_SAFE_CALL( nc_def_dim(ncid, "y", ny, &dimids[1]) );
+      NC_SAFE_CALL( nc_def_dim(ncid, "x", nx, &dimids[2]) );
+      NC_SAFE_CALL( nc_def_var(ncid, "temperature", NC_DOUBLE, 3, dimids, &varid) );
+      NC_SAFE_CALL( nc_enddef(ncid) );
+
+      // Write data for remaining 2 timesteps
+      for (size_t t = 0; t < 2; t++) {
+        std::vector<double> data(nx * ny);
+        for (size_t i = 0; i < nx * ny; i++) {
+          data[i] = (t + 3) * 100.0 + i;
+        }
+
+        size_t start[3] = {t, 0, 0};
+        size_t count[3] = {1, ny, nx};
+        NC_SAFE_CALL( nc_put_vara_double(ncid, varid, start, count, data.data()) );
+      }
+
+      NC_SAFE_CALL( nc_close(ncid) );
+
+      // Create YAML configuration for NetCDF stream
+      std::ofstream yaml("test_stream_netcdf.yaml");
+      yaml << "stream:\n";
+      yaml << "  name: test_netcdf\n";
+      yaml << "  substreams:\n";
+      yaml << "    - name: nc_data\n";
+      yaml << "      format: netcdf\n";
+      yaml << "      filenames:\n";
+      yaml << "        - test_stream_nc_t0.nc\n";
+      yaml << "        - test_stream_nc_t1.nc\n";
+      yaml << "      vars:\n";
+      yaml << "        - name: temperature\n";
+      yaml << "          dtype: float64\n";
+      yaml.close();
+
+      // Test reading the stream
+      ftk::stream s;
+      s.parse_yaml("test_stream_netcdf.yaml");
+
+      TEST_ASSERT(s.total_timesteps() == 5, "NetCDF stream should have 5 timesteps");
+      std::cout << "    - Total timesteps: " << s.total_timesteps() << std::endl;
+
+      // Read first timestep from first file
+      auto g0 = s.read(0);
+      TEST_ASSERT(g0 != nullptr, "Failed to read timestep 0");
+      TEST_ASSERT(g0->has("temperature"), "Missing temperature variable");
+
+      auto temp0 = g0->get_arr<double>("temperature");
+      TEST_ASSERT(temp0.size() == nx * ny, "Wrong array size");
+      TEST_ASSERT(std::abs(temp0[0] - 0.0) < 1e-10, "Wrong data value at t=0");
+      TEST_ASSERT(std::abs(temp0[1] - 1.0) < 1e-10, "Wrong data value at t=0");
+
+      // Read third timestep (last in first file)
+      auto g2 = s.read(2);
+      auto temp2 = g2->get_arr<double>("temperature");
+      TEST_ASSERT(std::abs(temp2[0] - 200.0) < 1e-10, "Wrong data value at t=2");
+
+      // Read fourth timestep (first in second file)
+      auto g3 = s.read(3);
+      auto temp3 = g3->get_arr<double>("temperature");
+      TEST_ASSERT(std::abs(temp3[0] - 300.0) < 1e-10, "Wrong data value at t=3");
+
+      // Read last timestep
+      auto g4 = s.read(4);
+      auto temp4 = g4->get_arr<double>("temperature");
+      TEST_ASSERT(std::abs(temp4[0] - 400.0) < 1e-10, "Wrong data value at t=4");
+
+      std::cout << "    - Successfully read NetCDF stream across multiple files" << std::endl;
+      std::cout << "    PASSED" << std::endl;
+
+      // Cleanup NetCDF files
+      std::remove("test_stream_nc_t0.nc");
+      std::remove("test_stream_nc_t1.nc");
+      std::remove("test_stream_netcdf.yaml");
+
+    } catch (const std::exception& e) {
+      std::cerr << "    NetCDF stream test failed: " << e.what() << std::endl;
+      return 1;
+    }
+  }
+
+  // Test 12: NetCDF stream with multiple variables
+  {
+    TEST_SECTION("NetCDF stream with multiple variables");
+
+    try {
+      int ncid, temp_varid, vel_varid, dimids[3];
+      const size_t nx = 6, ny = 8, nt = 3;
+
+      NC_SAFE_CALL( nc_create("test_stream_nc_multi.nc", NC_CLOBBER, &ncid) );
+
+      // Define dimensions
+      NC_SAFE_CALL( nc_def_dim(ncid, "time", NC_UNLIMITED, &dimids[0]) );
+      NC_SAFE_CALL( nc_def_dim(ncid, "y", ny, &dimids[1]) );
+      NC_SAFE_CALL( nc_def_dim(ncid, "x", nx, &dimids[2]) );
+
+      // Define variables
+      NC_SAFE_CALL( nc_def_var(ncid, "temperature", NC_FLOAT, 3, dimids, &temp_varid) );
+      NC_SAFE_CALL( nc_def_var(ncid, "velocity_x", NC_FLOAT, 3, dimids, &vel_varid) );
+      NC_SAFE_CALL( nc_enddef(ncid) );
+
+      // Write data
+      for (size_t t = 0; t < nt; t++) {
+        std::vector<float> temp_data(nx * ny);
+        std::vector<float> vel_data(nx * ny);
+
+        for (size_t i = 0; i < nx * ny; i++) {
+          temp_data[i] = t * 10.0f + i * 0.1f;
+          vel_data[i] = t * 5.0f + i * 0.05f;
+        }
+
+        size_t start[3] = {t, 0, 0};
+        size_t count[3] = {1, ny, nx};
+        NC_SAFE_CALL( nc_put_vara_float(ncid, temp_varid, start, count, temp_data.data()) );
+        NC_SAFE_CALL( nc_put_vara_float(ncid, vel_varid, start, count, vel_data.data()) );
+      }
+
+      NC_SAFE_CALL( nc_close(ncid) );
+
+      // Create YAML configuration
+      std::ofstream yaml("test_stream_nc_multivars.yaml");
+      yaml << "stream:\n";
+      yaml << "  name: test_nc_multi\n";
+      yaml << "  substreams:\n";
+      yaml << "    - name: multi_vars\n";
+      yaml << "      format: netcdf\n";
+      yaml << "      filenames:\n";
+      yaml << "        - test_stream_nc_multi.nc\n";
+      yaml << "      vars:\n";
+      yaml << "        - name: temperature\n";
+      yaml << "          dtype: float32\n";
+      yaml << "        - name: velocity_x\n";
+      yaml << "          dtype: float32\n";
+      yaml.close();
+
+      // Test reading
+      ftk::stream s;
+      s.parse_yaml("test_stream_nc_multivars.yaml");
+
+      auto g = s.read(1);
+      TEST_ASSERT(g->has("temperature"), "Missing temperature");
+      TEST_ASSERT(g->has("velocity_x"), "Missing velocity_x");
+
+      auto temp = g->get_arr<float>("temperature");
+      auto vel = g->get_arr<float>("velocity_x");
+
+      TEST_ASSERT(temp.size() == nx * ny, "Wrong temperature size");
+      TEST_ASSERT(vel.size() == nx * ny, "Wrong velocity size");
+      TEST_ASSERT(std::abs(temp[0] - 10.0f) < 1e-5f, "Wrong temperature value");
+      TEST_ASSERT(std::abs(vel[0] - 5.0f) < 1e-5f, "Wrong velocity value");
+
+      std::cout << "    - Successfully read multiple NetCDF variables" << std::endl;
+      std::cout << "    PASSED" << std::endl;
+
+      std::remove("test_stream_nc_multi.nc");
+      std::remove("test_stream_nc_multivars.yaml");
+
+    } catch (const std::exception& e) {
+      std::cerr << "    NetCDF multi-variable test failed: " << e.what() << std::endl;
+      return 1;
+    }
+  }
+#else
+  std::cout << "  NetCDF stream tests SKIPPED (not built with NetCDF)" << std::endl;
+#endif
+
+#if NDARRAY_HAVE_HDF5
+  // Test 13: HDF5 stream with time series
+  {
+    TEST_SECTION("HDF5 stream with time series data");
+
+    try {
+      const size_t nx = 10, ny = 12, nt_per_file = 3;
+
+      // Create two HDF5 files with time series
+      for (int file_idx = 0; file_idx < 2; file_idx++) {
+        std::string filename = "test_stream_h5_t" + std::to_string(file_idx) + ".h5";
+
+        hid_t file_id = H5Fcreate(filename.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+
+        // Create dataset for each timestep
+        for (size_t t = 0; t < nt_per_file; t++) {
+          std::string dset_name = "data_t" + std::to_string(t);
+          hsize_t dims[2] = {ny, nx};
+
+          hid_t dataspace_id = H5Screate_simple(2, dims, NULL);
+          hid_t dataset_id = H5Dcreate2(file_id, dset_name.c_str(), H5T_IEEE_F64LE,
+                                        dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+          // Write data
+          std::vector<double> data(nx * ny);
+          for (size_t i = 0; i < nx * ny; i++) {
+            data[i] = (file_idx * nt_per_file + t) * 50.0 + i;
+          }
+
+          H5Dwrite(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, data.data());
+
+          H5Dclose(dataset_id);
+          H5Sclose(dataspace_id);
+        }
+
+        H5Fclose(file_id);
+      }
+
+      // Create YAML configuration
+      std::ofstream yaml("test_stream_hdf5.yaml");
+      yaml << "stream:\n";
+      yaml << "  name: test_hdf5\n";
+      yaml << "  substreams:\n";
+      yaml << "    - name: h5_data\n";
+      yaml << "      format: h5\n";
+      yaml << "      filenames:\n";
+      yaml << "        - test_stream_h5_t0.h5\n";
+      yaml << "        - test_stream_h5_t1.h5\n";
+      yaml << "      vars:\n";
+      yaml << "        - name: pressure\n";
+      yaml << "          h5_name: data_t%d\n";
+      yaml << "          dtype: float64\n";
+      yaml.close();
+
+      // Test reading
+      ftk::stream s;
+      s.parse_yaml("test_stream_hdf5.yaml");
+
+      TEST_ASSERT(s.total_timesteps() == 6, "HDF5 stream should have 6 timesteps");
+
+      // Read first timestep
+      auto g0 = s.read(0);
+      TEST_ASSERT(g0 != nullptr, "Failed to read HDF5 timestep 0");
+      TEST_ASSERT(g0->has("pressure"), "Missing pressure variable");
+
+      auto p0 = g0->get_arr<double>("pressure");
+      TEST_ASSERT(p0.size() == nx * ny, "Wrong HDF5 array size");
+      TEST_ASSERT(std::abs(p0[0] - 0.0) < 1e-10, "Wrong HDF5 data at t=0");
+
+      // Read timestep from second file
+      auto g4 = s.read(4);
+      auto p4 = g4->get_arr<double>("pressure");
+      TEST_ASSERT(std::abs(p4[0] - 200.0) < 1e-10, "Wrong HDF5 data at t=4");
+
+      std::cout << "    - Successfully read HDF5 stream" << std::endl;
+      std::cout << "    PASSED" << std::endl;
+
+      std::remove("test_stream_h5_t0.h5");
+      std::remove("test_stream_h5_t1.h5");
+      std::remove("test_stream_hdf5.yaml");
+
+    } catch (const std::exception& e) {
+      std::cerr << "    HDF5 stream test failed: " << e.what() << std::endl;
+      return 1;
+    }
+  }
+
+  // Test 14: HDF5 static data stream
+  {
+    TEST_SECTION("HDF5 static data stream");
+
+    try {
+      const size_t nx = 8, ny = 8;
+
+      // Create HDF5 file with static data
+      hid_t file_id = H5Fcreate("test_stream_h5_static.h5", H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+
+      hsize_t dims[2] = {ny, nx};
+      hid_t dataspace_id = H5Screate_simple(2, dims, NULL);
+      hid_t dataset_id = H5Dcreate2(file_id, "mask", H5T_IEEE_F32LE,
+                                    dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+      std::vector<float> mask(nx * ny, 1.0f);
+      for (size_t i = 0; i < nx * ny; i++) {
+        if (i % 3 == 0) mask[i] = 0.0f;
+      }
+
+      H5Dwrite(dataset_id, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, mask.data());
+
+      H5Dclose(dataset_id);
+      H5Sclose(dataspace_id);
+      H5Fclose(file_id);
+
+      // Create YAML configuration for static data
+      std::ofstream yaml("test_stream_h5_static.yaml");
+      yaml << "stream:\n";
+      yaml << "  name: test_h5_static\n";
+      yaml << "  substreams:\n";
+      yaml << "    - name: static_data\n";
+      yaml << "      format: h5\n";
+      yaml << "      filenames:\n";
+      yaml << "        - test_stream_h5_static.h5\n";
+      yaml << "      vars:\n";
+      yaml << "        - name: mask\n";
+      yaml << "          h5_name: mask\n";
+      yaml << "          dtype: float32\n";
+      yaml << "      static: true\n";
+      yaml.close();
+
+      // Test reading static data
+      ftk::stream s;
+      s.parse_yaml("test_stream_h5_static.yaml");
+
+      auto g_static = s.read_static();
+      TEST_ASSERT(g_static != nullptr, "Failed to read static HDF5 data");
+      TEST_ASSERT(g_static->has("mask"), "Missing mask variable");
+
+      auto mask_arr = g_static->get_arr<float>("mask");
+      TEST_ASSERT(mask_arr.size() == nx * ny, "Wrong static array size");
+      TEST_ASSERT(std::abs(mask_arr[0] - 0.0f) < 1e-5f, "Wrong static data value");
+      TEST_ASSERT(std::abs(mask_arr[1] - 1.0f) < 1e-5f, "Wrong static data value");
+
+      std::cout << "    - Successfully read static HDF5 data" << std::endl;
+      std::cout << "    PASSED" << std::endl;
+
+      std::remove("test_stream_h5_static.h5");
+      std::remove("test_stream_h5_static.yaml");
+
+    } catch (const std::exception& e) {
+      std::cerr << "    HDF5 static data test failed: " << e.what() << std::endl;
+      return 1;
+    }
+  }
+#else
+  std::cout << "  HDF5 stream tests SKIPPED (not built with HDF5)" << std::endl;
+#endif
+
   // Cleanup test files
   std::remove("test_stream_basic.yaml");
   std::remove("test_stream_read.yaml");
