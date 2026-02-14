@@ -94,6 +94,20 @@ if (NDARRAY_HAVE_VTK)
   add_test(NAME vtk COMMAND test_vtk)
 endif()
 
+# Parallel NetCDF functionality tests (requires PNetCDF and MPI support)
+if (NDARRAY_HAVE_PNETCDF AND NDARRAY_HAVE_MPI)
+  add_executable(test_pnetcdf test_pnetcdf.cpp)
+  target_link_libraries(test_pnetcdf ${CMAKE_THREAD_LIBS_INIT})
+  target_link_libraries(test_pnetcdf ${PNETCDF_LIBRARY})
+  target_link_libraries(test_pnetcdf MPI::MPI_CXX)
+  add_vtk_if_enabled(test_pnetcdf)
+
+  # PNetCDF tests should be run with mpirun
+  # add_test(NAME pnetcdf COMMAND mpirun -np 4 test_pnetcdf)
+  # Note: MPI tests require mpirun which may not be available in all test environments
+  # Users should run manually: mpirun -np 4 ./bin/test_pnetcdf
+endif()
+
 # Test summary
 message("")
 message("Unit tests configured:")
@@ -114,5 +128,9 @@ endif()
 if (NDARRAY_HAVE_VTK)
   message("    + VTK support enabled")
   message("  - test_vtk: VTK I/O operations")
+endif()
+if (NDARRAY_HAVE_PNETCDF AND NDARRAY_HAVE_MPI)
+  message("    + PNetCDF support enabled")
+  message("  - test_pnetcdf: Parallel NetCDF I/O operations (run with: mpirun -np 4 ./bin/test_pnetcdf)")
 endif()
 message("")
