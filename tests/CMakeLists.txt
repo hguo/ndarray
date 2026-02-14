@@ -1,8 +1,17 @@
 # Unit tests for ndarray library
 
+# Helper macro to add VTK libraries to all tests when VTK is enabled
+# These are needed because ndarray.hh includes VTK headers when NDARRAY_HAVE_VTK is ON
+macro(add_vtk_if_enabled target)
+  if (NDARRAY_HAVE_VTK)
+    target_link_libraries(${target} VTK::CommonCore VTK::CommonDataModel VTK::IOLegacy VTK::IOXML)
+  endif()
+endmacro()
+
 # Core functionality tests (may need optional backends for template instantiation)
 add_executable(test_ndarray_core test_ndarray_core.cpp)
 target_link_libraries(test_ndarray_core ${CMAKE_THREAD_LIBS_INIT})
+add_vtk_if_enabled(test_ndarray_core)
 
 if (NDARRAY_HAVE_NETCDF)
   target_link_libraries(test_ndarray_core netCDF::netcdf)
@@ -17,6 +26,7 @@ add_test(NAME ndarray_core COMMAND test_ndarray_core)
 # I/O tests (may use optional backends)
 add_executable(test_ndarray_io test_ndarray_io.cpp)
 target_link_libraries(test_ndarray_io ${CMAKE_THREAD_LIBS_INIT})
+add_vtk_if_enabled(test_ndarray_io)
 
 if (NDARRAY_HAVE_NETCDF)
   target_link_libraries(test_ndarray_io netCDF::netcdf)
@@ -47,21 +57,25 @@ endif()
 # Zero-copy optimization test
 add_executable(test_zero_copy test_zero_copy.cpp)
 target_link_libraries(test_zero_copy ${CMAKE_THREAD_LIBS_INIT})
+add_vtk_if_enabled(test_zero_copy)
 add_test(NAME zero_copy COMMAND test_zero_copy)
 
 # Variable name matching test
 add_executable(test_variable_names test_variable_names.cpp)
 target_link_libraries(test_variable_names ${CMAKE_THREAD_LIBS_INIT})
+add_vtk_if_enabled(test_variable_names)
 add_test(NAME variable_names COMMAND test_variable_names)
 
 # Vector conversion test
 add_executable(test_vector_conversion test_vector_conversion.cpp)
 target_link_libraries(test_vector_conversion ${CMAKE_THREAD_LIBS_INIT})
+add_vtk_if_enabled(test_vector_conversion)
 add_test(NAME vector_conversion COMMAND test_vector_conversion)
 
 # F/C ordering demonstration
 add_executable(test_fc_ordering test_fc_ordering.cpp)
 target_link_libraries(test_fc_ordering ${CMAKE_THREAD_LIBS_INIT})
+add_vtk_if_enabled(test_fc_ordering)
 add_test(NAME fc_ordering COMMAND test_fc_ordering)
 
 # HDF5 functionality tests (requires HDF5 support)

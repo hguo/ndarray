@@ -73,6 +73,11 @@ if (VTK_FOUND)
   set (NDARRAY_HAVE_VTK TRUE)
   if (VTK_MAJOR_VERSION STRLESS 9) # vtk8.9 does not require VTK_USE_FILE as well
     include (${VTK_USE_FILE})
+  else ()
+    # VTK 9+ uses target-based includes, but we need global includes for headers
+    # Get include directories from VTK::CommonCore target
+    get_target_property(VTK_INCLUDE_DIRS VTK::CommonCore INTERFACE_INCLUDE_DIRECTORIES)
+    include_directories (${VTK_INCLUDE_DIRS})
   endif ()
 endif ()
 
