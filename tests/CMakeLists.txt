@@ -191,4 +191,27 @@ if (NDARRAY_HAVE_PNG)
   message("    + PNG support enabled")
   message("  - test_png: PNG image I/O operations")
 endif()
+
+# Exception handling test (NetCDF or PNetCDF)
+if (NDARRAY_HAVE_NETCDF OR NDARRAY_HAVE_PNETCDF)
+  add_executable(test_exception_handling test_exception_handling.cpp)
+  target_link_libraries(test_exception_handling ${CMAKE_THREAD_LIBS_INIT})
+
+  if (NDARRAY_HAVE_NETCDF)
+    target_link_libraries(test_exception_handling netCDF::netcdf)
+  endif()
+
+  if (NDARRAY_HAVE_PNETCDF)
+    target_link_libraries(test_exception_handling ${PNETCDF_LIBRARIES})
+  endif()
+
+  if (NDARRAY_HAVE_MPI)
+    target_link_libraries(test_exception_handling MPI::MPI_CXX)
+  endif()
+
+  add_vtk_if_enabled(test_exception_handling)
+  add_test(NAME exception_handling COMMAND test_exception_handling)
+  message("  - test_exception_handling: Verify exceptions instead of exit()")
+endif()
+
 message("")
