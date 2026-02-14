@@ -543,7 +543,7 @@ local_data.write_pnetcdf("parallel_output.nc", "data", MPI_COMM_WORLD);
 
 #### 8.1 Conditional Compilation Complexity
 
-**Problem**: Too many build configurations to test:
+**Context (HPC Design)**: The build complexity is intentional for HPC environments.
 
 ```
 NDARRAY_HAVE_MPI: ON/OFF
@@ -557,32 +557,31 @@ NDARRAY_HAVE_YAML: ON/OFF
 Total combinations: 2^7 = 128 different builds
 ```
 
-**Impact**:
-- Can't test all combinations
-- Features interact in unexpected ways
-- Code may work in one configuration but not another
+**HPC Considerations** (User feedback):
+- Build time not critical on HPC systems (one-time cost)
+- HPC systems have custom-built MPI and I/O libraries
+- CMake complexity comparable to ADIOS2 (industry standard)
+- Flexibility to match site-specific configurations is priority
 
-**Example issue**:
-```cpp
-#if NDARRAY_HAVE_NETCDF
-  target_link_libraries(test_core netCDF::netcdf)
-#endif
+**Revised Assessment**:
+- Complexity is **appropriate** for HPC scientific software
+- Users are experts who understand build systems
+- Provides necessary flexibility for diverse HPC environments
 
-#if NDARRAY_HAVE_HDF5
-  target_link_libraries(test_core ${HDF5_LIBRARIES})
-#endif
-```
+**Remaining Concerns**:
+- Documentation could better explain common build recipes
+- Examples for typical HPC sites (NERSC, ALCF, OLCF, etc.)
+- Still need testing on representative configurations
 
-If NetCDF is built with HDF5 support, linking conflicts can occur.
+#### 8.2 Build Documentation Gaps (Revised)
 
-#### 8.2 Missing Build Validation
-
-**Problem**: No CI/CD to test different configurations.
+**Issue**: Docs assume generic Linux/macOS, not HPC-specific builds.
 
 **What's needed**:
-- GitHub Actions / GitLab CI
-- Test matrix of common configurations
-- Automated testing on pull requests
+- HPC-specific build recipes (spack, modules, etc.)
+- Site-specific examples (Cori, Theta, Summit)
+- Document interaction with system-provided libraries
+- Module file examples
 
 ### 9. Performance Considerations Not Addressed
 
