@@ -108,6 +108,20 @@ if (NDARRAY_HAVE_PNETCDF AND NDARRAY_HAVE_MPI)
   # Users should run manually: mpirun -np 4 ./bin/test_pnetcdf
 endif()
 
+# ADIOS2 functionality tests (requires ADIOS2 support)
+if (NDARRAY_HAVE_ADIOS2)
+  add_executable(test_adios2 test_adios2.cpp)
+  target_link_libraries(test_adios2 ${CMAKE_THREAD_LIBS_INIT})
+  target_link_libraries(test_adios2 adios2::adios2)
+  add_vtk_if_enabled(test_adios2)
+
+  if (NDARRAY_HAVE_MPI)
+    target_link_libraries(test_adios2 MPI::MPI_CXX)
+  endif()
+
+  add_test(NAME adios2 COMMAND test_adios2)
+endif()
+
 # Test summary
 message("")
 message("Unit tests configured:")
@@ -132,5 +146,9 @@ endif()
 if (NDARRAY_HAVE_PNETCDF AND NDARRAY_HAVE_MPI)
   message("    + PNetCDF support enabled")
   message("  - test_pnetcdf: Parallel NetCDF I/O operations (run with: mpirun -np 4 ./bin/test_pnetcdf)")
+endif()
+if (NDARRAY_HAVE_ADIOS2)
+  message("    + ADIOS2 support enabled")
+  message("  - test_adios2: ADIOS2 BP file I/O operations")
 endif()
 message("")
