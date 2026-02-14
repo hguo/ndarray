@@ -235,11 +235,9 @@ inline void lattice_partitioner::partition(std::vector<std::vector<size_t>> prim
   // std::vector<std::tuple<lattice, lattice>> partitions;
   while (!lattice_queue.empty()) {
 
-    lattice core = lattice_queue.front(); 
-    // core.set_unlimited_time(l.unlimited_); //TODO
+    lattice core = lattice_queue.front();
 
-    lattice ghost(core.starts(), core.sizes()); 
-    // ghost.set_unlimited_time(l.unlimited_); // TODO
+    lattice ghost(core.starts(), core.sizes());
 
     cores.push_back(core);
     // extents.push_back(ghost);

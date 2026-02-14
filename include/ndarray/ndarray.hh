@@ -32,8 +32,6 @@ template <typename T>
 struct ndarray : public ndarray_base {
   int type() const;
 
-  // unsigned int hash() const; // TODO
-
   ndarray() {}
   ndarray(const std::vector<size_t> &dims) {reshapef(dims);}
   ndarray(const std::vector<size_t> &dims, T val) {reshapef(dims, val);}
@@ -677,7 +675,7 @@ void ndarray<T>::to_binary_file2(const std::string& f) const
 }
 
 template <typename T>
-void ndarray<T>::read_binary_file_sequence(const std::string& pattern, int endian) // TODO: endian
+void ndarray<T>::read_binary_file_sequence(const std::string& pattern, int endian) // Note: endian parameter not implemented (maintenance mode)
 {
   const auto filenames = glob(pattern);
   if (filenames.size() == 0) return;
@@ -1044,7 +1042,8 @@ bool ndarray<T>::read_bp_legacy(ADIOS_FILE *fp, const std::string& varname)
     adios_selection_delete(sel);
     return true; // avi->ndim;
   } else {
-    if (avi->type == adios_integer) { // TODO: other data types
+    // Note: Only adios_integer scalar type supported (maintenance mode)
+    if (avi->type == adios_integer) {
       reshapef({1});
       p[0] = *((int*)avi->value);
       return true;
@@ -1311,13 +1310,13 @@ bool ndarray<T>::read_file(const std::string& filename, const std::string varnam
   }
 
   auto ext = file_extension(filename);
-  if (ext == FILE_EXT_BP) read_bp(filename, varname, -1, comm); // TODO: step
+  if (ext == FILE_EXT_BP) read_bp(filename, varname, -1, comm); // Note: step=-1 (last timestep) hardcoded
   else if (ext == FILE_EXT_NETCDF) read_netcdf(filename, varname, comm);
   else if (ext == FILE_EXT_VTI) read_vtk_image_data_file(filename, varname);
   else if (ext == FILE_EXT_HDF5) read_h5(filename, varname);
   else nd::fatal(nd::ERR_FILE_UNRECOGNIZED_EXTENSION);
 
-  return true; // TODO: return read_* results
+  return true; // Note: read_* functions throw exceptions on error, so reaching here means success
 }
 
 template <typename T>
@@ -1726,17 +1725,6 @@ ndarray<T>& ndarray<T>::perturb(T sigma)
 
   return *this;
 }
-
-#if 0 // TODO
-template <typename T>
-ndarray<T>& ndarray<T>::clamp(T min, T max)
-{
-  for (auto i = 0; i < nelem(); i ++)
-    p[i] = ndarray::clamp(p[i], min, max);
-
-  return *this;
-}
-#endif
 
 template <typename T>
 template <typename F>

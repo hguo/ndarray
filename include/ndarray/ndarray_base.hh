@@ -159,9 +159,6 @@ public:
   size_t indexc(const std::vector<size_t>& idx) const;
   size_t indexc(const std::vector<int>& idx) const;
   size_t indexc(const size_t idx[]) const;
-  
-  template <typename uint=size_t>
-  std::vector<uint> from_indexc(uint i) const; // FIXME {return lattice().from_integer(i);}
 
 // public: // accessor
 //   virtual double ac(size_t i0) const = 0;
