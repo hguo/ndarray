@@ -234,15 +234,15 @@ Expected output:
 Array size: 10000000 elements (~76 MB)
 ...
 [Test 3] Old API: get_arr(key) - Copy
-  Read time: 50 ms
+  Overhead: 50 ms (memory allocation + copy)
 [Test 4] New API: get_ref(key) - Zero-copy
-  Read time: 1 μs (microseconds!)
-  Speedup: ~50000x faster
+  Overhead: < 1 μs (reference return)
+  Note: Actual data access time is the same; difference is in allocation/copy overhead
 ```
 
 ## Summary
 
-- ✅ **50-100x faster** read operations
+- ✅ **Eliminates memory allocation and copy overhead** for read operations
 - ✅ **50% memory reduction** (no duplicate arrays)
 - ✅ **Critical for large datasets** (GB-scale scientific data)
 - ✅ **Backward compatible** (old API still works)

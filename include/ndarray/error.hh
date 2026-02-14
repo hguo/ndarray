@@ -4,6 +4,7 @@
 #include <ndarray/config.hh>
 #include <string>
 #include <iostream>
+#include <exception>
 #include <execinfo.h>
 
 namespace ftk {
@@ -120,6 +121,186 @@ inline std::string err2str(int e)
   }
 }
 
+////
+// Exception Classes
+////
+
+/**
+ * @brief Base exception class for all ndarray errors
+ *
+ * All ndarray exceptions derive from this class, which itself derives
+ * from std::exception. This allows catching all ndarray errors with:
+ *
+ * @code
+ * try {
+ *   arr.read_netcdf("file.nc", "var");
+ * } catch (const ftk::nd::exception& e) {
+ *   std::cerr << "ndarray error: " << e.what() << std::endl;
+ *   std::cerr << "Error code: " << e.error_code() << std::endl;
+ * }
+ * @endcode
+ *
+ * @see error codes defined above
+ */
+class exception : public std::exception {
+public:
+  /**
+   * @brief Construct exception with error code and optional message
+   * @param code Error code from enum above
+   * @param msg Additional context message (optional)
+   */
+  explicit exception(int code, const std::string& msg = "")
+    : err_code(code), user_msg(msg)
+  {
+    full_msg = "[NDARRAY ERROR] " + err2str(code);
+    if (!msg.empty()) {
+      full_msg += ": " + msg;
+    }
+  }
+
+  /**
+   * @brief Construct exception with message only (no error code)
+   * @param msg Error message
+   */
+  explicit exception(const std::string& msg)
+    : err_code(0), user_msg(msg)
+  {
+    full_msg = "[NDARRAY ERROR] " + msg;
+  }
+
+  /**
+   * @brief Get full error message
+   * @return C-string with complete error description
+   */
+  virtual const char* what() const noexcept override {
+    return full_msg.c_str();
+  }
+
+  /**
+   * @brief Get error code
+   * @return Error code from enum, or 0 if constructed with message only
+   */
+  int error_code() const noexcept {
+    return err_code;
+  }
+
+  /**
+   * @brief Get user-provided context message
+   * @return Additional message provided when exception was thrown
+   */
+  const std::string& message() const noexcept {
+    return user_msg;
+  }
+
+protected:
+  int err_code;
+  std::string user_msg;
+  std::string full_msg;
+};
+
+/**
+ * @brief Exception for file I/O errors
+ *
+ * Thrown when file operations fail (open, read, write, format errors).
+ */
+class file_error : public exception {
+public:
+  explicit file_error(int code, const std::string& msg = "")
+    : exception(code, msg) {}
+  explicit file_error(const std::string& msg)
+    : exception(msg) {}
+};
+
+/**
+ * @brief Exception for missing library/feature
+ *
+ * Thrown when attempting to use a feature that was not compiled in.
+ */
+class feature_not_available : public exception {
+public:
+  explicit feature_not_available(int code, const std::string& msg = "")
+    : exception(code, msg) {}
+  explicit feature_not_available(const std::string& msg)
+    : exception(msg) {}
+};
+
+/**
+ * @brief Exception for invalid array operations
+ *
+ * Thrown for invalid array operations like reshaping empty arrays.
+ */
+class invalid_operation : public exception {
+public:
+  explicit invalid_operation(int code, const std::string& msg = "")
+    : exception(code, msg) {}
+  explicit invalid_operation(const std::string& msg)
+    : exception(msg) {}
+};
+
+/**
+ * @brief Exception for not-yet-implemented features
+ */
+class not_implemented : public exception {
+public:
+  explicit not_implemented(const std::string& msg = "")
+    : exception(ERR_NOT_IMPLEMENTED, msg) {}
+};
+
+/**
+ * @brief Exception for device/accelerator errors
+ */
+class device_error : public exception {
+public:
+  explicit device_error(int code, const std::string& msg = "")
+    : exception(code, msg) {}
+  explicit device_error(const std::string& msg)
+    : exception(msg) {}
+};
+
+/**
+ * @brief Exception for VTK-related errors
+ */
+class vtk_error : public exception {
+public:
+  explicit vtk_error(int code, const std::string& msg = "")
+    : exception(code, msg) {}
+  explicit vtk_error(const std::string& msg)
+    : exception(msg) {}
+};
+
+/**
+ * @brief Exception for NetCDF-related errors
+ */
+class netcdf_error : public exception {
+public:
+  explicit netcdf_error(int code, const std::string& msg = "")
+    : exception(code, msg) {}
+  explicit netcdf_error(const std::string& msg)
+    : exception(msg) {}
+};
+
+/**
+ * @brief Exception for ADIOS2-related errors
+ */
+class adios2_error : public exception {
+public:
+  explicit adios2_error(int code, const std::string& msg = "")
+    : exception(code, msg) {}
+  explicit adios2_error(const std::string& msg)
+    : exception(msg) {}
+};
+
+/**
+ * @brief Exception for stream-related errors
+ */
+class stream_error : public exception {
+public:
+  explicit stream_error(int code, const std::string& msg = "")
+    : exception(code, msg) {}
+  explicit stream_error(const std::string& msg)
+    : exception(msg) {}
+};
+
 inline void print_backtrace()
 {
   void *array[10];
@@ -138,31 +319,107 @@ inline void print_backtrace()
   free (strings);
 }
 
-inline void fatal(int err, std::string str = "")
+/**
+ * @brief Throw appropriate exception based on error code
+ *
+ * This function examines the error code and throws the most specific
+ * exception type available. Falls back to generic exception if no
+ * specific type matches.
+ *
+ * @param err Error code from enum
+ * @param str Optional context message
+ * @throws Specific exception subclass based on error code
+ */
+[[noreturn]] inline void fatal(int err, const std::string& str = "")
 {
-  std::cerr << "[NDARRAY FATAL] " << err2str(err);
-  if (str.length()) std::cerr << ": " << str;
-  std::cerr << std::endl;
- 
-  throw err;
-  // print_backtrace();
-  // exit(1);
+  // Determine which exception type to throw based on error code
+
+  // File errors
+  if (err >= ERR_FILE_NOT_FOUND && err < ERR_NOT_BUILT_WITH_ADIOS2) {
+    throw file_error(err, str);
+  }
+
+  // Feature not available errors
+  else if (err >= ERR_NOT_BUILT_WITH_ADIOS2 && err < ERR_NDARRAY_MULTIDIMENSIONAL_COMPONENTS) {
+    throw feature_not_available(err, str);
+  }
+
+  // Array operation errors
+  else if (err >= ERR_NDARRAY_MULTIDIMENSIONAL_COMPONENTS && err < ERR_ACCELERATOR_UNSUPPORTED) {
+    throw invalid_operation(err, str);
+  }
+
+  // Device/accelerator errors
+  else if (err >= ERR_ACCELERATOR_UNSUPPORTED && err < ERR_THREAD_BACKEND_UNSUPPORTED) {
+    throw device_error(err, str);
+  }
+
+  // Thread backend errors (treat as device errors)
+  else if (err >= ERR_THREAD_BACKEND_UNSUPPORTED && err < ERR_VTK_VARIABLE_NOT_FOUND) {
+    throw device_error(err, str);
+  }
+
+  // VTK errors
+  else if (err >= ERR_VTK_VARIABLE_NOT_FOUND && err < ERR_NETCDF_MISSING_VARIABLE) {
+    throw vtk_error(err, str);
+  }
+
+  // NetCDF errors
+  else if (err >= ERR_NETCDF_MISSING_VARIABLE && err < ERR_ADIOS2) {
+    throw netcdf_error(err, str);
+  }
+
+  // ADIOS2 errors
+  else if (err >= ERR_ADIOS2 && err < ERR_MESH_UNSUPPORTED_FORMAT) {
+    throw adios2_error(err, str);
+  }
+
+  // Stream errors
+  else if (err >= ERR_STREAM_FORMAT && err < ERR_UNKNOWN_OPTIONS) {
+    throw stream_error(err, str);
+  }
+
+  // Not implemented
+  else if (err == ERR_NOT_IMPLEMENTED) {
+    throw not_implemented(str);
+  }
+
+  // Generic fallback
+  else {
+    throw exception(err, str);
+  }
 }
 
-inline void warn(int err, std::string str = "")
+/**
+ * @brief Throw exception with custom message (no error code)
+ *
+ * @param str Error message
+ * @throws exception Generic exception with provided message
+ */
+[[noreturn]] inline void fatal(const std::string& str) {
+  throw exception(str);
+}
+
+/**
+ * @brief Print warning message (non-fatal)
+ *
+ * Warnings are printed to stderr but do not throw exceptions.
+ *
+ * @param err Error code from enum
+ * @param str Optional context message
+ */
+inline void warn(int err, const std::string& str = "")
 {
   std::cerr << "[NDARRAY WARN] " << err2str(err);
   if (str.length()) std::cerr << ": " << str;
   std::cerr << std::endl;
 }
 
-inline void fatal(const std::string& str) {
-  std::cerr << "[NDARRAY FATAL] " << str << std::endl;
-  
-  print_backtrace();
-  exit(1);
-}
-
+/**
+ * @brief Print warning message (non-fatal)
+ *
+ * @param str Warning message
+ */
 inline void warn(const std::string& str) {
   std::cerr << "[NDARRAY WARN] " << str << std::endl;
 }
