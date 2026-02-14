@@ -39,17 +39,71 @@ enum {
 };
 
 #if NDARRAY_HAVE_MPI
+/**
+ * @brief Initialize ndarray library (no-op currently)
+ * @param comm MPI communicator (default: MPI_COMM_WORLD)
+ * @note Reserved for future initialization needs
+ */
 static void ndarray_init(MPI_Comm = MPI_COMM_WORLD) { }
 #else
+/**
+ * @brief Initialize ndarray library (no-op currently)
+ * @note Reserved for future initialization needs
+ */
 static void ndarray_init() { }
 #endif
 
-static void ndarray_finalize() // free-up singletons
+/**
+ * @brief Finalize ndarray library and clean up resources
+ *
+ * This function performs cleanup of global resources managed by ndarray:
+ *
+ * 1. NetCDF File Descriptor Pool (fdpool_nc):
+ *    - Closes all open NetCDF files cached in the fdpool
+ *    - Prevents file descriptor leaks
+ *    - Required when using ndarray_group_stream with NetCDF files
+ *
+ * IMPORTANT: Call this function before program exit, especially when:
+ * - Using ndarray_group_stream to read NetCDF files
+ * - Opening multiple NetCDF files during program lifetime
+ * - Running in MPI parallel mode
+ *
+ * Typical usage:
+ * @code
+ * int main(int argc, char** argv) {
+ *   #if NDARRAY_HAVE_MPI
+ *   MPI_Init(&argc, &argv);
+ *   #endif
+ *
+ *   // ... ndarray operations ...
+ *   // ... stream processing ...
+ *
+ *   // Cleanup before exit
+ *   ftk::ndarray_finalize();  // Closes all NetCDF files in fdpool
+ *
+ *   #if NDARRAY_HAVE_MPI
+ *   MPI_Finalize();
+ *   #endif
+ *
+ *   return 0;
+ * }
+ * @endcode
+ *
+ * Thread Safety: NOT thread-safe. Call only from main thread after all
+ * ndarray operations complete.
+ *
+ * @see fdpool_nc in fdpool.hh for file descriptor pool details
+ */
+static void ndarray_finalize()
 {
 #if NDARRAY_HAVE_NETCDF
+  // Close all NetCDF files in the file descriptor pool
+  // This prevents file descriptor leaks and ensures clean shutdown
   auto &ncpool = fdpool_nc::get_instance();
   ncpool.close_all();
 #endif
+
+  // Future: Add cleanup for other singleton resources here
 }
 
 static inline std::string series_filename(
