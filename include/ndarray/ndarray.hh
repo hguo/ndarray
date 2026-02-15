@@ -585,11 +585,10 @@ template <typename T1, typename OtherPolicy>
 void ndarray<T, StoragePolicy>::from_array(const ndarray<T1, OtherPolicy>& array1)
 {
   dims = array1.shapef();
-  s = array1.s;
-  ncd = array1.ncd;
-  tv = array1.tv;
+  reshapef(dims);  // This will recalculate strides (s)
 
-  reshapef(dims);
+  ncd = array1.multicomponents();
+  tv = array1.has_time();
 
   for (size_t i = 0; i < size(); i++) {
     storage_[i] = static_cast<T>(array1.data()[i]);
