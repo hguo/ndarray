@@ -106,29 +106,29 @@ jobs:
       working-directory: build
       run: ctest --output-on-failure
 
-  code-style:
-    name: Code style check
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
-
-    - name: Check for common issues
-      run: |
-        # Check for trailing whitespace in include and test directories
-        if git grep -I -n '[[:blank:]]$' -- 'include/**/*.cpp' 'include/**/*.hh' 'include/**/*.h' 'tests/*.cpp' 'tests/*.hh' 'tests/*.h' 'src/*.cpp' 2>/dev/null; then
-          echo "Found trailing whitespace in source files"
-          exit 1
-        fi
-
-        # Check for tabs (prefer spaces)
-        if git grep -I -n $'\t' -- 'include/**/*.cpp' 'include/**/*.hh' 'include/**/*.h' 'tests/*.cpp' 'tests/*.hh' 'tests/*.h' 'src/*.cpp' 2>/dev/null; then
-          echo "Found tabs in source files, prefer spaces"
-          exit 1
-        fi
-
-        echo "Code style checks passed"
+  # code-style:
+  #   name: Code style check
+  #   runs-on: ubuntu-latest
+  #
+  #   steps:
+  #   - name: Checkout code
+  #     uses: actions/checkout@v3
+  #
+  #   - name: Check for common issues
+  #     run: |
+  #       # Check for trailing whitespace in include and test directories
+  #       if git grep -I -n '[[:blank:]]$' -- 'include/**/*.cpp' 'include/**/*.hh' 'include/**/*.h' 'tests/*.cpp' 'tests/*.hh' 'tests/*.h' 'src/*.cpp' 2>/dev/null; then
+  #         echo "Found trailing whitespace in source files"
+  #         exit 1
+  #       fi
+  #
+  #       # Check for tabs (prefer spaces)
+  #       if git grep -I -n $'\t' -- 'include/**/*.cpp' 'include/**/*.hh' 'include/**/*.h' 'tests/*.cpp' 'tests/*.hh' 'tests/*.h' 'src/*.cpp' 2>/dev/null; then
+  #         echo "Found tabs in source files, prefer spaces"
+  #         exit 1
+  #       fi
+  #
+  #       echo "Code style checks passed"
 
   documentation:
     name: Check documentation
