@@ -59,9 +59,9 @@ public: // the last dimension, aka time.  these functions are mainly for I/O and
   // void recess_time(int nt = 1) {starts_[nd()-1] -= nt;}
 
 public:
-  // bool unlimited_ = false; 
+  // bool unlimited_ = false;
   std::vector<size_t> starts_, sizes_; // the last dimension can be unlimited
-  std::vector<size_t> prod_; 
+  std::vector<size_t> prod_;
 };
 
 /////
@@ -90,7 +90,7 @@ inline std::ostream& operator<<(std::ostream& os, const lattice& l)
   for (int i = 0; i < l.nd(); i ++)
     if (i < l.nd()-1) os << l.sizes_[i] << ",";
     else os << l.sizes_[i] << "}, prod={";
-  
+
   for (int i = 0; i < l.nd(); i ++)
     if (i < l.nd()-1) os << l.prod_[i] << ",";
     else os << l.prod_[i] << "}"; // << std::endl;
@@ -100,21 +100,21 @@ inline std::ostream& operator<<(std::ostream& os, const lattice& l)
 
 
 inline std::vector<size_t> lattice::lower_bounds() const {
-  std::vector<size_t> lb; 
+  std::vector<size_t> lb;
   for(int i = 0; i < nd(); ++i) {
-    lb.push_back(starts_[i]); 
+    lb.push_back(starts_[i]);
   }
 
-  return lb; 
+  return lb;
 }
 
 inline std::vector<size_t> lattice::upper_bounds() const {
-  std::vector<size_t> ub; 
+  std::vector<size_t> ub;
   for(int i = 0; i < nd(); ++i) {
-    ub.push_back(starts_[i] + sizes_[i] - 1); 
+    ub.push_back(starts_[i] + sizes_[i] - 1);
   }
 
-  return ub; 
+  return ub;
 }
 
 inline bool lattice::contains(const std::vector<size_t>& x) const {
@@ -138,14 +138,14 @@ inline void lattice::reshape(const std::vector<size_t> &starts, const std::vecto
       prod_[i] = prod_[i-1] * sizes[i-1];
 }
 
-inline void lattice::reshape(const std::vector<int> &starts, const std::vector<int> &sizes) 
+inline void lattice::reshape(const std::vector<int> &starts, const std::vector<int> &sizes)
 {
   // Convert int to size_t
 
-  std::vector<size_t> _starts(starts.begin(), starts.end()); 
-  std::vector<size_t> _sizes(sizes.begin(), sizes.end()); 
+  std::vector<size_t> _starts(starts.begin(), starts.end());
+  std::vector<size_t> _sizes(sizes.begin(), sizes.end());
 
-  reshape(_starts, _sizes); 
+  reshape(_starts, _sizes);
 }
 
 inline void lattice::reshape(const std::vector<size_t> &sizes)
@@ -157,15 +157,15 @@ inline void lattice::reshape(const std::vector<size_t> &sizes)
 inline void lattice::reshape(const std::vector<int> &sizes)
 {
   // Convert int to size_t
-  std::vector<size_t> _sizes(sizes.size()); 
+  std::vector<size_t> _sizes(sizes.size());
   for(int i = 0; i < sizes.size(); ++i) {
-    _sizes[i] = sizes[i]; 
-  } 
+    _sizes[i] = sizes[i];
+  }
 
-  reshape(_sizes); 
+  reshape(_sizes);
 }
 
-template <typename uint> 
+template <typename uint>
 inline uint lattice::to_integer(const std::vector<int> &idx1) const
 {
   std::vector<int> idx(idx1);

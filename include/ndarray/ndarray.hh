@@ -48,7 +48,7 @@ struct ndarray : public ndarray_base {
 
   [[deprecated]] ndarray(const lattice& l) {reshapef(l.sizes());}
   [[deprecated]] ndarray(const T *a, const std::vector<size_t> &shape);
-  
+
   template <typename T1> ndarray(const ndarray<T1>& array1) { from_array<T1>(array1); }
   template <typename T1, typename OtherPolicy> ndarray(const ndarray<T1, OtherPolicy>& array1) { from_array<T1, OtherPolicy>(array1); }
   ndarray(const ndarray<T, StoragePolicy>& a) { dims = a.dims; s = a.s; ncd = a.ncd; tv = a.tv; storage_ = a.storage_; }
@@ -74,7 +74,7 @@ struct ndarray : public ndarray_base {
 
   const T* data() const {return storage_.data();}
   T* data() {return storage_.data();}
- 
+
   void flip_byte_order(T&);
   void flip_byte_order();
 
@@ -82,7 +82,7 @@ struct ndarray : public ndarray_base {
   void* pdata() {return storage_.data();}
 
   void swap(ndarray& x);
-  
+
   template <typename T1> void reshape(const ndarray<T1>& array); //! copy shape from another array
 
   void reshapef(const std::vector<size_t> &dims_);
@@ -133,10 +133,10 @@ public: // Column-major (Fortran-style) access: f(i0, i1, ...) where i0 varies f
   //   This matches Fortran's column-major convention where the first index varies fastest
   T& f(const std::vector<size_t>& idx) {return storage_[indexf(idx)];}
   const T& f(const std::vector<size_t>& idx) const {return storage_[indexf(idx)];}
-  
+
   T& f(const size_t idx[]) {return storage_[indexf(idx)];}
   const T& f(const size_t idx[]) const {return storage_[indexf(idx)];}
-  
+
   T& f(const std::vector<int>& idx) {return storage_[indexf(idx)];}
   const T& f(const std::vector<int>& idx) const {return storage_[indexf(idx)];}
 
@@ -164,10 +164,10 @@ public: // Row-major (C-style) access: c(i0, i1, ...) where the last index varie
   // Note: Both f() and c() access the same underlying storage but with different indexing schemes
   T& c(const std::vector<size_t>& idx) {return storage_[indexc(idx)];}
   const T& c(const std::vector<size_t>& idx) const {return storage_[indexc(idx)];}
-  
+
   T& c(const size_t idx[]) {return storage_[indexc(idx)];}
   const T& c(const size_t idx[]) const {return storage_[indexc(idx)];}
-  
+
   T& c(const std::vector<int>& idx) {return storage_[indexc(idx)];}
   const T& c(const std::vector<int>& idx) const {return storage_[indexc(idx)];}
 
@@ -191,10 +191,10 @@ public: // Row-major (C-style) access: c(i0, i1, ...) where the last index varie
 public: // legacy f-style access
   [[deprecated]] T& at(const std::vector<size_t>& idx) {return storage_[indexf(idx)];}
   [[deprecated]] const T& at(const std::vector<size_t>& idx) const {return storage_[indexf(idx)];}
-  
+
   [[deprecated]] T& at(const size_t idx[]) {return storage_[indexf(idx)];}
   [[deprecated]] const T& at(const size_t idx[]) const {return storage_[indexf(idx)];}
-  
+
   [[deprecated]] T& at(const std::vector<int>& idx) {return storage_[indexf(idx)];}
   [[deprecated]] const T& at(const std::vector<int>& idx) const {return storage_[indexf(idx)];}
 
@@ -231,7 +231,7 @@ public: // legacy f-style access
   [[deprecated]] T& operator()(size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) {return storage_[i0+i1*s[1]+i2*s[2]+i3*s[3]+i4*s[4]];}
   [[deprecated]] T& operator()(size_t i0, size_t i1, size_t i2, size_t i3, size_t i4, size_t i5) {return storage_[i0+i1*s[1]+i2*s[2]+i3*s[3]+i4*s[4]+i5*s[5]];}
   [[deprecated]] T& operator()(size_t i0, size_t i1, size_t i2, size_t i3, size_t i4, size_t i5, size_t i6) {return storage_[i0+i1*s[1]+i2*s[2]+i3*s[3]+i4*s[4]+i5*s[5]+i6*s[6]];}
-  
+
   [[deprecated]] T& operator()(const std::vector<size_t>& idx) const {return at(idx);}
   [[deprecated]] T& operator()(const std::vector<int>& idx) const {return at(idx);}
   [[deprecated]] const T& operator()(size_t i0) const {return storage_[i0];}
@@ -242,7 +242,7 @@ public: // legacy f-style access
   [[deprecated]] const T& operator()(size_t i0, size_t i1, size_t i2, size_t i3, size_t i4, size_t i5) const {return storage_[i0+i1*s[1]+i2*s[2]+i3*s[3]+i4*s[4]+i5*s[5]];}
   [[deprecated]] const T& operator()(size_t i0, size_t i1, size_t i2, size_t i3, size_t i4, size_t i5, size_t i6) const {return storage_[i0+i1*s[1]+i2*s[2]+i3*s[3]+i4*s[4]+i5*s[5]+i6*s[6]];}
 
-  
+
 public:
   friend std::ostream& operator<<(std::ostream& os, const ndarray<T, StoragePolicy>& arr) {arr.print(os); return os;}
   friend bool operator==(const ndarray<T, StoragePolicy>& lhs, const ndarray<T, StoragePolicy>& rhs) {
@@ -343,9 +343,9 @@ public: // i/o for vtk image data
   void from_vtk_image_data(vtkSmartPointer<vtkImageData> d, const std::string array_name=std::string()) { from_vtk_regular_data<>(d, array_name); }
   void from_vtk_array(vtkSmartPointer<vtkAbstractArray> d);
   void from_vtk_data_array(vtkSmartPointer<vtkDataArray> d);
-  vtkSmartPointer<vtkImageData> to_vtk_image_data(std::string varname=std::string()) const; 
+  vtkSmartPointer<vtkImageData> to_vtk_image_data(std::string varname=std::string()) const;
   // vtkSmartPointer<vtkDataArray> to_vtk_data_array(std::string varname=std::string()) const;  // moved to base
-  
+
   template <typename VTK_REGULAR_DATA=vtkImageData> /*vtkImageData, vtkRectilinearGrid, or vtkStructuredGrid*/
   void from_vtk_regular_data(vtkSmartPointer<VTK_REGULAR_DATA> d, const std::string array_name=std::string());
 #endif
@@ -371,15 +371,15 @@ public: // i/o for adios2
 
 #if NDARRAY_HAVE_ADIOS2
   void read_bp(
-      adios2::IO &io, 
+      adios2::IO &io,
       adios2::Engine& reader,
-      const std::string &varname, 
+      const std::string &varname,
       int step = -1); // read all
-  
+
   void read_bp(
-      adios2::IO &io, 
-      adios2::Engine& reader, 
-      adios2::Variable<T>& var, 
+      adios2::IO &io,
+      adios2::Engine& reader,
+      adios2::Variable<T>& var,
       int step = -1);
 #endif
 
@@ -409,7 +409,7 @@ public: // pybind11
 #if NDARRAY_HAVE_MPI
   static MPI_Datatype mpi_dtype();
 #endif
-  
+
   int nc_dtype() const;
 
 public: // device management
@@ -435,7 +435,7 @@ public: // statistics & misc
   std::tuple<T, T> min_max() const;
   T maxabs() const;
   T resolution() const; // the min abs nonzero value
-  
+
   ndarray<uint64_t> quantize() const; // quantization based on resolution
 
   ndarray<T, StoragePolicy> &perturb(T sigma); // add gaussian noise to the array
@@ -664,14 +664,14 @@ ndarray<T, StoragePolicy> ndarray<T, StoragePolicy>::subarray(const lattice& l0)
 }
 
 template <typename T, typename StoragePolicy>
-void ndarray<T, StoragePolicy>::bil_add_block_raw(const std::string& filename, 
-    const std::vector<size_t>& SZ, 
+void ndarray<T, StoragePolicy>::bil_add_block_raw(const std::string& filename,
+    const std::vector<size_t>& SZ,
     const lattice& ext)
 {
 #if NDARRAY_HAVE_MPI
   reshapef(ext.sizes());
   std::vector<int> domain, st, sz;
- 
+
   for (int i = 0; i < nd(); i ++) {
     domain.push_back(SZ[i]);
     st.push_back(ext.start(i));
@@ -711,7 +711,7 @@ void ndarray<T, StoragePolicy>::read_binary_file(FILE *fp, int endian)
 #if NDARRAY_USE_LITTLE_ENDIAN
   if (endian == NDARRAY_ENDIAN_BIG)
     flip_byte_order();
-#endif 
+#endif
 
 #if NDARRAY_USE_BIG_ENDIAN
   if (endian == NDARRAY_ENDIAN_LITTLE)
@@ -732,7 +732,7 @@ template <typename T, typename StoragePolicy>
 template <typename T1>
 void ndarray<T, StoragePolicy>::to_binary_file2(const std::string& f) const
 {
-  ndarray<T1> array; 
+  ndarray<T1> array;
   array.template from_array<T>(*this);
   array.to_binary_file(f);
 }
@@ -746,7 +746,7 @@ void ndarray<T, StoragePolicy>::read_binary_file_sequence(const std::string& pat
   std::vector<size_t> mydims = dims;
   mydims[nd() - 1] = filenames.size();
   reshapef(mydims);
- 
+
   size_t npt = std::accumulate(dims.begin(), dims.end()-1, 1, std::multiplies<size_t>());
   for (int i = 0; i < filenames.size(); i ++) {
     // fprintf(stderr, "loading %s\n", filenames[i].c_str());
@@ -798,7 +798,7 @@ inline void ndarray<T, StoragePolicy>::from_vtk_data_array(
 
 template <typename T, typename StoragePolicy>
 inline void ndarray<T, StoragePolicy>::from_vtu(
-    vtkSmartPointer<vtkUnstructuredGrid> d, 
+    vtkSmartPointer<vtkUnstructuredGrid> d,
     const std::string array_name)
 {
   vtkSmartPointer<vtkDataArray> da = d->GetPointData()->GetArray(array_name.c_str());
@@ -814,8 +814,8 @@ inline void ndarray<T, StoragePolicy>::from_vtk_regular_data(
 {
   vtkSmartPointer<vtkDataArray> da = d->GetPointData()->GetArray(array_name.c_str());
   if (!da) da = d->GetPointData()->GetArray(0);
-  
-  const int nd = d->GetDataDimension(), 
+
+  const int nd = d->GetDataDimension(),
             nc = da->GetNumberOfComponents();
 
   int vdims[3];
@@ -869,7 +869,7 @@ inline vtkSmartPointer<vtkImageData> ndarray<T, StoragePolicy>::to_vtk_image_dat
   } else {
     if (nd() == 2) d->SetDimensions(shapef(0), shapef(1), 1);
     else d->SetDimensions(shapef(0), shapef(1), shapef(2)); // nd == 3
-    
+
     if (varname.empty()) varname = "scalar";
   }
   // d->GetPointData()->AddArray(to_vtk_data_array(multicomponent));
@@ -936,7 +936,7 @@ ndarray<T, StoragePolicy>::ndarray(const T *a, const std::vector<size_t> &dims_)
   }
 #endif
 }
-  
+
 template <typename T, typename StoragePolicy>
 template <typename I>
 void ndarray<T, StoragePolicy>::reshapef(const int ndims, const I sz[])
@@ -989,7 +989,7 @@ void ndarray<T, StoragePolicy>::reshapef(const std::vector<size_t> &dims, T val)
 
 template <typename T, typename StoragePolicy>
 std::tuple<T, T> ndarray<T, StoragePolicy>::min_max() const {
-  T min = std::numeric_limits<T>::max(), 
+  T min = std::numeric_limits<T>::max(),
     max = std::numeric_limits<T>::min();
 
   for (size_t i = 0; i < nelem(); i ++) {
@@ -1001,7 +1001,7 @@ std::tuple<T, T> ndarray<T, StoragePolicy>::min_max() const {
 }
 
 template <typename T, typename StoragePolicy>
-T ndarray<T, StoragePolicy>::maxabs() const 
+T ndarray<T, StoragePolicy>::maxabs() const
 {
   T r = 0;
   for (size_t i = 0; i < nelem(); i ++)
@@ -1035,7 +1035,7 @@ template <> inline int ndarray<unsigned int>::nc_dtype() const { return NC_UINT;
 template <> inline int ndarray<unsigned long>::nc_dtype() const { return NC_UINT; }
 template <> inline int ndarray<unsigned char>::nc_dtype() const { return NC_UBYTE; }
 template <> inline int ndarray<char>::nc_dtype() const { return NC_CHAR; }
-#else 
+#else
 template <typename T, typename StoragePolicy>
 inline int ndarray<T, StoragePolicy>::nc_dtype() const { return -1; } // linking without netcdf
 #endif
@@ -1053,7 +1053,7 @@ inline void ndarray<T, StoragePolicy>::read_bp(adios2::IO &io, adios2::Engine &r
     } else if (step == NDARRAY_ADIOS2_STEPS_ALL) {
       const size_t nsteps = var.Steps();
       var.SetStepSelection({0, nsteps-1});
-    } else 
+    } else
       var.SetStepSelection({step, 1});
 
     std::vector<size_t> shape(var.Shape());
@@ -1113,11 +1113,11 @@ bool ndarray<T, StoragePolicy>::read_bp_legacy(ADIOS_FILE *fp, const std::string
   adios_inq_var_stat(fp, avi, 0, 0);
   adios_inq_var_blockinfo(fp, avi);
   adios_inq_var_meshinfo(fp, avi);
-    
+
   int nt = 1;
   uint64_t st[4] = {0, 0, 0, 0}, sz[4] = {0, 0, 0, 0};
   std::vector<size_t> mydims;
-  
+
   for (int i = 0; i < avi->ndim; i++) {
     st[i] = 0;
     sz[i] = avi->dims[i];
@@ -1125,7 +1125,7 @@ bool ndarray<T, StoragePolicy>::read_bp_legacy(ADIOS_FILE *fp, const std::string
     mydims.push_back(sz[i]);
   }
   // fprintf(stderr, "%d, %d, %d, %d\n", sz[0], sz[1], sz[2], sz[3]);
-  
+
   if (!mydims.empty()) {
     std::reverse(mydims.begin(), mydims.end());
     reshapef(mydims);
@@ -1135,7 +1135,7 @@ bool ndarray<T, StoragePolicy>::read_bp_legacy(ADIOS_FILE *fp, const std::string
 
     adios_schedule_read_byid(fp, sel, avi->varid, 0, 1, &storage_[0]);
     int retval = adios_perform_reads(fp, 1);
-    
+
     adios_selection_delete(sel);
     return true; // avi->ndim;
   } else {
@@ -1163,11 +1163,11 @@ bool ndarray<T, StoragePolicy>::read_bp_legacy(const std::string& filename, cons
 {
 #if NDARRAY_HAVE_ADIOS1
   adios_read_init_method( ADIOS_READ_METHOD_BP, comm, "" );
-  ADIOS_FILE *fp = adios_read_open_file(filename.c_str(), ADIOS_READ_METHOD_BP, comm); 
+  ADIOS_FILE *fp = adios_read_open_file(filename.c_str(), ADIOS_READ_METHOD_BP, comm);
   // adios_read_bp_reset_dimension_order(fp, 0);
 
   bool succ = read_bp_legacy(fp, varname);
-  
+
   adios_read_finalize_method (ADIOS_READ_METHOD_BP);
   adios_read_close(fp);
   return succ;
@@ -1564,20 +1564,20 @@ ndarray<T, StoragePolicy> ndarray<T, StoragePolicy>::get_transpose() const
   else if (nd() == 1) return *this;
   else if (nd() == 2) {
     a.reshapef(dimf(1), dimf(0));
-    for (auto i = 0; i < dimf(0); i ++) 
+    for (auto i = 0; i < dimf(0); i ++)
       for (auto j = 0; j < dimf(1); j ++)
         a.f(j, i) = f(i, j);
     return a;
   } else if (nd() == 3) {
     a.reshapef(dimf(2), dimf(1), dimf(0));
-    for (auto i = 0; i < dimf(0); i ++) 
+    for (auto i = 0; i < dimf(0); i ++)
       for (auto j = 0; j < dimf(1); j ++)
         for (auto k = 0; k < dimf(2); k ++)
           a.f(k, j, i) = f(i, j, k);
     return a;
   } else if (nd() == 4) {
     a.reshapef(dimf(3), dimf(2), dimf(1), dimf(0));
-    for (auto i = 0; i < dimf(0); i ++) 
+    for (auto i = 0; i < dimf(0); i ++)
       for (auto j = 0; j < dimf(1); j ++)
         for (auto k = 0; k < dimf(2); k ++)
           for (auto l = 0; l < dimf(3); l ++)
@@ -1745,7 +1745,7 @@ inline bool ndarray<float>::read_amira(const std::string& filename)
     return buffer;
   };
 
-  FILE *fp = fopen(filename.c_str(), "rb"); 
+  FILE *fp = fopen(filename.c_str(), "rb");
   if (!fp) {
     nd::warn(nd::ERR_FILE_CANNOT_OPEN, filename);
     return false;
@@ -1825,7 +1825,7 @@ ndarray<T, StoragePolicy>& ndarray<T, StoragePolicy>::perturb(T sigma)
 
 template <typename T, typename StoragePolicy>
 template <typename F>
-bool ndarray<T, StoragePolicy>::mlerp(const F x[], T v[]) const 
+bool ndarray<T, StoragePolicy>::mlerp(const F x[], T v[]) const
 {
   static const size_t maxn = 12; // some arbitrary large number for nd
   const size_t n = nd() - multicomponents(),
@@ -1837,7 +1837,7 @@ bool ndarray<T, StoragePolicy>::mlerp(const F x[], T v[]) const
   for (size_t i = 0; i < n; i ++) {
     if (x[i] < 0 || x[i] >= dims[nc+i] - 1) return false; // out of bound
 
-    x0[i] = std::floor(x[i]); 
+    x0[i] = std::floor(x[i]);
     mu[i] = x[i] - x0[i];
   }
 
@@ -1846,9 +1846,9 @@ bool ndarray<T, StoragePolicy>::mlerp(const F x[], T v[]) const
   else if (nc == 1)
     for (size_t i = 0; i < dims[0]; i ++)
       v[i] = 0;
-  else 
+  else
     nd::fatal(nd::ERR_NOT_IMPLEMENTED);
-  
+
   // fprintf(stderr, "w=%f, %f\n", v[0], v[1]);
   // fprintf(stderr, "mu=%f, %f\n", mu[0], mu[1]);
 
@@ -1864,7 +1864,7 @@ bool ndarray<T, StoragePolicy>::mlerp(const F x[], T v[]) const
 
       if (b[i])
         coef *= mu[i];
-      else 
+      else
         coef *= (F(1) - mu[i]);
     }
     // fprintf(stderr, "coef=%f\n", coef);
@@ -1878,7 +1878,7 @@ bool ndarray<T, StoragePolicy>::mlerp(const F x[], T v[]) const
         v[k] += coef * val;
         // fprintf(stderr, "k=%d, verts=%zu, %zu, %zu, coef=%f, val=%f\n", k, verts[0], verts[1], verts[2], coef, val);
       }
-    } else 
+    } else
       nd::fatal(nd::ERR_NOT_IMPLEMENTED);
   }
 
@@ -1907,9 +1907,9 @@ inline T mse(const ndarray<T>& x, const ndarray<T>& y)
 }
 
 template <typename T>
-T rmse(const ndarray<T>& x, const ndarray<T>& y) 
-{ 
-  return std::sqrt(mse(x, y)); 
+T rmse(const ndarray<T>& x, const ndarray<T>& y)
+{
+  return std::sqrt(mse(x, y));
 }
 
 template <typename T>
@@ -1958,7 +1958,7 @@ inline std::shared_ptr<ndarray_base> ndarray_base::new_by_vtk_dtype(int type)
     p.reset(new ndarray<unsigned int>);
   else if (type == VTK_UNSIGNED_CHAR)
     p.reset(new ndarray<unsigned char>);
-  else 
+  else
     nd::fatal(nd::ERR_NOT_IMPLEMENTED);
 #else
   nd::fatal(nd::ERR_NOT_BUILT_WITH_VTK);
@@ -1982,12 +1982,12 @@ inline std::shared_ptr<ndarray_base> ndarray_base::new_by_nc_dtype(int typep)
     p.reset(new ndarray<unsigned int>);
   else if (typep == NC_CHAR)
     p.reset(new ndarray<char>);
-  else 
+  else
     nd::fatal(nd::ERR_NOT_IMPLEMENTED);
 #else
   nd::fatal(nd::ERR_NOT_BUILT_WITH_NETCDF);
 #endif
-  
+
   return p;
 }
 
@@ -2009,7 +2009,7 @@ inline std::shared_ptr<ndarray_base> ndarray_base::new_by_adios2_dtype(const std
     p.reset(new ndarray<unsigned char>);
   else if (type == adios2::GetType<char>())
     p.reset(new ndarray<char>);
-  else 
+  else
     nd::fatal(nd::ERR_NOT_IMPLEMENTED);
 #else
   nd::warn(nd::ERR_NOT_BUILT_WITH_ADIOS2);

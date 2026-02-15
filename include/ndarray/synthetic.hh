@@ -8,20 +8,20 @@
 namespace ftk {
 
 // the synthetic woven function
-template <typename T> 
-T woven_function_2Dt(T x, T y, T t) 
+template <typename T>
+T woven_function_2Dt(T x, T y, T t)
 {
   return cos(x*cos(t)-y*sin(t))*sin(x*sin(t)+y*cos(t));
 }
 
-template <typename T> 
-T woven_grad_x_2Dt(T x, T y, T t) 
+template <typename T>
+T woven_grad_x_2Dt(T x, T y, T t)
 {
   return (-sin(x*cos(t)-y*sin(t))*cos(t)) * sin(x*sin(t)+y*cos(t)) + cos(x*sin(t) + y*cos(t))*sin(t)*cos(x*cos(t)-y*sin(t));
 }
 
-template <typename T> 
-T woven_grad_y_2Dt(T x, T y, T t) 
+template <typename T>
+T woven_grad_y_2Dt(T x, T y, T t)
 {
   return  sin(t) * sin(x*cos(t)-y*sin(t)) * sin(x*sin(t)+y*cos(t)) + cos(x*sin(t) + y*cos(t))*cos(t)*cos(x*cos(t)-y*sin(t));
 }
@@ -99,7 +99,7 @@ ndarray<T> synthetic_woven_2Dt(int DW, int DH, int DT, T scaling_factor = T(15))
     for (int j = 0; j < DH; j ++) {
       for (int i = 0; i < DW; i ++) {
         const T x = ((T(i) / (DW-1)) - 0.5) * scaling_factor,
-                y = ((T(j) / (DH-1)) - 0.5) * scaling_factor, 
+                y = ((T(j) / (DH-1)) - 0.5) * scaling_factor,
                 t = (T(k) / (DT-1)) + 1e-4;
         scalar.f(i, j, k) = woven_function_2Dt(x, y, t);
       }
@@ -112,7 +112,7 @@ ndarray<T> synthetic_woven_2Dt(int DW, int DH, int DT, T scaling_factor = T(15))
 template <typename T>
 ndarray<T> synthetic_woven_2D_unstructured(
     const ndarray<T>& coords/* 2*n_vert */, T t,
-    const std::array<double, 2> center = {0.5, 0.5}, 
+    const std::array<double, 2> center = {0.5, 0.5},
     const T scaling_factor = 15.0
     )
 {
@@ -130,7 +130,7 @@ ndarray<T> synthetic_woven_2D_unstructured(
 
 template <typename T>
 std::array<T, 2> double_gyre(
-    const T x, const T y, const T t, 
+    const T x, const T y, const T t,
     const T A, const T omega, const T epsilon)
 {
   const auto a = [&](T t) { return epsilon * sin(omega * t); };
@@ -138,7 +138,7 @@ std::array<T, 2> double_gyre(
   const auto f = [&](T x, T t) { return a(t) * x * x + b(t) * x; };
   const auto dfdx = [&](T x, T t) {
     // return 2 * a(t) * x * x + b(t); // this is the old buggy version; made a mistake on df/dx
-    return 2 * a(t) * x + b(t); 
+    return 2 * a(t) * x + b(t);
   };
   const auto u = [&](T x, T y, T t) {
     return -M_PI * A * sin(M_PI * f(x, t)) * cos(M_PI * y);
@@ -160,9 +160,9 @@ std::array<T, 2> modified_double_gyre(
     const T d = 9.964223388)
 {
   const auto r = [&](T t) { return omega * t + d; };
-  const auto q = [&](T t) { 
+  const auto q = [&](T t) {
     const T sinrt = sin(r(t)), sinrt2 = sinrt * sinrt;
-    return (-M_PI * c * sinrt + asin(c * omega * cos(r) / (A * M_PI))) / 
+    return (-M_PI * c * sinrt + asin(c * omega * cos(r) / (A * M_PI))) /
                               (M_PI * epsilon * (c * c * sinrt2 - 1)); };
   const auto p = [&](T t) { return asin(q) / omega - t; };
 
@@ -173,11 +173,11 @@ template <typename T>
 ndarray<T> synthetic_double_gyre_unstructured(
     const ndarray<T> coords, /* 2*n_vert */
     const T time,
-    const T A = 0.1, 
-    const T omega = M_PI * 0.2, 
+    const T A = 0.1,
+    const T omega = M_PI * 0.2,
     const T epsilon = 0.25)
 {
-  ndarray<T> result; 
+  ndarray<T> result;
   result.reshape(coords);
   result.set_multicomponents();
 
@@ -193,8 +193,8 @@ ndarray<T> synthetic_double_gyre_unstructured(
 // double gyre 2D flow
 template <typename T>
 ndarray<T> synthetic_double_gyre(int DW, int DH, const T time, bool zchannel=false,
-    const T A = 0.1, 
-    const T omega = M_PI * 0.2, 
+    const T A = 0.1,
+    const T omega = M_PI * 0.2,
     const T epsilon = 0.25)
 {
   ndarray<T> Vf;
@@ -219,16 +219,16 @@ ndarray<T> synthetic_double_gyre(int DW, int DH, const T time, bool zchannel=fal
 
 template <typename T>
 ndarray<T> synthetic_time_varying_double_gyre(
-    const int DW, const int DH, const int DT, 
-    const T time_start, const T time_step, 
+    const int DW, const int DH, const int DT,
+    const T time_start, const T time_step,
     const T A = 0.1, const T omega = M_PI * 0.2, const T epsilon = 0.25)
 {
   ndarray<T> Vft;
   Vft.set_multicomponents();
 
   for (int t = 0; t < DT; t ++) {
-    auto Vf = synthetic_double_gyre(DW, DH, 
-        time_start + t * time_step, 
+    auto Vf = synthetic_double_gyre(DW, DH,
+        time_start + t * time_step,
         A, omega, epsilon);
     Vft.p.insert(Vft.p.end(), Vf.p.begin(), Vf.p.end());
   }
@@ -238,7 +238,7 @@ ndarray<T> synthetic_time_varying_double_gyre(
 
 // ABC flow
 template <typename T>
-ndarray<T> synthetic_abc_flow(int DW, int DH, int DD, 
+ndarray<T> synthetic_abc_flow(int DW, int DH, int DD,
     T A=std::sqrt(T(3)), T B=std::sqrt(T(2)), T C=T(1))
 {
   ndarray<T> Vf;
@@ -267,16 +267,16 @@ T merger_function_2Dt(T x, T y, T t)
   auto f = [](T cx, T cy, T x, T y) {return exp(-((x-cx)*(x-cx) + (y-cy)*(y-cy)));};
 
   // add rotation
-  T xp = x * cos(t) - y * sin(t), 
+  T xp = x * cos(t) - y * sin(t),
     yp = x * sin(t) + y * cos(t);
   x = xp;
   y = yp;
 
-  T cx0 = sin(t - M_PI_2), // + 1e-4, 
+  T cx0 = sin(t - M_PI_2), // + 1e-4,
     cx1 = sin(t + M_PI_2), // + 1e-4,
     cy0 = 1e-4,
     cy1 = 1e-4;
-        
+
   return std::max(f(cx0, cy0, x, y), f(cx1, cy1, x, y));
 }
 
@@ -285,7 +285,7 @@ ndarray<T> synthetic_merger_2D(int DW, int DH, T t)
 {
   ndarray<T> scalar;
   scalar.reshapef(DW, DH);
-  
+
   for (int j = 0; j < DH; j ++) {
     for (int i = 0; i < DW; i ++) {
       // the domain is [-2, 2]x[-2, 2]
@@ -357,7 +357,7 @@ ndarray<T> synthetic_moving_extremum(const std::vector<size_t>& shape, const T x
 template <typename T, int N>
 ndarray<T> synthetic_moving_extremum_unstructured(
     const ndarray<T> coords /* N*n_vert */,
-    const std::array<T, N> x0, 
+    const std::array<T, N> x0,
     const std::array<T, N> dir,
     T t)
 {
@@ -402,13 +402,13 @@ ndarray<T> synthetic_moving_extremum_grad_unstructured(
 
 template <typename T, int N>
 ndarray<T> synthetic_volcano(
-    const std::vector<size_t> &shape, 
+    const std::vector<size_t> &shape,
     const T x0[N],
     T radius)
 {
   ndarray<T> scalar(shape);
   const auto lattice = scalar.get_lattice();
-  
+
   for (auto i = 0; i < scalar.nelem(); i ++) {
     std::vector<int> xi = lattice.from_integer(i);
     T x[N];
@@ -434,7 +434,7 @@ ndarray<T> synthetic_volcano(
  *  and values range from 0.0 to around 0.4 (I think).
  *
  *  I just wrote these comments, 8 years after I wrote the function.
- *  
+ *
  * Developed by Roger A. Crawfis, The Ohio State University
  *
  */
@@ -471,7 +471,7 @@ ndarray<T> synthetic_tornado(int xs, int ys, int zs, int time)
 			temp = sqrt( (y-yc)*(y-yc) + (x-xc)*(x-xc) );
 			scale = fabs( r - temp );
 /*
- *  I do not like this next line. It produces a discontinuity 
+ *  I do not like this next line. It produces a discontinuity
  *  in the magnitude. Fix it later.
  *
  */

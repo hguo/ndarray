@@ -79,7 +79,7 @@ enum {
 };
 
 enum {
-  NDARRAY_ADIOS2_STEPS_UNSPECIFIED = -1, 
+  NDARRAY_ADIOS2_STEPS_UNSPECIFIED = -1,
   NDARRAY_ADIOS2_STEPS_ALL = -2
 };
 
@@ -109,24 +109,24 @@ struct ndarray_base {
   virtual bool empty() const = 0;
 
   size_t nd() const {return dims.size();}
-  
+
   size_t dimf(size_t i) const {return dims[i];}
   size_t shapef(size_t i) const {return dimf(i);}
   const std::vector<size_t> &shapef() const {return dims;}
-  
+
   std::ostream& print_shapef(std::ostream& os) const;
 
   size_t dimc(size_t i) const {return dims[dims.size() - i -1];}
   size_t shapec(size_t i) const {return dimc(i);}
   const std::vector<size_t> shapec() const {std::vector<size_t> dc(dims); std::reverse(dc.begin(), dc.end()); return dc;}
-  
+
   [[deprecated]] size_t dim(size_t i) const { return dimf(i); }
   [[deprecated]] size_t shape(size_t i) const {return dimf(i);}
   [[deprecated]] const std::vector<size_t> &shape() const {return shapef();}
 
   size_t nelem() const { if (empty()) return 0; else return std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<size_t>()); }
   virtual size_t elem_size() const = 0;
- 
+
   virtual const void* pdata() const = 0;
   virtual void* pdata() = 0;
 
@@ -135,11 +135,11 @@ struct ndarray_base {
   virtual void reshapef(const std::vector<size_t> &dims_) = 0;
   void reshapef(const std::vector<int>& dims);
   void reshapef(size_t ndims, const size_t sizes[]);
-  
+
   void reshapec(const std::vector<size_t> &dims_);
   void reshapec(const std::vector<int>& dims);
   void reshapec(size_t ndims, const size_t sizes[]);
-  
+
   [[deprecated]] virtual void reshape(const std::vector<size_t> &dims_) { reshapef(dims_); }
   [[deprecated]] void reshape(const std::vector<int>& dims) { reshapef(dims); }
   [[deprecated]] void reshape(size_t ndims, const size_t sizes[]) { reshapef(ndims, sizes); }
@@ -151,7 +151,7 @@ public:
   size_t indexf(const std::vector<size_t>& idx) const;
   size_t indexf(const std::vector<int>& idx) const;
   size_t indexf(const size_t idx[]) const;
-  
+
   template <typename uint=size_t>
   std::vector<uint> from_indexf(uint i) const {return lattice().from_integer(i);}
 
@@ -218,7 +218,7 @@ public: // netcdf
   // Read a single timestep from NetCDF variable with unlimited dimension (typically time)
   // Automatically sets has_time(true) after reading
   void read_netcdf_timestep(int ncid, int varid, int t, MPI_Comm comm=MPI_COMM_WORLD);
-  
+
   // void to_netcdf(int ncid, const std::string& varname);
   // void to_netcdf(int ncid, int varid);
   void to_netcdf(int ncid, int varid, const size_t starts[], const size_t sizes[]) const;
@@ -247,16 +247,16 @@ public: // h5 i/o
 
 public: // adios2 i/o
   virtual void read_bp(
-      const std::string& filename, 
-      const std::string& varname, 
-      int step = NDARRAY_ADIOS2_STEPS_UNSPECIFIED, 
+      const std::string& filename,
+      const std::string& varname,
+      int step = NDARRAY_ADIOS2_STEPS_UNSPECIFIED,
       MPI_Comm comm = MPI_COMM_WORLD) = 0;
 
 #if NDARRAY_HAVE_ADIOS2
   virtual void read_bp(
-      adios2::IO &io, 
-      adios2::Engine& reader, 
-      const std::string &varname, 
+      adios2::IO &io,
+      adios2::Engine& reader,
+      const std::string &varname,
       int step = NDARRAY_ADIOS2_STEPS_UNSPECIFIED) = 0; // read all
 
   static std::shared_ptr<ndarray_base> new_from_bp(
@@ -282,7 +282,7 @@ public: // vtk data array
 #if NDARRAY_HAVE_VTK
   static std::shared_ptr<ndarray_base> new_from_vtk_data_array(vtkSmartPointer<vtkDataArray> da);
   static std::shared_ptr<ndarray_base> new_from_vtk_image_data(vtkSmartPointer<vtkImageData> da, const std::string varname);
-  vtkSmartPointer<vtkDataArray> to_vtk_data_array(std::string varname=std::string()) const; 
+  vtkSmartPointer<vtkDataArray> to_vtk_data_array(std::string varname=std::string()) const;
   virtual int vtk_data_type() const = 0;
 #endif
 
@@ -417,7 +417,7 @@ inline void ndarray_base::read_vtk_image_data_file(const std::string& filename, 
   nd::fatal(nd::ERR_NOT_BUILT_WITH_VTK);
 #endif
 }
-  
+
 #if NDARRAY_HAVE_VTK
 inline std::shared_ptr<ndarray_base> ndarray_base::new_from_vtk_image_data(
     vtkSmartPointer<vtkImageData> vti,
@@ -455,7 +455,7 @@ inline bool ndarray_base::read_h5(const std::string& filename, const std::string
     H5Fclose(fid);
     return succ;
   }
-#else 
+#else
   nd::fatal(nd::ERR_NOT_BUILT_WITH_HDF5);
   return false;
 #endif
@@ -480,7 +480,7 @@ inline std::shared_ptr<ndarray_base> ndarray_base::new_from_bp(
       const std::string &varname,
       int step)
 {
-  std::shared_ptr<ndarray_base> p = 
+  std::shared_ptr<ndarray_base> p =
     new_by_adios2_dtype( io.VariableType(varname) );
 
   p->read_bp(io, reader, varname, step);
@@ -499,10 +499,10 @@ inline void ndarray_base::read_bp(const std::string& filename, const std::string
 #endif
   adios2::IO io = adios.DeclareIO("BPReader");
   adios2::Engine reader = io.Open(filename, adios2::Mode::Read); // , MPI_COMM_SELF);
-  
+
   read_bp(io, reader, varname, step);
   reader.Close();
-  
+
   // empty array; try legacy reader
   if (empty()) {
 #if NDARRAY_HAVE_ADIOS1
@@ -511,8 +511,8 @@ inline void ndarray_base::read_bp(const std::string& filename, const std::string
     throw nd::ERR_ADIOS2;
 #endif
   }
-  
-  // if (empty()) read_bp_legacy(filename, varname, comm); 
+
+  // if (empty()) read_bp_legacy(filename, varname, comm);
 #else
   warn(nd::ERR_NOT_BUILT_WITH_ADIOS2);
   read_bp_legacy(filename, varname, comm);
@@ -562,7 +562,7 @@ inline void ndarray_base::read_netcdf(const std::string& filename, const std::st
   }
 
   // NC_SAFE_CALL( nc_inq_varid(ncid, varname.c_str(), &varid) );
-  
+
   read_netcdf(ncid, varid, comm);
   NC_SAFE_CALL( nc_close(ncid) );
 #else
@@ -581,7 +581,7 @@ inline void ndarray_base::read_netcdf(int ncid, int varid, int ndims, const size
     NC_SAFE_CALL( nc_get_vara_int(ncid, varid, starts, sizes, (int*)pdata()) );
   } else if (nc_dtype() == NC_FLOAT) {
     NC_SAFE_CALL( nc_get_vara_float(ncid, varid, starts, sizes, (float*)pdata()) );
-    
+
     // fill value
     nc_type vr_type;
     size_t vr_len;
@@ -591,7 +591,7 @@ inline void ndarray_base::read_netcdf(int ncid, int varid, int ndims, const size
       NC_SAFE_CALL( nc_get_att_float(ncid, varid, "_FillValue", &fillvalue) );
 
       float *data = (float*)pdata();
-      for (int i = 0; i < nelem(); i ++) 
+      for (int i = 0; i < nelem(); i ++)
         if (data[i] == fillvalue)
           data[i] = std::nan("");
     }
@@ -621,16 +621,16 @@ inline void ndarray_base::to_netcdf(int ncid, int varid) const
 inline void ndarray_base::to_netcdf(int ncid, int varid, const size_t st[], const size_t sz[]) const
 {
 #ifdef NDARRAY_HAVE_NETCDF
-  fprintf(stderr, "st=%zu, %zu, %zu, %zu, sz=%zu, %zu, %zu, %zu\n", 
+  fprintf(stderr, "st=%zu, %zu, %zu, %zu, sz=%zu, %zu, %zu, %zu\n",
       st[0], st[1], st[2], st[3], sz[0], sz[1], sz[2], sz[3]);
-  
+
   if (nc_dtype() == NC_DOUBLE) {
     NC_SAFE_CALL( nc_put_vara_double(ncid, varid, st, sz, (double*)pdata()) );
   } else if (nc_dtype() == NC_FLOAT) {
     NC_SAFE_CALL( nc_put_vara_float(ncid, varid, st, sz, (float*)pdata()) );
   } else if (nc_dtype() == NC_INT) {
     NC_SAFE_CALL( nc_put_vara_int(ncid, varid, st, sz, (int*)pdata()) );
-  } else 
+  } else
     nd::fatal(nd::ERR_NOT_IMPLEMENTED);
 #else
   nd::fatal(nd::ERR_NOT_BUILT_WITH_NETCDF);
@@ -645,7 +645,7 @@ inline void ndarray_base::to_netcdf_multivariate(int ncid, int varids[]) const
 
   for (int i = 0; i < nv; i ++) {
     ndarray<T> subarray(d);
-    for (size_t j = 0; j < subarray.nelem(); j ++) 
+    for (size_t j = 0; j < subarray.nelem(); j ++)
       subarray[j] = p[j*nv + i];
     subarray.to_netcdf(ncid, varids[i]);
   }
@@ -657,8 +657,8 @@ inline void ndarray_base::to_netcdf_unlimited_time(int ncid, int varid) const
   std::vector<size_t> starts(dims.size()+1, 0), sizes(dims);
   sizes.push_back(1);
   std::reverse(sizes.begin(), sizes.end());
- 
-  // fprintf(stderr, "starts={%zu, %zu, %zu}, sizes={%zu, %zu, %zu}\n", 
+
+  // fprintf(stderr, "starts={%zu, %zu, %zu}, sizes={%zu, %zu, %zu}\n",
   //     starts[0], starts[1], starts[2], sizes[0], sizes[1], sizes[2]);
 
   to_netcdf(ncid, varid, &starts[0], &sizes[0]);
@@ -672,7 +672,7 @@ inline void ndarray_base::to_netcdf_multivariate_unlimited_time(int ncid, int va
 
   for (int i = 0; i < nv; i ++) {
     ndarray<T> subarray(d);
-    for (size_t j = 0; j < subarray.nelem(); j ++) 
+    for (size_t j = 0; j < subarray.nelem(); j ++)
       subarray[j] = p[j*nv + i];
     subarray.to_netcdf_unlimited_time(ncid, varids[i]);
   }
@@ -710,7 +710,7 @@ inline void ndarray_base::read_netcdf_timestep(int ncid, int varid, int t, MPI_C
 
   st[0] = t;
   sz[0] = 1;
- 
+
   read_netcdf(ncid, varid, st, sz, comm);
   set_has_time(true);
 
@@ -731,7 +731,7 @@ inline void ndarray_base::read_netcdf(int ncid, int varid, MPI_Comm comm)
 
   for (int i = 0; i < ndims; i ++)
     NC_SAFE_CALL( nc_inq_dimlen(ncid, dimids[i], &sizes[i]) );
-  
+
   read_netcdf(ncid, varid, starts, sizes, comm);
 #else
   nd::fatal(nd::ERR_NOT_BUILT_WITH_NETCDF);
@@ -743,7 +743,7 @@ inline void ndarray_base::read_netcdf(int ncid, const std::string& varname, MPI_
 #ifdef NDARRAY_HAVE_NETCDF
   int varid;
   const int rtn = nc_inq_varid(ncid, varname.c_str(), &varid);
-    
+
   if (rtn == NC_EBADID)
     throw nd::ERR_NETCDF_FILE_NOT_OPEN;
   else if (rtn == NC_ENOTVAR)
@@ -768,7 +768,7 @@ inline void ndarray_base::read_netcdf(int ncid, const std::string& varname, cons
 
 template <typename ContainerType> // std::vector<std::string>
 inline int ndarray_base::probe_netcdf_varid(
-    int ncid, 
+    int ncid,
     const ContainerType& possible_varnames,
     MPI_Comm comm)
 {
@@ -794,32 +794,32 @@ inline int ndarray_base::probe_netcdf_varid(
 }
 
 template <typename ContainerType> // std::vector<std::string>
-inline bool ndarray_base::try_read_netcdf(int ncid, 
-    const ContainerType& possible_varnames, 
+inline bool ndarray_base::try_read_netcdf(int ncid,
+    const ContainerType& possible_varnames,
     MPI_Comm comm)
 {
   int varid = probe_netcdf_varid(ncid, possible_varnames, comm);
-  
+
   if (varid >= 0) {
     read_netcdf(ncid, varid, comm);
     return true;
-  } else 
+  } else
     return false;
 }
-  
+
 template <typename ContainerType> // std::vector<std::string>
-inline bool ndarray_base::try_read_netcdf(int ncid, 
-    const ContainerType& possible_varnames, 
-    const size_t st[], 
-    const size_t sz[], 
+inline bool ndarray_base::try_read_netcdf(int ncid,
+    const ContainerType& possible_varnames,
+    const size_t st[],
+    const size_t sz[],
     MPI_Comm comm)
 {
   int varid = probe_netcdf_varid(ncid, possible_varnames, comm);
-  
+
   if (varid >= 0) {
     read_netcdf(ncid, varid, st, sz, comm);
     return true;
-  } else 
+  } else
     return false;
 }
 
@@ -846,26 +846,26 @@ inline void ndarray_base::read_netcdf(const std::string& filename, const std::st
 inline std::ostream& ndarray_base::print_shapef(std::ostream& os) const
 {
   os << "nd=" << nd() << ", array_dims={";
-  for (size_t i = 0; i < dims.size(); i ++) 
+  for (size_t i = 0; i < dims.size(); i ++)
     if (i < dims.size()-1) os << dims[i] << ", ";
     else os << dims[i] << "}, ";
-  
+
   os << "size=" << this->size() << ", "
      << "multicomponents=" << this->ncd << ", "
      << "time_varying=" << this->tv;
 
 #if 0
   os << "prod={";
-  for (size_t i = 0; i < s.size(); i ++) 
+  for (size_t i = 0; i < s.size(); i ++)
     if (i < s.size()-1) os << s[i] << ", ";
     else os << s[i] << "}, ";
-  
+
 #endif
 
   return os;
 }
 
-inline std::string ndarray_base::dtype2str(int dtype) 
+inline std::string ndarray_base::dtype2str(int dtype)
 {
   if (dtype == NDARRAY_DTYPE_CHAR)
     return "char";
@@ -879,7 +879,7 @@ inline std::string ndarray_base::dtype2str(int dtype)
     return "float32";
   else if (dtype == NDARRAY_DTYPE_DOUBLE)
     return "float64";
-  else 
+  else
     return "";
 }
 
@@ -897,7 +897,7 @@ inline int ndarray_base::str2dtype(const std::string str)
     return NDARRAY_DTYPE_FLOAT;
   else if (str == "double" || str == "float64")
     return NDARRAY_DTYPE_DOUBLE;
-  else 
+  else
     return NDARRAY_DTYPE_UNKNOWN;
 }
 

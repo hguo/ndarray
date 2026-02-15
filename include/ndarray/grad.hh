@@ -12,7 +12,7 @@ ndarray<T> gradient2D(const ndarray<T>& scalar)
 {
   const int DW = scalar.dimf(0), DH = scalar.dimf(1);
   ndarray<T> grad;
-  grad.reshapef(2, DW, DH); 
+  grad.reshapef(2, DW, DH);
 
   const auto f = [&](int i, int j) {
     i = std::min(std::max(0, i), DW-1);
@@ -37,7 +37,7 @@ ndarray<T> gradient2Dt(const ndarray<T>& scalar)
   const int DW = scalar.dimf(0), DH = scalar.dimf(1), DT = scalar.dimf(2);
   ndarray<T> grad;
   grad.reshape(2, DW, DH, DT);
-  
+
 #pragma omp parallel for collapse(3)
   for (int k = 0; k < DT; k ++) {
     for (int j = 1; j < DH-1; j ++) {
@@ -57,7 +57,7 @@ ndarray<T> jacobian2D(const ndarray<T>& vec)
   const int DW = vec.dimf(1), DH = vec.dimf(2);
   ndarray<T> grad;
   grad.reshapef(2, 2, DW, DH);
-  
+
   const auto f = [&](int c, int i, int j) {
     i = std::min(std::max(0, i), DW-1);
     j = std::min(std::max(0, j), DH-1);
@@ -69,7 +69,7 @@ ndarray<T> jacobian2D(const ndarray<T>& vec)
     for (int i = 0; i < DW; i ++) {
       const T H00 = f(0, i+1, j) - f(0, i-1, j) * (DW-1),
               H01 = f(0, i, j+1) - f(0, i, j-1) * (DH-1),
-              H10 = f(1, i+1, j) - f(1, i-1, j) * (DW-1), 
+              H10 = f(1, i+1, j) - f(1, i-1, j) * (DW-1),
               H11 = f(1, i, j+1) - f(1, i, j-1) * (DH-1);
 
       grad.f(0, 0, i, j) = H00;
@@ -98,7 +98,7 @@ ndarray<T> jacobian2Dt(const ndarray<T>& vec)
     for (int j = 2; j < DH-2; j ++) {
       for (int i = 2; i < DW-2; i ++) {
         const T H00 = grad(0, 0, i, j, k) = // ddf/dx2
-          0.5 * (vec(0, i+1, j, k) - vec(0, i-1, j, k)) * (DW-1); 
+          0.5 * (vec(0, i+1, j, k) - vec(0, i-1, j, k)) * (DW-1);
         const T H01 = grad(0, 1, i, j, k) = // ddf/dxdy
           0.5 * (vec(0, i, j+1, k) - vec(0, i, j-1, k)) * (DH-1);
         const T H10 = grad(1, 0, i, j, k) = // ddf/dydx
@@ -262,7 +262,7 @@ ndarray<T> cross_product3D(const ndarray<T>& V, const ndarray<T>& W)
   ndarray<T> VW;
   VW.reshape(V);
   VW.set_multicomponents(1);
-  
+
   for (int k = 1; k < V.dimf(3) - 1; k++) {
     for (int j = 1; j < V.dimf(2) - 1; j++) {
       for (int i = 1; i < V.dimf(1) - 1; i++) {
@@ -282,7 +282,7 @@ ndarray<T> JvT_dot_v(const ndarray<T>& V)
   auto J = jacobian3D(V, 1);
   ndarray<T> Jvv(V.shape());
   Jvv.set_multicomponents(1);
-  
+
   for (int k = 1; k < V.dimf(3) - 1; k++) {
     for (int j = 1; j < V.dimf(2) - 1; j++) {
       for (int i = 1; i < V.dimf(1) - 1; i++) {
@@ -302,10 +302,10 @@ template <typename T>
 ndarray<T> Jv_dot_v(const ndarray<T>& V)
 {
   auto J = jacobian3D(V, 1);
-  ndarray<T> Jvv; // 
+  ndarray<T> Jvv; //
   Jvv.reshape(V);
   Jvv.set_multicomponents(1);
-  
+
   for (int k = 1; k < V.dimf(3) - 1; k++) {
     for (int j = 1; j < V.dimf(2) - 1; j++) {
       for (int i = 1; i < V.dimf(1) - 1; i++) {

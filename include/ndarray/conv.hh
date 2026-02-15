@@ -62,7 +62,7 @@ std::vector<T> gaussian_kernel(T sigma, size_t size)
     sum += kernel[i];
   }
 
-  for (auto i = 0; i < size; i ++) 
+  for (auto i = 0; i < size; i ++)
     kernel[i] /= sum;
 
   // for (auto i = 0; i < size; i ++)

@@ -120,10 +120,10 @@ static inline std::string series_filename(
 static inline std::vector<std::string> glob(const std::string &pattern)
 {
   std::vector<std::string> filenames;
-  glob_t results; 
-  ::glob(pattern.c_str(), 0, NULL, &results); 
+  glob_t results;
+  ::glob(pattern.c_str(), 0, NULL, &results);
   for (int i=0; i<results.gl_pathc; i++)
-    filenames.push_back(results.gl_pathv[i]); 
+    filenames.push_back(results.gl_pathv[i]);
   globfree(&results);
   return filenames;
 }
@@ -146,7 +146,7 @@ static bool file_exists(const std::string& filename) {
 static bool is_directory_all(const std::string& filename, diy::mpi::communicator comm = MPI_COMM_WORLD)
 {
   bool b = false;
-  if (comm.rank() == 0) 
+  if (comm.rank() == 0)
     b = is_directory(filename);
   diy::mpi::all_reduce(comm, b, b, std::logical_or<bool>());
   return b;
@@ -155,7 +155,7 @@ static bool is_directory_all(const std::string& filename, diy::mpi::communicator
 static bool file_exists_all(const std::string& filename, diy::mpi::communicator comm = MPI_COMM_WORLD)
 {
   bool b = false;
-  if (comm.rank() == 0) 
+  if (comm.rank() == 0)
     b = file_exists(filename);
   diy::mpi::all_reduce(comm, b, b, std::logical_or<bool>());
   return b;
@@ -167,14 +167,14 @@ static bool file_not_exists_all(const std::string& filename, diy::mpi::communica
 }
 #endif
 
-static bool file_not_exists(const std::string& filename) { 
-  return !file_exists(filename); 
+static bool file_not_exists(const std::string& filename) {
+  return !file_exists(filename);
 }
 
 static std::string remove_file_extension(const std::string& f)
 {
-  size_t lastindex = f.find_last_of("."); 
-  return f.substr(0, lastindex); 
+  size_t lastindex = f.find_last_of(".");
+  return f.substr(0, lastindex);
 }
 
 static inline bool starts_with(std::string const & value, std::string const & starting)
@@ -242,7 +242,7 @@ static inline int file_extension(const std::string& f)
     return FILE_EXT_PLY;
   else if (m("stl"))
     return FILE_EXT_STL;
-  else 
+  else
     return FILE_EXT_NULL;
 }
 
@@ -250,7 +250,7 @@ static inline int file_extension(const std::string& filename, const std::string&
 {
   if (format == "auto" || format.empty())
     return file_extension(filename);
-  else 
+  else
     return file_extension(format);
 }
 
