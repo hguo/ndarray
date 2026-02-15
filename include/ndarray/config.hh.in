@@ -31,8 +31,8 @@
 // #define NDARRAY_NUMERIC_FUNC __device__ __host__
 #else
 // #define NDARRAY_NUMERIC_FUNC
-#define __device__ 
-#define __host__ 
+#define __device__
+#define __host__
 #endif
 
 // Error handling macros for NetCDF/PNetCDF

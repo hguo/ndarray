@@ -93,7 +93,7 @@ if (NDARRAY_TEST_XGC)
   target_link_libraries (test_xgc_mesh libftk)
   catch_discover_tests (test_xgc_mesh)
   # PROPERTIES ENVIRONMENT NDARRAY_XGC_TEST_DATA_PATH=${NDARRAY_XGC_TEST_DATA_PATH})
-  
+
   add_executable (test_xgc_filament_tracking test_xgc_filament_tracking.cpp)
   target_link_libraries (test_xgc_filament_tracking libftk)
   catch_discover_tests (test_xgc_filament_tracking)
@@ -171,15 +171,15 @@ endif ()
 if (NDARRAY_HAVE_MPI)
   set (maxp 4)
   #foreach (p RANGE 1 ${maxp})
-  #  add_test (NAME test_critical_point_tracking_woven_p${p} 
+  #  add_test (NAME test_critical_point_tracking_woven_p${p}
   #    COMMAND ${MPIEXEC} -np ${p} $<TARGET_FILE:test_critical_point_tracking_woven>)
   #endforeach (p)
   foreach (p RANGE 1 ${maxp})
-    add_test (NAME test_critical_point_tracking_moving_extremum_2d_p${p} 
+    add_test (NAME test_critical_point_tracking_moving_extremum_2d_p${p}
       COMMAND ${MPIEXEC} -np ${p} $<TARGET_FILE:test_critical_point_tracking_moving_extremum_2d>)
   endforeach (p)
   #foreach (p RANGE 1 ${maxp})
-  #  add_test (NAME test_critical_point_tracking_moving_extremum_3d_p${p} 
+  #  add_test (NAME test_critical_point_tracking_moving_extremum_3d_p${p}
   #    COMMAND ${MPIEXEC} -np ${p} $<TARGET_FILE:test_critical_point_tracking_moving_extremum_3d>)
   #endforeach (p)
 else () # serial only
@@ -195,14 +195,14 @@ endif ()
 if (NDARRAY_BUILD_PYNDARRAY)
   add_test (NAME test_critical_point_tracking_py
     COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_critical_point_tracking.py)
-  
+
   add_test (NAME test_numeric_py
     COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_numeric.py)
 
   set_tests_properties (
-    test_critical_point_tracking_py 
+    test_critical_point_tracking_py
     test_numeric_py
-    PROPERTIES 
+    PROPERTIES
     ENVIRONMENT "PYTHONPATH=${LIBRARY_OUTPUT_PATH}")
 endif ()
 
@@ -212,13 +212,13 @@ if (NOT NDARRAY_HAVE_MPI AND PARAVIEW_USE_PYTHON AND Python_FOUND) # testing par
     INPUT  ${CMAKE_CURRENT_SOURCE_DIR}/test_paraview_critical_point_tracking.py.in)
   add_test (NAME test_paraview_critical_point_tracker
     COMMAND ${Python_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/test_paraview_critical_point_tracking.py)
-  
+
   file (GENERATE
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/test_paraview_levelset_tracking.py
     INPUT  ${CMAKE_CURRENT_SOURCE_DIR}/test_paraview_levelset_tracking.py.in)
   add_test (NAME test_paraview_levelset_tracking
     COMMAND ${Python_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/test_paraview_levelset_tracking.py)
-  
+
   set_tests_properties (
     test_paraview_critical_point_tracker
     test_paraview_levelset_tracking
