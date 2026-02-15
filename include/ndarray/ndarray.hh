@@ -32,7 +32,8 @@
 
 namespace ftk {
 
-template <typename T, typename StoragePolicy = native_storage>
+// Default argument already specified in forward declaration (ndarray_base.hh)
+template <typename T, typename StoragePolicy>
 struct ndarray : public ndarray_base {
   using storage_type = typename StoragePolicy::template container_type<T>;
   int type() const;
@@ -289,7 +290,7 @@ public:
   void copy(Iterator first, Iterator last);
 
 public: // subarray
-  ndarray<T> subarray(const lattice&) const;
+  ndarray<T, StoragePolicy> subarray(const lattice&) const;
 
 public: // construction from data
   // Create 1D array from std::vector data
@@ -460,7 +461,7 @@ template <typename StoragePolicy> inline int ndarray<int, StoragePolicy>::type()
 template <typename T>
 unsigned int ndarray<T>::hash() const
 {
-  unsigned int h0 = murmurhash2(p.data(), sizeof(T)*p.size(), 0);
+  unsigned int h0 = murmurhash2(storage_.data(), sizeof(T)*storage_.size(), 0);
   unsigned int h1 = murmurhash2(dims.data(), sizeof(size_t)*dims.size(), h0);
   return h1;
 }
@@ -470,7 +471,7 @@ template <typename T, typename StoragePolicy>
 template <typename T1>
 ndarray<T, StoragePolicy>& ndarray<T, StoragePolicy>::operator*=(const T1& x)
 {
-  for (auto i = 0; i < p.size(); i ++)
+  for (auto i = 0; i < storage_.size(); i ++)
     storage_[i] *= x;
   return *this;
 }
@@ -479,7 +480,7 @@ template <typename T, typename StoragePolicy>
 template <typename T1>
 ndarray<T, StoragePolicy>& ndarray<T, StoragePolicy>::operator/=(const T1& x)
 {
-  for (auto i = 0; i < p.size(); i ++)
+  for (auto i = 0; i < storage_.size(); i ++)
     storage_[i] /= x;
   return *this;
 }
@@ -490,7 +491,7 @@ ndarray<T, StoragePolicy>& ndarray<T, StoragePolicy>::operator+=(const ndarray<T
   if (empty()) *this = x;
   else {
     assert(this->shapef() == x.shapef());
-    for (auto i = 0; i < p.size(); i ++)
+    for (auto i = 0; i < storage_.size(); i ++)
       storage_[i] += x.storage_[i];
   }
   return *this;
@@ -1174,7 +1175,7 @@ inline void ndarray<T, StoragePolicy>::to_device(int dev, int id)
 
       cudaSetDevice(id);
       cudaMalloc(&devptr, sizeof(T) * nelem());
-      cudaMemcpy(devptr, p.data(), sizeof(T) * p.size(),
+      cudaMemcpy(devptr, storage_.data(), sizeof(T) * storage_.size(),
           cudaMemcpyHostToDevice);
       storage_.resize(0);
     }
@@ -1201,7 +1202,7 @@ inline void ndarray<T, StoragePolicy>::to_device(int dev, int id)
       devptr = sycl::malloc_device<T>(nelem(), *q);
 
       // Copy data to device
-      q->memcpy(devptr, p.data(), sizeof(T) * p.size()).wait();
+      q->memcpy(devptr, storage_.data(), sizeof(T) * storage_.size()).wait();
 
       // Clean up temporary queue if we created it
       if (own_queue) delete q;
@@ -1284,7 +1285,7 @@ inline void ndarray<T, StoragePolicy>::copy_to_device(int dev, int id)
 
       cudaSetDevice(id);
       cudaMalloc(&devptr, sizeof(T) * nelem());
-      cudaMemcpy(devptr, p.data(), sizeof(T) * p.size(),
+      cudaMemcpy(devptr, storage_.data(), sizeof(T) * storage_.size(),
           cudaMemcpyHostToDevice);
       // Note: p is NOT cleared, keeping data on both host and device
     }
@@ -1313,7 +1314,7 @@ inline void ndarray<T, StoragePolicy>::copy_to_device(int dev, int id)
       devptr = sycl::malloc_device<T>(nelem(), *q);
 
       // Copy data to device
-      q->memcpy(devptr, p.data(), sizeof(T) * p.size()).wait();
+      q->memcpy(devptr, storage_.data(), sizeof(T) * storage_.size()).wait();
 
       // Clean up temporary queue if we created it
       if (own_queue) delete q;

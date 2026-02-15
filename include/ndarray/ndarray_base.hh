@@ -83,7 +83,9 @@ enum {
   NDARRAY_ADIOS2_STEPS_ALL = -2
 };
 
-template <typename T> struct ndarray;
+// Forward declaration with storage policy template parameter
+struct native_storage;  // Forward declare default storage policy
+template <typename T, typename StoragePolicy = native_storage> struct ndarray;
 
 // the non-template base class for ndarray
 struct ndarray_base {
