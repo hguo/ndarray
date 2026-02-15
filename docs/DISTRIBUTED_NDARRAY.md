@@ -18,7 +18,7 @@ The `distributed_ndarray` class provides distributed memory parallel I/O for lar
 
 ## Quick Start
 
-### Basic Example
+### Basic Example (Low-Level API)
 
 ```cpp
 #include <ndarray/distributed_ndarray.hh>
@@ -49,9 +49,53 @@ int main(int argc, char** argv) {
 }
 ```
 
-Compile with MPI:
+### YAML Stream Example (Recommended)
+
+For time-series processing, use the YAML stream interface for cleaner code:
+
+```cpp
+#include <ndarray/ndarray_group_stream.hh>  // Includes distributed support
+#include <mpi.h>
+
+int main(int argc, char** argv) {
+  MPI_Init(&argc, &argv);
+
+  ftk::distributed_stream<> stream(MPI_COMM_WORLD);
+  stream.parse_yaml("config.yaml");
+
+  for (int t = 0; t < stream.n_timesteps(); t++) {
+    auto group = stream.read(t);
+    group->exchange_ghosts_all();
+
+    auto& temperature = (*group)["temperature"];
+    auto& pressure = (*group)["pressure"];
+    // ... process data ...
+  }
+
+  MPI_Finalize();
+  return 0;
+}
+```
+
+**YAML Configuration (config.yaml):**
+```yaml
+decomposition:
+  global_dims: [1000, 800]
+  ghost: [1, 1]
+
+streams:
+  - name: simulation
+    format: netcdf
+    filenames: "data_*.nc"
+    vars:
+      - name: temperature
+      - name: pressure
+```
+
+### Compile with MPI
+
 ```bash
-mpicxx -o example example.cpp -I/path/to/ndarray/include
+mpicxx -o example example.cpp -I/path/to/ndarray/include -lyaml-cpp
 mpirun -np 4 ./example
 ```
 

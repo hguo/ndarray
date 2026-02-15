@@ -21,7 +21,7 @@
 
 #if NDARRAY_HAVE_MPI && NDARRAY_HAVE_YAML
 
-#include <ndarray/distributed_ndarray_stream.hh>
+#include <ndarray/ndarray_group_stream.hh>  // Includes distributed support when MPI enabled
 #include <mpi.h>
 
 int main(int argc, char** argv) {
