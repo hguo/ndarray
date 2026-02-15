@@ -117,11 +117,19 @@ public:
                      const std::string& varname = "",
                      int timestep = 0);
 
+  /**
+   * Exchange ghost cells with neighboring ranks
+   *
+   * Updates ghost layers from neighbors' core boundary data via MPI communication.
+   * Must be called after read_parallel() or any operation that modifies core data.
+   *
+   * Uses non-blocking receives (MPI_Irecv) + blocking sends (MPI_Send) + wait.
+   * Only exchanges with direct neighbors (face-adjacent in decomposition).
+   */
+  void exchange_ghosts();
+
   // TODO: Phase 2 continuation
   // void write_parallel(const std::string& filename, const std::string& varname, int timestep = 0);
-
-  // TODO: Ghost exchange (Phase 3)
-  // void exchange_ghosts();
 
 private:
   // Format-specific parallel read methods
@@ -135,6 +143,11 @@ private:
   // Helper to get file extension
   static std::string get_file_extension(const std::string& filename);
 
+  // Ghost exchange helpers
+  void identify_neighbors();
+  void pack_boundary_data(int neighbor_idx, std::vector<T>& buffer);
+  void unpack_ghost_data(int neighbor_idx, const std::vector<T>& buffer);
+
   MPI_Comm comm_;
   int rank_;
   int nprocs_;
@@ -147,10 +160,18 @@ private:
 
   ndarray<T, StoragePolicy> local_data_;  // Local data (allocated to extent size)
 
-  // TODO: Neighbor information for ghost exchange (Phase 3)
-  // std::vector<int> neighbor_ranks_;
-  // std::vector<lattice> send_regions_;
-  // std::vector<lattice> recv_regions_;
+  // Neighbor information for ghost exchange
+  struct Neighbor {
+    int rank;              // Neighbor's MPI rank
+    int direction;         // Which face: 0=left, 1=right (dim 0); 2=down, 3=up (dim 1); etc.
+    size_t send_offset;    // Offset in local_data for boundary to send
+    size_t send_count;     // Number of elements to send
+    size_t recv_offset;    // Offset in local_data for ghost to receive
+    size_t recv_count;     // Number of elements to receive
+  };
+
+  std::vector<Neighbor> neighbors_;  // List of neighbors for ghost exchange
+  bool neighbors_identified_ = false;  // Whether identify_neighbors() has been called
 };
 
 /////
@@ -229,7 +250,10 @@ void distributed_ndarray<T, StoragePolicy>::decompose(
   std::vector<size_t> extent_dims = local_extent_.sizes();
   local_data_.reshapef(extent_dims);
 
-  // TODO Phase 3: Identify neighbors for ghost exchange
+  // Identify neighbors for ghost exchange
+  if (!ghost.empty()) {
+    identify_neighbors();
+  }
 #endif
 }
 
@@ -518,6 +542,306 @@ void distributed_ndarray<T, StoragePolicy>::read_parallel_binary(
   // Close file
   MPI_File_close(&fh);
 #endif
+}
+
+/////
+// Ghost Exchange Implementation
+/////
+
+template <typename T, typename StoragePolicy>
+void distributed_ndarray<T, StoragePolicy>::identify_neighbors()
+{
+#if !NDARRAY_HAVE_MPI
+  return;
+#else
+  neighbors_.clear();
+  neighbors_identified_ = false;
+
+  // For each dimension, check if there are neighbors on left/right (low/high)
+  int ndims = static_cast<int>(local_core_.nd());
+
+  for (int dim = 0; dim < ndims; dim++) {
+    // Check left neighbor (lower index in this dimension)
+    if (local_core_.start(dim) > global_lattice_.start(dim)) {
+      // There is a neighbor on the left
+      // Find which rank owns the cell just before our start
+      std::vector<size_t> neighbor_point(ndims);
+      for (int d = 0; d < ndims; d++) {
+        if (d == dim) {
+          neighbor_point[d] = local_core_.start(d) - 1;
+        } else {
+          neighbor_point[d] = local_core_.start(d);
+        }
+      }
+
+      // Find which rank owns this point
+      int neighbor_rank = -1;
+      for (size_t p = 0; p < partitioner_.np(); p++) {
+        const auto& core = partitioner_.get_core(p);
+        if (core.contains(neighbor_point)) {
+          neighbor_rank = static_cast<int>(p);
+          break;
+        }
+      }
+
+      if (neighbor_rank >= 0 && neighbor_rank != rank_) {
+        Neighbor neighbor;
+        neighbor.rank = neighbor_rank;
+        neighbor.direction = dim * 2;  // 0=left in dim 0, 2=left in dim 1, etc.
+
+        // Calculate send/recv counts and offsets
+        // For simplicity in Phase 3, we'll implement a basic version
+        // that assumes uniform ghost width of 1
+        // More sophisticated packing can be added later
+
+        size_t ghost_width = local_extent_.start(dim) + local_extent_.size(dim) -
+                             (local_core_.start(dim) + local_core_.size(dim));
+        if (ghost_width == 0) {
+          ghost_width = local_core_.start(dim) - local_extent_.start(dim);
+        }
+        if (ghost_width == 0) ghost_width = 1;  // Default to 1
+
+        // Calculate number of elements in the boundary face
+        size_t face_size = 1;
+        for (int d = 0; d < ndims; d++) {
+          if (d == dim) {
+            face_size *= ghost_width;
+          } else {
+            face_size *= local_core_.size(d);
+          }
+        }
+
+        neighbor.send_count = face_size;
+        neighbor.recv_count = face_size;
+
+        // Store for now - actual offset calculation done during exchange
+        neighbor.send_offset = 0;  // Calculated during exchange
+        neighbor.recv_offset = 0;  // Calculated during exchange
+
+        neighbors_.push_back(neighbor);
+      }
+    }
+
+    // Check right neighbor (higher index in this dimension)
+    size_t core_end = local_core_.start(dim) + local_core_.size(dim);
+    size_t global_end = global_lattice_.start(dim) + global_lattice_.size(dim);
+    if (core_end < global_end) {
+      // There is a neighbor on the right
+      std::vector<size_t> neighbor_point(ndims);
+      for (int d = 0; d < ndims; d++) {
+        if (d == dim) {
+          neighbor_point[d] = core_end;
+        } else {
+          neighbor_point[d] = local_core_.start(d);
+        }
+      }
+
+      // Find which rank owns this point
+      int neighbor_rank = -1;
+      for (size_t p = 0; p < partitioner_.np(); p++) {
+        const auto& core = partitioner_.get_core(p);
+        if (core.contains(neighbor_point)) {
+          neighbor_rank = static_cast<int>(p);
+          break;
+        }
+      }
+
+      if (neighbor_rank >= 0 && neighbor_rank != rank_) {
+        Neighbor neighbor;
+        neighbor.rank = neighbor_rank;
+        neighbor.direction = dim * 2 + 1;  // 1=right in dim 0, 3=right in dim 1, etc.
+
+        // Calculate send/recv counts
+        size_t ghost_width = local_extent_.start(dim) + local_extent_.size(dim) -
+                             (local_core_.start(dim) + local_core_.size(dim));
+        if (ghost_width == 0) {
+          ghost_width = local_core_.start(dim) - local_extent_.start(dim);
+        }
+        if (ghost_width == 0) ghost_width = 1;
+
+        size_t face_size = 1;
+        for (int d = 0; d < ndims; d++) {
+          if (d == dim) {
+            face_size *= ghost_width;
+          } else {
+            face_size *= local_core_.size(d);
+          }
+        }
+
+        neighbor.send_count = face_size;
+        neighbor.recv_count = face_size;
+        neighbor.send_offset = 0;
+        neighbor.recv_offset = 0;
+
+        neighbors_.push_back(neighbor);
+      }
+    }
+  }
+
+  neighbors_identified_ = true;
+#endif
+}
+
+template <typename T, typename StoragePolicy>
+void distributed_ndarray<T, StoragePolicy>::exchange_ghosts()
+{
+#if !NDARRAY_HAVE_MPI
+  return;
+#else
+  if (!neighbors_identified_ || neighbors_.empty()) {
+    // No neighbors or not yet identified - nothing to exchange
+    return;
+  }
+
+  // For simplicity in Phase 3, implement a basic version using blocking communication
+  // More sophisticated version with non-blocking can be added later
+
+  std::vector<MPI_Request> requests;
+  std::vector<std::vector<T>> send_buffers(neighbors_.size());
+  std::vector<std::vector<T>> recv_buffers(neighbors_.size());
+
+  // Post receives for all neighbors
+  for (size_t i = 0; i < neighbors_.size(); i++) {
+    recv_buffers[i].resize(neighbors_[i].recv_count);
+
+    MPI_Request req;
+    int tag = neighbors_[i].direction;
+    MPI_Irecv(recv_buffers[i].data(),
+              static_cast<int>(neighbors_[i].recv_count),
+              mpi_datatype(),
+              neighbors_[i].rank,
+              tag,
+              comm_,
+              &req);
+    requests.push_back(req);
+  }
+
+  // Pack and send boundary data to all neighbors
+  for (size_t i = 0; i < neighbors_.size(); i++) {
+    send_buffers[i].resize(neighbors_[i].send_count);
+    pack_boundary_data(i, send_buffers[i]);
+
+    // Reverse the direction for the tag (what we receive from left, they send from right)
+    int tag = neighbors_[i].direction ^ 1;  // Flip last bit: 0↔1, 2↔3, etc.
+
+    MPI_Send(send_buffers[i].data(),
+             static_cast<int>(neighbors_[i].send_count),
+             mpi_datatype(),
+             neighbors_[i].rank,
+             tag,
+             comm_);
+  }
+
+  // Wait for all receives to complete
+  MPI_Waitall(static_cast<int>(requests.size()), requests.data(), MPI_STATUSES_IGNORE);
+
+  // Unpack received ghost data
+  for (size_t i = 0; i < neighbors_.size(); i++) {
+    unpack_ghost_data(i, recv_buffers[i]);
+  }
+#endif
+}
+
+template <typename T, typename StoragePolicy>
+void distributed_ndarray<T, StoragePolicy>::pack_boundary_data(
+    int neighbor_idx,
+    std::vector<T>& buffer)
+{
+  const Neighbor& neighbor = neighbors_[neighbor_idx];
+  int dim = neighbor.direction / 2;  // Which dimension: 0, 1, 2, ...
+  bool is_high = (neighbor.direction % 2) == 1;  // true = right/up, false = left/down
+
+  // For now, implement simple 1D case
+  // More sophisticated multi-dimensional packing can be added
+
+  // Get the boundary slice from local_core
+  // For left neighbor (dim=0, dir=0): send leftmost layer
+  // For right neighbor (dim=0, dir=1): send rightmost layer
+
+  size_t ghost_width = 1;  // Simplified: assume 1-layer ghosts
+  auto& local = local_data_;
+
+  if (dim == 0) {
+    // Boundary in dimension 0
+    size_t start_idx = is_high ? (local_core_.size(0) - ghost_width) : 0;
+    size_t buffer_idx = 0;
+
+    for (size_t i = 0; i < ghost_width; i++) {
+      for (size_t j = 0; j < local_core_.size(1); j++) {
+        buffer[buffer_idx++] = local.at(start_idx + i, j);
+      }
+    }
+  } else if (dim == 1 && local_core_.nd() >= 2) {
+    // Boundary in dimension 1
+    size_t start_idx = is_high ? (local_core_.size(1) - ghost_width) : 0;
+    size_t buffer_idx = 0;
+
+    for (size_t i = 0; i < local_core_.size(0); i++) {
+      for (size_t j = 0; j < ghost_width; j++) {
+        buffer[buffer_idx++] = local.at(i, start_idx + j);
+      }
+    }
+  }
+  // TODO: Add dimension 2, 3, etc. for higher-dimensional arrays
+}
+
+template <typename T, typename StoragePolicy>
+void distributed_ndarray<T, StoragePolicy>::unpack_ghost_data(
+    int neighbor_idx,
+    const std::vector<T>& buffer)
+{
+  const Neighbor& neighbor = neighbors_[neighbor_idx];
+  int dim = neighbor.direction / 2;
+  bool is_high = (neighbor.direction % 2) == 1;
+
+  size_t ghost_width = 1;
+  auto& local = local_data_;
+
+  // Unpack into ghost region
+  // For left neighbor: unpack into left ghost
+  // For right neighbor: unpack into right ghost
+
+  size_t ghost_low = local_core_.start(dim) - local_extent_.start(dim);
+  size_t ghost_high = (local_extent_.start(dim) + local_extent_.size(dim)) -
+                      (local_core_.start(dim) + local_core_.size(dim));
+
+  if (dim == 0) {
+    size_t start_idx = is_high ? (local_core_.size(0) + ghost_low) : 0;
+    size_t buffer_idx = 0;
+
+    if (!is_high && ghost_low > 0) {
+      // Unpack into left ghost
+      for (size_t i = 0; i < ghost_width && i < ghost_low; i++) {
+        for (size_t j = 0; j < local_core_.size(1); j++) {
+          local.at(start_idx + i, j) = buffer[buffer_idx++];
+        }
+      }
+    } else if (is_high && ghost_high > 0) {
+      // Unpack into right ghost
+      for (size_t i = 0; i < ghost_width && i < ghost_high; i++) {
+        for (size_t j = 0; j < local_core_.size(1); j++) {
+          local.at(start_idx + i, j) = buffer[buffer_idx++];
+        }
+      }
+    }
+  } else if (dim == 1 && local_core_.nd() >= 2) {
+    size_t start_idx = is_high ? (local_core_.size(1) + ghost_low) : 0;
+    size_t buffer_idx = 0;
+
+    if (!is_high && ghost_low > 0) {
+      for (size_t i = 0; i < local_core_.size(0); i++) {
+        for (size_t j = 0; j < ghost_width && j < ghost_low; j++) {
+          local.at(i, start_idx + j) = buffer[buffer_idx++];
+        }
+      }
+    } else if (is_high && ghost_high > 0) {
+      for (size_t i = 0; i < local_core_.size(0); i++) {
+        for (size_t j = 0; j < ghost_width && j < ghost_high; j++) {
+          local.at(i, start_idx + j) = buffer[buffer_idx++];
+        }
+      }
+    }
+  }
 }
 
 } // namespace ftk

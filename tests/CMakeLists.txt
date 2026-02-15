@@ -268,6 +268,13 @@ if (NDARRAY_HAVE_MPI)
   # Note: MPI tests require mpirun which may not be available in all test environments
   # Users should run manually: mpirun -np 4 ./bin/test_distributed_ndarray
   message("  - test_distributed_ndarray: Distributed memory decomposition (run with: mpirun -np 4 ./bin/test_distributed_ndarray)")
+
+  # Ghost exchange tests (require MPI)
+  add_executable(test_ghost_exchange test_ghost_exchange.cpp)
+  target_link_libraries(test_ghost_exchange ${CMAKE_THREAD_LIBS_INIT})
+  target_link_libraries(test_ghost_exchange MPI::MPI_CXX)
+  add_vtk_if_enabled(test_ghost_exchange)
+  message("  - test_ghost_exchange: Ghost layer exchange between MPI ranks (run with: mpirun -np 4 ./bin/test_ghost_exchange)")
 endif()
 
 message("")
