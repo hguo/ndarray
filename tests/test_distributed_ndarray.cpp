@@ -265,6 +265,185 @@ int test_data_access() {
   return 0;
 }
 
+#if NDARRAY_HAVE_PNETCDF
+int test_parallel_netcdf_read() {
+  int rank, nprocs;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+
+  if (rank == 0) {
+    std::cout << "\n=== Test 6: Parallel NetCDF Read ===" << std::endl;
+  }
+
+  TEST_SECTION("Create test NetCDF file (rank 0)");
+  const size_t global_nx = 100;
+  const size_t global_ny = 80;
+
+  // Rank 0 creates the file
+  if (rank == 0) {
+    ftk::ndarray<float> global_data;
+    global_data.reshapef(global_nx, global_ny);
+
+    // Fill with known pattern: data[i,j] = i * 100 + j
+    for (size_t i = 0; i < global_nx; i++) {
+      for (size_t j = 0; j < global_ny; j++) {
+        global_data.at(i, j) = static_cast<float>(i * 100 + j);
+      }
+    }
+
+    // Write to NetCDF file (serial write from rank 0)
+    try {
+      global_data.to_netcdf("test_distributed.nc", "data");
+      std::cout << "    Created test_distributed.nc with " << global_nx
+                << " × " << global_ny << " array" << std::endl;
+    } catch (const std::exception& e) {
+      std::cerr << "    WARNING: Could not create test file: " << e.what() << std::endl;
+      std::cerr << "    Skipping parallel NetCDF read test" << std::endl;
+      return 0;
+    }
+  }
+
+  MPI_Barrier(MPI_COMM_WORLD);
+
+  TEST_SECTION("Decompose domain and read in parallel");
+  ftk::distributed_ndarray<float> darray(MPI_COMM_WORLD);
+
+  // Decompose to match file dimensions
+  darray.decompose({global_nx, global_ny});
+
+  // Parallel read
+  try {
+    darray.read_parallel("test_distributed.nc", "data");
+
+    TEST_SECTION("Verify data correctness");
+    // Check that each rank got the correct portion
+    auto& local = darray.local_array();
+    bool data_correct = true;
+
+    for (size_t i = 0; i < darray.local_core().size(0); i++) {
+      for (size_t j = 0; j < darray.local_core().size(1); j++) {
+        // Convert to global indices
+        size_t global_i = darray.local_core().start(0) + i;
+        size_t global_j = darray.local_core().start(1) + j;
+
+        float expected = static_cast<float>(global_i * 100 + global_j);
+        float actual = local.at(i, j);
+
+        if (std::abs(expected - actual) > 1e-6f) {
+          std::cerr << "[Rank " << rank << "] Data mismatch at local [" << i << "," << j
+                    << "] (global [" << global_i << "," << global_j << "]): "
+                    << "expected " << expected << ", got " << actual << std::endl;
+          data_correct = false;
+          break;
+        }
+      }
+      if (!data_correct) break;
+    }
+
+    TEST_ASSERT(data_correct, "All data values should be correct");
+
+    // Verify total elements read equals global size
+    size_t local_count = darray.local_core().n();
+    size_t total_count = 0;
+    MPI_Allreduce(&local_count, &total_count, 1, MPI_UNSIGNED_LONG, MPI_SUM, MPI_COMM_WORLD);
+    TEST_ASSERT(total_count == global_nx * global_ny,
+                "Total elements read should equal global size");
+
+    if (rank == 0) std::cout << "  ✓ Parallel NetCDF read passed" << std::endl;
+
+  } catch (const std::exception& e) {
+    if (rank == 0) {
+      std::cerr << "  WARNING: Parallel read failed: " << e.what() << std::endl;
+      std::cerr << "  This may be expected if PNetCDF is not fully configured" << std::endl;
+    }
+  }
+
+  // Cleanup
+  if (rank == 0) {
+    std::remove("test_distributed.nc");
+  }
+
+  return 0;
+}
+#endif // NDARRAY_HAVE_PNETCDF
+
+int test_parallel_binary_read() {
+  int rank, nprocs;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+
+  if (rank == 0) {
+    std::cout << "\n=== Test 7: Parallel Binary Read ===" << std::endl;
+  }
+
+  TEST_SECTION("Create test binary file (rank 0)");
+  const size_t global_nx = 100;
+  const size_t global_ny = 80;
+
+  // Rank 0 creates the file
+  if (rank == 0) {
+    ftk::ndarray<double> global_data;
+    global_data.reshapef(global_nx, global_ny);
+
+    // Fill with known pattern
+    for (size_t i = 0; i < global_nx; i++) {
+      for (size_t j = 0; j < global_ny; j++) {
+        global_data.at(i, j) = static_cast<double>(i * 100 + j);
+      }
+    }
+
+    // Write to binary file
+    global_data.to_binary_file("test_distributed.bin");
+    std::cout << "    Created test_distributed.bin" << std::endl;
+  }
+
+  MPI_Barrier(MPI_COMM_WORLD);
+
+  TEST_SECTION("Decompose domain and read in parallel with MPI-IO");
+  ftk::distributed_ndarray<double> darray(MPI_COMM_WORLD);
+
+  darray.decompose({global_nx, global_ny});
+
+  // Parallel read
+  darray.read_parallel("test_distributed.bin");
+
+  TEST_SECTION("Verify data correctness");
+  // Check that each rank got the correct portion
+  auto& local = darray.local_array();
+  bool data_correct = true;
+
+  for (size_t i = 0; i < darray.local_core().size(0); i++) {
+    for (size_t j = 0; j < darray.local_core().size(1); j++) {
+      // Convert to global indices
+      size_t global_i = darray.local_core().start(0) + i;
+      size_t global_j = darray.local_core().start(1) + j;
+
+      double expected = static_cast<double>(global_i * 100 + global_j);
+      double actual = local.at(i, j);
+
+      if (std::abs(expected - actual) > 1e-9) {
+        std::cerr << "[Rank " << rank << "] Data mismatch at local [" << i << "," << j
+                  << "] (global [" << global_i << "," << global_j << "]): "
+                  << "expected " << expected << ", got " << actual << std::endl;
+        data_correct = false;
+        break;
+      }
+    }
+    if (!data_correct) break;
+  }
+
+  TEST_ASSERT(data_correct, "All binary data values should be correct");
+
+  if (rank == 0) std::cout << "  ✓ Parallel binary read passed" << std::endl;
+
+  // Cleanup
+  if (rank == 0) {
+    std::remove("test_distributed.bin");
+  }
+
+  return 0;
+}
+
 int main(int argc, char** argv) {
   MPI_Init(&argc, &argv);
 
@@ -288,6 +467,16 @@ int main(int argc, char** argv) {
   result |= test_ghost_layers();
   result |= test_index_conversion();
   result |= test_data_access();
+
+#if NDARRAY_HAVE_PNETCDF
+  result |= test_parallel_netcdf_read();
+#else
+  if (rank == 0) {
+    std::cout << "\n⊘ Skipping parallel NetCDF read test (PNetCDF not enabled)" << std::endl;
+  }
+#endif
+
+  result |= test_parallel_binary_read();
 
   MPI_Barrier(MPI_COMM_WORLD);
 

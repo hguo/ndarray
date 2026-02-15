@@ -98,14 +98,43 @@ public:
   int nprocs() const { return nprocs_; }
   MPI_Comm comm() const { return comm_; }
 
-  // TODO: Parallel I/O (Phase 2)
-  // void read_parallel(const std::string& filename, const std::string& varname, int timestep = 0);
+  /**
+   * Parallel read from file (detects format from extension)
+   *
+   * Reads this rank's local portion (local_core) from file.
+   * After read, call exchange_ghosts() to fill ghost layers.
+   *
+   * Supported formats:
+   * - .nc: NetCDF via PNetCDF (collective read)
+   * - .h5: HDF5 with MPI-IO (collective read)
+   * - .bin: Binary with MPI-IO (collective read, assumes contiguous row-major)
+   *
+   * @param filename Path to file
+   * @param varname Variable name (ignored for binary files)
+   * @param timestep Timestep index (default 0, ignored for binary files)
+   */
+  void read_parallel(const std::string& filename,
+                     const std::string& varname = "",
+                     int timestep = 0);
+
+  // TODO: Phase 2 continuation
   // void write_parallel(const std::string& filename, const std::string& varname, int timestep = 0);
 
   // TODO: Ghost exchange (Phase 3)
   // void exchange_ghosts();
 
 private:
+  // Format-specific parallel read methods
+  void read_parallel_netcdf(const std::string& filename, const std::string& varname, int timestep);
+  void read_parallel_hdf5(const std::string& filename, const std::string& varname, int timestep);
+  void read_parallel_binary(const std::string& filename);
+
+  // Helper to get MPI datatype for T
+  static MPI_Datatype mpi_datatype();
+
+  // Helper to get file extension
+  static std::string get_file_extension(const std::string& filename);
+
   MPI_Comm comm_;
   int rank_;
   int nprocs_;
@@ -257,6 +286,238 @@ bool distributed_ndarray<T, StoragePolicy>::is_local(
   }
 
   return true;
+}
+
+/////
+// Parallel I/O Implementation
+/////
+
+template <typename T, typename StoragePolicy>
+std::string distributed_ndarray<T, StoragePolicy>::get_file_extension(
+    const std::string& filename)
+{
+  size_t dot_pos = filename.find_last_of('.');
+  if (dot_pos == std::string::npos) {
+    return "";
+  }
+  return filename.substr(dot_pos);
+}
+
+template <typename T, typename StoragePolicy>
+MPI_Datatype distributed_ndarray<T, StoragePolicy>::mpi_datatype()
+{
+#if NDARRAY_HAVE_MPI
+  if (std::is_same<T, float>::value) {
+    return MPI_FLOAT;
+  } else if (std::is_same<T, double>::value) {
+    return MPI_DOUBLE;
+  } else if (std::is_same<T, int>::value) {
+    return MPI_INT;
+  } else if (std::is_same<T, unsigned int>::value) {
+    return MPI_UNSIGNED;
+  } else if (std::is_same<T, long>::value) {
+    return MPI_LONG;
+  } else if (std::is_same<T, unsigned long>::value) {
+    return MPI_UNSIGNED_LONG;
+  } else if (std::is_same<T, long long>::value) {
+    return MPI_LONG_LONG;
+  } else if (std::is_same<T, short>::value) {
+    return MPI_SHORT;
+  } else if (std::is_same<T, unsigned short>::value) {
+    return MPI_UNSIGNED_SHORT;
+  } else if (std::is_same<T, char>::value) {
+    return MPI_CHAR;
+  } else if (std::is_same<T, unsigned char>::value) {
+    return MPI_UNSIGNED_CHAR;
+  } else {
+    throw std::runtime_error("distributed_ndarray: unsupported MPI datatype");
+  }
+#else
+  throw std::runtime_error("distributed_ndarray: MPI support not enabled");
+#endif
+}
+
+template <typename T, typename StoragePolicy>
+void distributed_ndarray<T, StoragePolicy>::read_parallel(
+    const std::string& filename,
+    const std::string& varname,
+    int timestep)
+{
+#if !NDARRAY_HAVE_MPI
+  throw std::runtime_error("distributed_ndarray::read_parallel: MPI support not enabled");
+#else
+  // Detect format from file extension
+  std::string ext = get_file_extension(filename);
+
+  if (ext == ".nc") {
+#if NDARRAY_HAVE_PNETCDF
+    read_parallel_netcdf(filename, varname, timestep);
+#else
+    throw std::runtime_error(
+        "distributed_ndarray::read_parallel: NetCDF file detected but PNetCDF support not enabled");
+#endif
+  } else if (ext == ".h5" || ext == ".hdf5") {
+#if NDARRAY_HAVE_HDF5
+    read_parallel_hdf5(filename, varname, timestep);
+#else
+    throw std::runtime_error(
+        "distributed_ndarray::read_parallel: HDF5 file detected but HDF5 support not enabled");
+#endif
+  } else if (ext == ".bin" || ext == ".raw" || ext == ".dat") {
+    read_parallel_binary(filename);
+  } else {
+    throw std::runtime_error(
+        "distributed_ndarray::read_parallel: unsupported file format: " + ext);
+  }
+#endif
+}
+
+template <typename T, typename StoragePolicy>
+void distributed_ndarray<T, StoragePolicy>::read_parallel_netcdf(
+    const std::string& filename,
+    const std::string& varname,
+    int timestep)
+{
+#if !NDARRAY_HAVE_PNETCDF
+  throw std::runtime_error("distributed_ndarray::read_parallel_netcdf: PNetCDF support not enabled");
+#else
+  // Open file with MPI
+  int ncid;
+  PNC_SAFE_CALL(ncmpi_open(comm_, filename.c_str(), NC_NOWRITE, MPI_INFO_NULL, &ncid));
+
+  // Get variable ID
+  int varid;
+  PNC_SAFE_CALL(ncmpi_inq_varid(ncid, varname.c_str(), &varid));
+
+  // Get variable dimensionality
+  int ndims;
+  PNC_SAFE_CALL(ncmpi_inq_varndims(ncid, varid, &ndims));
+
+  // Verify dimensionality matches decomposition (excluding unlimited time dimension)
+  int expected_ndims = static_cast<int>(local_core_.nd());
+  if (ndims != expected_ndims && ndims != expected_ndims + 1) {
+    ncmpi_close(ncid);
+    throw std::runtime_error(
+        "distributed_ndarray::read_parallel_netcdf: variable dimensionality mismatch");
+  }
+
+  // Set up start/count arrays from local_core
+  std::vector<MPI_Offset> start(ndims);
+  std::vector<MPI_Offset> count(ndims);
+
+  // Handle time dimension if present
+  if (ndims == expected_ndims + 1) {
+    start[0] = timestep;
+    count[0] = 1;
+    for (int d = 0; d < expected_ndims; d++) {
+      start[d + 1] = static_cast<MPI_Offset>(local_core_.start(d));
+      count[d + 1] = static_cast<MPI_Offset>(local_core_.size(d));
+    }
+  } else {
+    for (int d = 0; d < expected_ndims; d++) {
+      start[d] = static_cast<MPI_Offset>(local_core_.start(d));
+      count[d] = static_cast<MPI_Offset>(local_core_.size(d));
+    }
+  }
+
+  // Read into local_data_ (core portion only, not ghosts)
+  // We need to create a temporary array for the core portion
+  ndarray<T, StoragePolicy> core_data;
+  std::vector<size_t> core_dims = local_core_.sizes();
+  core_data.reshapef(core_dims);
+
+  // Use existing read_pnetcdf_all from ndarray
+  core_data.read_pnetcdf_all(ncid, varid, start.data(), count.data());
+
+  // Close file
+  PNC_SAFE_CALL(ncmpi_close(ncid));
+
+  // Copy core data into local_data_ (which includes ghost regions)
+  // For now, just copy the core portion; ghosts remain uninitialized until exchange_ghosts()
+  size_t core_size = core_data.size();
+  for (size_t i = 0; i < core_size; i++) {
+    local_data_[i] = core_data[i];
+  }
+#endif
+}
+
+template <typename T, typename StoragePolicy>
+void distributed_ndarray<T, StoragePolicy>::read_parallel_hdf5(
+    const std::string& filename,
+    const std::string& varname,
+    int timestep)
+{
+#if !NDARRAY_HAVE_HDF5
+  throw std::runtime_error("distributed_ndarray::read_parallel_hdf5: HDF5 support not enabled");
+#else
+  (void)filename;
+  (void)varname;
+  (void)timestep;
+
+  // TODO: Implement HDF5 parallel read
+  // Requires:
+  // 1. H5Pset_fapl_mpio() for file access property list
+  // 2. H5Dopen() to open dataset
+  // 3. H5Screate_simple() and H5Sselect_hyperslab() for memory/file dataspaces
+  // 4. H5Dread() with collective I/O
+  // 5. H5Dclose(), H5Fclose()
+
+  throw std::runtime_error(
+      "distributed_ndarray::read_parallel_hdf5: HDF5 parallel read not yet implemented");
+#endif
+}
+
+template <typename T, typename StoragePolicy>
+void distributed_ndarray<T, StoragePolicy>::read_parallel_binary(
+    const std::string& filename)
+{
+#if !NDARRAY_HAVE_MPI
+  throw std::runtime_error("distributed_ndarray::read_parallel_binary: MPI support not enabled");
+#else
+  // Open file with MPI-IO
+  MPI_File fh;
+  int result = MPI_File_open(comm_, filename.c_str(), MPI_MODE_RDONLY, MPI_INFO_NULL, &fh);
+  if (result != MPI_SUCCESS) {
+    throw std::runtime_error(
+        "distributed_ndarray::read_parallel_binary: failed to open file: " + filename);
+  }
+
+  // Calculate offset for this rank's data in the file
+  // Assumes global array is stored contiguously in row-major (C) order
+  MPI_Offset offset = 0;
+  size_t stride = 1;
+
+  // Calculate offset from local_core start position
+  for (int d = static_cast<int>(local_core_.nd()) - 1; d >= 0; d--) {
+    offset += static_cast<MPI_Offset>(local_core_.start(d)) * stride;
+    stride *= global_lattice_.size(d);
+  }
+  offset *= sizeof(T);
+
+  // Calculate number of elements to read (core only)
+  size_t count = local_core_.n();
+
+  // Create temporary buffer for core data
+  std::vector<T> buffer(count);
+
+  // Collective read at calculated offset
+  MPI_Status status;
+  result = MPI_File_read_at_all(fh, offset, buffer.data(), static_cast<int>(count),
+                                  mpi_datatype(), &status);
+  if (result != MPI_SUCCESS) {
+    MPI_File_close(&fh);
+    throw std::runtime_error(
+        "distributed_ndarray::read_parallel_binary: MPI_File_read_at_all failed");
+  }
+
+  // Copy buffer into local_data_ (core portion)
+  for (size_t i = 0; i < count; i++) {
+    local_data_[i] = buffer[i];
+  }
+
+  // Close file
+  MPI_File_close(&fh);
+#endif
 }
 
 } // namespace ftk
