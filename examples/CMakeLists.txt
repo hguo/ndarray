@@ -120,6 +120,66 @@ if (NDARRAY_HAVE_CUDA OR NDARRAY_HAVE_SYCL)
   endif()
 endif()
 
+# Distributed stream examples (requires MPI and YAML)
+if (NDARRAY_HAVE_MPI AND NDARRAY_HAVE_YAML)
+  # Basic distributed stream example
+  add_executable(distributed_stream distributed_stream.cpp)
+  target_link_libraries(distributed_stream ${CMAKE_THREAD_LIBS_INIT})
+  target_link_libraries(distributed_stream MPI::MPI_CXX)
+  target_link_libraries(distributed_stream yaml-cpp::yaml-cpp)
+  add_vtk_if_enabled(distributed_stream)
+
+  if (NDARRAY_HAVE_NETCDF)
+    target_link_libraries(distributed_stream netCDF::netcdf)
+  endif()
+
+  if (NDARRAY_HAVE_HDF5)
+    target_link_libraries(distributed_stream ${HDF5_LIBRARIES})
+  endif()
+
+  if (NDARRAY_HAVE_PNETCDF)
+    target_link_libraries(distributed_stream ${PNETCDF_LIBRARIES})
+  endif()
+
+  # YAML-based distributed stream example
+  add_executable(distributed_stream_yaml distributed_stream_yaml.cpp)
+  target_link_libraries(distributed_stream_yaml ${CMAKE_THREAD_LIBS_INIT})
+  target_link_libraries(distributed_stream_yaml MPI::MPI_CXX)
+  target_link_libraries(distributed_stream_yaml yaml-cpp::yaml-cpp)
+  add_vtk_if_enabled(distributed_stream_yaml)
+
+  if (NDARRAY_HAVE_NETCDF)
+    target_link_libraries(distributed_stream_yaml netCDF::netcdf)
+  endif()
+
+  if (NDARRAY_HAVE_HDF5)
+    target_link_libraries(distributed_stream_yaml ${HDF5_LIBRARIES})
+  endif()
+
+  if (NDARRAY_HAVE_PNETCDF)
+    target_link_libraries(distributed_stream_yaml ${PNETCDF_LIBRARIES})
+  endif()
+
+  # Dry-run example
+  add_executable(distributed_stream_dryrun distributed_stream_dryrun.cpp)
+  target_link_libraries(distributed_stream_dryrun ${CMAKE_THREAD_LIBS_INIT})
+  target_link_libraries(distributed_stream_dryrun MPI::MPI_CXX)
+  target_link_libraries(distributed_stream_dryrun yaml-cpp::yaml-cpp)
+  add_vtk_if_enabled(distributed_stream_dryrun)
+
+  if (NDARRAY_HAVE_NETCDF)
+    target_link_libraries(distributed_stream_dryrun netCDF::netcdf)
+  endif()
+
+  if (NDARRAY_HAVE_HDF5)
+    target_link_libraries(distributed_stream_dryrun ${HDF5_LIBRARIES})
+  endif()
+
+  if (NDARRAY_HAVE_PNETCDF)
+    target_link_libraries(distributed_stream_dryrun ${PNETCDF_LIBRARIES})
+  endif()
+endif()
+
 # Installation
 install(TARGETS basic_usage io_operations convolution
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}/examples)
@@ -127,6 +187,11 @@ install(TARGETS basic_usage io_operations convolution
 if (NDARRAY_HAVE_MPI)
   install(TARGETS parallel_mpi
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}/examples)
+
+  if (NDARRAY_HAVE_YAML)
+    install(TARGETS distributed_stream distributed_stream_yaml distributed_stream_dryrun
+      RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}/examples)
+  endif()
 endif()
 
 if (NDARRAY_HAVE_SYCL)

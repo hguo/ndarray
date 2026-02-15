@@ -508,36 +508,100 @@ void distributed_ndarray<T, StoragePolicy>::read_parallel_binary(
   }
 
   // Calculate offset for this rank's data in the file
-  // Assumes global array is stored contiguously in row-major (C) order
+  // ndarray uses Fortran/column-major order by default (reshapef)
+  // In column-major: rightmost dimension varies fastest in memory
   MPI_Offset offset = 0;
   size_t stride = 1;
 
-  // Calculate offset from local_core start position
-  for (int d = static_cast<int>(local_core_.nd()) - 1; d >= 0; d--) {
+  // Calculate offset from local_core start position (column-major)
+  for (size_t d = 0; d < local_core_.nd(); d++) {
     offset += static_cast<MPI_Offset>(local_core_.start(d)) * stride;
     stride *= global_lattice_.size(d);
   }
   offset *= sizeof(T);
 
-  // Calculate number of elements to read (core only)
-  size_t count = local_core_.n();
+  // For non-contiguous reads (when local_core != local_extent due to ghosts),
+  // we need to read into the core portion correctly
+  // Strategy: Read data matching local core dimensions
 
-  // Create temporary buffer for core data
-  std::vector<T> buffer(count);
+  if (local_core_.nd() == 2) {
+    // 2D case with column-major (Fortran) order
+    // In column-major, columns are contiguous in memory
+    size_t core_size0 = local_core_.size(0);
+    size_t core_size1 = local_core_.size(1);
+    size_t global_size0 = global_lattice_.size(0);
 
-  // Collective read at calculated offset
-  MPI_Status status;
-  result = MPI_File_read_at_all(fh, offset, buffer.data(), static_cast<int>(count),
-                                  mpi_datatype(), &status);
-  if (result != MPI_SUCCESS) {
-    MPI_File_close(&fh);
-    throw std::runtime_error(
-        "distributed_ndarray::read_parallel_binary: MPI_File_read_at_all failed");
-  }
+    // Calculate ghost offsets
+    size_t ghost_start0 = local_core_.start(0) - local_extent_.start(0);
+    size_t ghost_start1 = local_core_.start(1) - local_extent_.start(1);
 
-  // Copy buffer into local_data_ (core portion)
-  for (size_t i = 0; i < count; i++) {
-    local_data_[i] = buffer[i];
+    // Read column by column since file is in column-major order
+    for (size_t j = 0; j < core_size1; j++) {
+      // Calculate offset for this column in the file
+      size_t global_i = local_core_.start(0);
+      size_t global_j = local_core_.start(1) + j;
+      MPI_Offset col_offset = (global_i + global_j * global_size0) * sizeof(T);
+
+      // Read directly into the correct position in local_data_
+      size_t local_i = ghost_start0;
+      size_t local_j = ghost_start1 + j;
+      T* col_ptr = &local_data_.f(local_i, local_j);
+
+      MPI_Status status;
+      result = MPI_File_read_at_all(fh, col_offset, col_ptr,
+                                      static_cast<int>(core_size0),
+                                      mpi_datatype(), &status);
+      if (result != MPI_SUCCESS) {
+        MPI_File_close(&fh);
+        throw std::runtime_error(
+            "distributed_ndarray::read_parallel_binary: MPI_File_read_at_all failed");
+      }
+    }
+  } else {
+    // Generic N-D case: read into temporary buffer then copy
+    size_t count = local_core_.n();
+    std::vector<T> buffer(count);
+
+    // Collective read at calculated offset
+    MPI_Status status;
+    result = MPI_File_read_at_all(fh, offset, buffer.data(), static_cast<int>(count),
+                                    mpi_datatype(), &status);
+    if (result != MPI_SUCCESS) {
+      MPI_File_close(&fh);
+      throw std::runtime_error(
+          "distributed_ndarray::read_parallel_binary: MPI_File_read_at_all failed");
+    }
+
+    // Copy buffer into local_data_ accounting for multi-dimensional layout
+    // Calculate ghost offsets
+    std::vector<size_t> ghost_start(local_core_.nd());
+    for (size_t d = 0; d < local_core_.nd(); d++) {
+      ghost_start[d] = local_core_.start(d) - local_extent_.start(d);
+    }
+
+    // Map each element from buffer to correct position in local_data_
+    size_t buffer_idx = 0;
+    std::vector<size_t> local_idx(local_core_.nd());
+
+    // Iterate through all core elements
+    std::function<void(size_t)> copy_recursive = [&](size_t dim) {
+      if (dim == local_core_.nd()) {
+        // Leaf: copy element
+        std::vector<size_t> target_idx(local_core_.nd());
+        for (size_t d = 0; d < local_core_.nd(); d++) {
+          target_idx[d] = ghost_start[d] + local_idx[d];
+        }
+        local_data_.at(target_idx) = buffer[buffer_idx++];
+        return;
+      }
+
+      for (size_t i = 0; i < local_core_.size(dim); i++) {
+        local_idx[dim] = i;
+        copy_recursive(dim + 1);
+      }
+    };
+
+    copy_recursive(0);
   }
 
   // Close file
