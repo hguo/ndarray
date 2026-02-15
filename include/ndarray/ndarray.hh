@@ -111,21 +111,21 @@ struct ndarray : public ndarray_base {
 
   void reset() { storage_.resize(0); dims.clear(); s.clear(); set_multicomponents(0); set_has_time(false); }
 
-  ndarray<T> slice(const lattice&) const;
-  ndarray<T> slice(const std::vector<size_t>& starts, const std::vector<size_t> &sizes) const;
+  ndarray<T, StoragePolicy> slice(const lattice&) const;
+  ndarray<T, StoragePolicy> slice(const std::vector<size_t>& starts, const std::vector<size_t> &sizes) const;
 
   // Extract a single timestep from time-series data (assumes last dim is time)
   // Returns (n-1)-dimensional array without time dimension
   // Example: [nx, ny, nt] → [nx, ny]
-  ndarray<T> slice_time(size_t t) const;
+  ndarray<T, StoragePolicy> slice_time(size_t t) const;
 
   // Extract all timesteps as a vector of (n-1)-dimensional arrays
   // Example: [nx, ny, nt] → vector of nt arrays of shape [nx, ny]
-  std::vector<ndarray<T>> slice_time() const;
+  std::vector<ndarray<T, StoragePolicy>> slice_time() const;
 
   // merge multiple arrays into a multicomponent array
-  static ndarray<T> concat(const std::vector<ndarray<T>>& arrays);
-  static ndarray<T> stack(const std::vector<ndarray<T>>& arrays);
+  static ndarray<T, StoragePolicy> concat(const std::vector<ndarray<T, StoragePolicy>>& arrays);
+  static ndarray<T, StoragePolicy> stack(const std::vector<ndarray<T, StoragePolicy>>& arrays);
 
 public: // Column-major (Fortran-style) access: f(i0, i1, ...) where i0 varies fastest
   // For a 2D array reshaped as (n0, n1):
@@ -254,11 +254,11 @@ public:
     return true;
   }
 
-  ndarray<T>& operator+=(const ndarray<T>& x);
-  ndarray<T>& operator-=(const ndarray<T>& x);
-  
-  template <typename T1> ndarray<T>& operator*=(const T1& x);
-  template <typename T1> ndarray<T>& operator/=(const T1& x);
+  ndarray<T, StoragePolicy>& operator+=(const ndarray<T, StoragePolicy>& x);
+  ndarray<T, StoragePolicy>& operator-=(const ndarray<T, StoragePolicy>& x);
+
+  template <typename T1> ndarray<T, StoragePolicy>& operator*=(const T1& x);
+  template <typename T1> ndarray<T, StoragePolicy>& operator/=(const T1& x);
 
   template <typename T1> friend ndarray<T1> operator+(const ndarray<T1>& lhs, const ndarray<T1>& rhs);
   template <typename T1> friend ndarray<T1> operator-(const ndarray<T1>& lhs, const ndarray<T1>& rhs);
@@ -274,12 +274,15 @@ public:
   template <typename F=float> // scalar multilinear interpolation
   bool mlerp(const F x[], T v[]) const;
 
-  ndarray<T>& transpose(); // returns the ref to this
-  ndarray<T> get_transpose() const; // only works for 2D arrays
-  ndarray<T> get_transpose(const std::vector<size_t> order) const; // works for general tensors
+  ndarray<T, StoragePolicy>& transpose(); // returns the ref to this
+  ndarray<T, StoragePolicy> get_transpose() const; // only works for 2D arrays
+  ndarray<T, StoragePolicy> get_transpose(const std::vector<size_t> order) const; // works for general tensors
 
   template <typename T1>
   void from_array(const ndarray<T1>& array1);
+
+  template <typename T1, typename OtherPolicy>
+  void from_array(const ndarray<T1, OtherPolicy>& array1);
 
   void from_array(const T* p, const std::vector<size_t>& shape);
 
@@ -294,15 +297,15 @@ public: // subarray
 
 public: // construction from data
   // Create 1D array from std::vector data
-  static ndarray<T> from_vector_data(const std::vector<T>& data) {
-    ndarray<T> arr;
+  static ndarray<T, StoragePolicy> from_vector_data(const std::vector<T>& data) {
+    ndarray<T, StoragePolicy> arr;
     arr.copy_vector(data);
     return arr;
   }
 
   // Create N-D array from std::vector data with specified shape
-  static ndarray<T> from_vector_data(const std::vector<T>& data, const std::vector<size_t>& shape) {
-    ndarray<T> arr;
+  static ndarray<T, StoragePolicy> from_vector_data(const std::vector<T>& data, const std::vector<size_t>& shape) {
+    ndarray<T, StoragePolicy> arr;
     arr.reshapef(shape);
     size_t n = std::min(data.size(), arr.size());
     for (size_t i = 0; i < n; i++) {
@@ -312,7 +315,7 @@ public: // construction from data
   }
 
 public: // file i/o; automatically determine format based on extensions
-  static ndarray<T> from_file(const std::string& filename, const std::string varname="", MPI_Comm comm = MPI_COMM_WORLD);
+  static ndarray<T, StoragePolicy> from_file(const std::string& filename, const std::string varname="", MPI_Comm comm = MPI_COMM_WORLD);
   bool read_file(const std::string& filename, const std::string varname="", MPI_Comm comm = MPI_COMM_WORLD);
   bool to_file(const std::string& filename, const std::string varname="", MPI_Comm comm = MPI_COMM_WORLD) const;
 
@@ -351,7 +354,7 @@ public: // i/o for vtkStructuredGrid data
   void to_vtk_rectilinear_grid(const std::string& filename, const std::string varname=std::string()) const;
 
 public: // i/o for hdf5
-  static ndarray<T> from_h5(const std::string& filename, const std::string& name);
+  static ndarray<T, StoragePolicy> from_h5(const std::string& filename, const std::string& name);
 #if NDARRAY_HAVE_HDF5
   bool read_h5_did(hid_t did);
   static hid_t h5_mem_type_id();
@@ -363,7 +366,7 @@ public: // i/o for parallel-netcdf
 #endif
 
 public: // i/o for adios2
-  static ndarray<T> from_bp(const std::string& filename, const std::string& name, int step = -1, MPI_Comm comm = MPI_COMM_WORLD);
+  static ndarray<T, StoragePolicy> from_bp(const std::string& filename, const std::string& name, int step = -1, MPI_Comm comm = MPI_COMM_WORLD);
   void read_bp(const std::string& filename, const std::string& varname, int step = -1, MPI_Comm comm = MPI_COMM_WORLD) { ndarray_base::read_bp(filename, varname, step, comm); }
 
 #if NDARRAY_HAVE_ADIOS2
@@ -381,7 +384,7 @@ public: // i/o for adios2
 #endif
 
 public: // i/o for adios1
-  static ndarray<T> from_bp_legacy(const std::string& filename, const std::string& varname, MPI_Comm comm);
+  static ndarray<T, StoragePolicy> from_bp_legacy(const std::string& filename, const std::string& varname, MPI_Comm comm);
   bool read_bp_legacy(const std::string& filename, const std::string& varname, MPI_Comm comm);
 #if NDARRAY_HAVE_ADIOS1
   bool read_bp_legacy(ADIOS_FILE *fp, const std::string& varname);
@@ -452,10 +455,24 @@ private:
 
 //////////////////////////////////
 
-template <typename T, typename StoragePolicy> int ndarray<T, StoragePolicy>::type() const { return NDARRAY_DTYPE_UNKNOWN; }
-template <typename StoragePolicy> inline int ndarray<double, StoragePolicy>::type() const { return NDARRAY_DTYPE_DOUBLE; }
-template <typename StoragePolicy> inline int ndarray<float, StoragePolicy>::type() const { return NDARRAY_DTYPE_FLOAT; }
-template <typename StoragePolicy> inline int ndarray<int, StoragePolicy>::type() const { return NDARRAY_DTYPE_INT; }
+template <typename T, typename StoragePolicy>
+int ndarray<T, StoragePolicy>::type() const {
+  if constexpr (std::is_same_v<T, double>) {
+    return NDARRAY_DTYPE_DOUBLE;
+  } else if constexpr (std::is_same_v<T, float>) {
+    return NDARRAY_DTYPE_FLOAT;
+  } else if constexpr (std::is_same_v<T, int>) {
+    return NDARRAY_DTYPE_INT;
+  } else if constexpr (std::is_same_v<T, unsigned int>) {
+    return NDARRAY_DTYPE_UNSIGNED_INT;
+  } else if constexpr (std::is_same_v<T, unsigned char>) {
+    return NDARRAY_DTYPE_UNSIGNED_CHAR;
+  } else if constexpr (std::is_same_v<T, char>) {
+    return NDARRAY_DTYPE_CHAR;
+  } else {
+    return NDARRAY_DTYPE_UNKNOWN;
+  }
+}
 
 #if 0
 template <typename T>
@@ -712,9 +729,9 @@ void ndarray<T, StoragePolicy>::to_binary_file(FILE *fp)
   fwrite(&storage_[0], sizeof(T), nelem(), fp);
 }
 
-template <typename T>
+template <typename T, typename StoragePolicy>
 template <typename T1>
-void ndarray<T>::to_binary_file2(const std::string& f) const
+void ndarray<T, StoragePolicy>::to_binary_file2(const std::string& f) const
 {
   ndarray<T1> array; 
   array.template from_array<T>(*this);
@@ -862,8 +879,8 @@ inline vtkSmartPointer<vtkImageData> ndarray<T>::to_vtk_image_data(std::string v
   return d;
 }
 
-template<typename T>
-inline void ndarray<T>::read_vtk_image_data_file_sequence(const std::string& pattern)
+template<typename T, typename StoragePolicy>
+inline void ndarray<T, StoragePolicy>::read_vtk_image_data_file_sequence(const std::string& pattern)
 {
   const auto filenames = glob(pattern);
   if (filenames.size() == 0) return;
@@ -889,14 +906,14 @@ inline void ndarray<T>::read_vtk_image_data_file_sequence(const std::string& pat
   }
 }
 #else
-template<typename T>
-inline void ndarray<T>::read_vtk_image_data_file_sequence(const std::string& pattern)
+template<typename T, typename StoragePolicy>
+inline void ndarray<T, StoragePolicy>::read_vtk_image_data_file_sequence(const std::string& pattern)
 {
   nd::fatal(nd::ERR_NOT_BUILT_WITH_VTK);
 }
 
-template<typename T>
-inline void ndarray<T>::to_vtk_image_data_file(const std::string& filename, const std::string) const 
+template<typename T, typename StoragePolicy>
+inline void ndarray<T, StoragePolicy>::to_vtk_image_data_file(const std::string& filename, const std::string) const
 {
   nd::fatal(nd::ERR_NOT_BUILT_WITH_VTK);
 }
@@ -921,9 +938,9 @@ ndarray<T, StoragePolicy>::ndarray(const T *a, const std::vector<size_t> &dims_)
 #endif
 }
   
-template <typename T> 
-template <typename I> 
-void ndarray<T>::reshapef(const int ndims, const I sz[])
+template <typename T, typename StoragePolicy>
+template <typename I>
+void ndarray<T, StoragePolicy>::reshapef(const int ndims, const I sz[])
 {
   std::vector<size_t> sizes(ndims);
   for (int i = 0; i < ndims; i ++)
@@ -1454,10 +1471,10 @@ template <> inline hid_t ndarray<unsigned char>::h5_mem_type_id() { return H5T_N
 template <> inline hid_t ndarray<char>::h5_mem_type_id() { return H5T_NATIVE_CHAR; }
 #endif
 
-template <typename T>
-inline ndarray<T> ndarray<T>::slice(const lattice& l) const
+template <typename T, typename StoragePolicy>
+inline ndarray<T, StoragePolicy> ndarray<T, StoragePolicy>::slice(const lattice& l) const
 {
-  ndarray<T> array(l.sizes());
+  ndarray<T, StoragePolicy> array(l.sizes());
   for (auto i = 0; i < l.n(); i ++) {
     auto idx = l.from_integer(i);
     array[i] = f(idx);
@@ -1465,16 +1482,16 @@ inline ndarray<T> ndarray<T>::slice(const lattice& l) const
   return array;
 }
 
-template <typename T>
-inline ndarray<T> ndarray<T>::slice(const std::vector<size_t>& st, const std::vector<size_t>& sz) const
+template <typename T, typename StoragePolicy>
+inline ndarray<T, StoragePolicy> ndarray<T, StoragePolicy>::slice(const std::vector<size_t>& st, const std::vector<size_t>& sz) const
 {
   return slice(lattice(st, sz));
 }
 
-template <typename T>
-inline ndarray<T> ndarray<T>::slice_time(size_t t) const 
+template <typename T, typename StoragePolicy>
+inline ndarray<T, StoragePolicy> ndarray<T, StoragePolicy>::slice_time(size_t t) const
 {
-  ndarray<T> array;
+  ndarray<T, StoragePolicy> array;
   std::vector<size_t> mydims(dims);
   mydims.resize(nd()-1);
 
@@ -1484,18 +1501,18 @@ inline ndarray<T> ndarray<T>::slice_time(size_t t) const
   return array;
 }
 
-template <typename T>
-inline std::vector<ndarray<T>> ndarray<T>::slice_time() const
+template <typename T, typename StoragePolicy>
+inline std::vector<ndarray<T, StoragePolicy>> ndarray<T, StoragePolicy>::slice_time() const
 {
-  std::vector<ndarray<T>> arrays;
+  std::vector<ndarray<T, StoragePolicy>> arrays;
   const size_t nt = shape(nd()-1);
-  for (size_t i = 0; i < nt; i ++) 
+  for (size_t i = 0; i < nt; i ++)
     arrays.push_back(slice_time(i));
   return arrays;
 }
 
-template <typename T>
-std::ostream& ndarray<T>::print(std::ostream& os) const
+template <typename T, typename StoragePolicy>
+std::ostream& ndarray<T, StoragePolicy>::print(std::ostream& os) const
 {
   print_shapef(os);
 
@@ -1533,17 +1550,17 @@ std::ostream& ndarray<T>::print(std::ostream& os) const
   return os;
 }
 
-template <typename T>
-ndarray<T>& ndarray<T>::transpose()
+template <typename T, typename StoragePolicy>
+ndarray<T, StoragePolicy>& ndarray<T, StoragePolicy>::transpose()
 {
   *this = get_transpose();
   return *this;
 }
 
 template <typename T, typename StoragePolicy>
-ndarray<T, StoragePolicy> ndarray<T, StoragePolicy>::get_transpose() const 
+ndarray<T, StoragePolicy> ndarray<T, StoragePolicy>::get_transpose() const
 {
-  ndarray<T> a;
+  ndarray<T, StoragePolicy> a;
   if (nd() == 0) return a;
   else if (nd() == 1) return *this;
   else if (nd() == 2) {
