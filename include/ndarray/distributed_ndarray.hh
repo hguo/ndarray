@@ -4,6 +4,7 @@
 #include <ndarray/ndarray.hh>
 #include <ndarray/lattice.hh>
 #include <ndarray/lattice_partitioner.hh>
+#include <memory>
 
 #if NDARRAY_HAVE_MPI
 #include <mpi.h>
@@ -153,7 +154,7 @@ private:
   int nprocs_;
 
   lattice global_lattice_;        // Full global domain
-  lattice_partitioner partitioner_;
+  std::unique_ptr<lattice_partitioner> partitioner_;
 
   lattice local_core_;            // This rank's core region (no ghosts)
   lattice local_extent_;          // This rank's extent region (core + ghosts)
@@ -215,36 +216,36 @@ void distributed_ndarray<T, StoragePolicy>::decompose(
   global_lattice_.reshape(global_dims);
 
   // Create partitioner and decompose
-  partitioner_ = lattice_partitioner(global_lattice_);
+  partitioner_ = std::make_unique<lattice_partitioner>(global_lattice_);
 
   if (decomp.empty() && ghost.empty()) {
     // Automatic decomposition, no ghosts
-    partitioner_.partition(nprocs);
+    partitioner_->partition(nprocs);
   } else if (!decomp.empty() && ghost.empty()) {
     // User-specified decomposition, no ghosts
-    partitioner_.partition(nprocs, decomp);
+    partitioner_->partition(nprocs, decomp);
   } else if (!decomp.empty() && !ghost.empty()) {
     // User-specified decomposition with ghosts
-    partitioner_.partition(nprocs, decomp, ghost);
+    partitioner_->partition(nprocs, decomp, ghost);
   } else {
     // Automatic decomposition with ghosts
-    partitioner_.partition(nprocs, std::vector<size_t>(), ghost);
+    partitioner_->partition(nprocs, std::vector<size_t>(), ghost);
   }
 
   // Verify decomposition succeeded
-  if (partitioner_.np() == 0) {
+  if (partitioner_->np() == 0) {
     throw std::runtime_error(
         "distributed_ndarray::decompose: lattice_partitioner failed to decompose domain");
   }
 
-  if (partitioner_.np() != nprocs) {
+  if (partitioner_->np() != nprocs) {
     throw std::runtime_error(
         "distributed_ndarray::decompose: number of partitions does not match nprocs");
   }
 
   // Store this rank's core and extent lattices
-  local_core_ = partitioner_.get_core(rank_);
-  local_extent_ = partitioner_.get_ext(rank_);
+  local_core_ = partitioner_->get_core(rank_);
+  local_extent_ = partitioner_->get_ext(rank_);
 
   // Allocate local data to extent size
   std::vector<size_t> extent_dims = local_extent_.sizes();
@@ -576,8 +577,8 @@ void distributed_ndarray<T, StoragePolicy>::identify_neighbors()
 
       // Find which rank owns this point
       int neighbor_rank = -1;
-      for (size_t p = 0; p < partitioner_.np(); p++) {
-        const auto& core = partitioner_.get_core(p);
+      for (size_t p = 0; p < partitioner_->np(); p++) {
+        const auto& core = partitioner_->get_core(p);
         if (core.contains(neighbor_point)) {
           neighbor_rank = static_cast<int>(p);
           break;
@@ -638,8 +639,8 @@ void distributed_ndarray<T, StoragePolicy>::identify_neighbors()
 
       // Find which rank owns this point
       int neighbor_rank = -1;
-      for (size_t p = 0; p < partitioner_.np(); p++) {
-        const auto& core = partitioner_.get_core(p);
+      for (size_t p = 0; p < partitioner_->np(); p++) {
+        const auto& core = partitioner_->get_core(p);
         if (core.contains(neighbor_point)) {
           neighbor_rank = static_cast<int>(p);
           break;

@@ -292,6 +292,18 @@ if (NDARRAY_HAVE_MPI)
   target_link_libraries(test_distributed_ndarray MPI::MPI_CXX)
   add_vtk_if_enabled(test_distributed_ndarray)
 
+  if (NDARRAY_HAVE_NETCDF)
+    target_link_libraries(test_distributed_ndarray netCDF::netcdf)
+  endif()
+
+  if (NDARRAY_HAVE_PNETCDF)
+    target_link_libraries(test_distributed_ndarray ${PNETCDF_LIBRARIES})
+  endif()
+
+  if (NDARRAY_HAVE_HDF5)
+    target_link_libraries(test_distributed_ndarray ${HDF5_LIBRARIES})
+  endif()
+
   # Note: Distributed tests should be run with mpirun
   # add_test(NAME distributed_ndarray COMMAND mpirun -np 4 test_distributed_ndarray)
   # Note: MPI tests require mpirun which may not be available in all test environments
@@ -303,6 +315,19 @@ if (NDARRAY_HAVE_MPI)
   target_link_libraries(test_ghost_exchange ${CMAKE_THREAD_LIBS_INIT})
   target_link_libraries(test_ghost_exchange MPI::MPI_CXX)
   add_vtk_if_enabled(test_ghost_exchange)
+
+  if (NDARRAY_HAVE_NETCDF)
+    target_link_libraries(test_ghost_exchange netCDF::netcdf)
+  endif()
+
+  if (NDARRAY_HAVE_PNETCDF)
+    target_link_libraries(test_ghost_exchange ${PNETCDF_LIBRARIES})
+  endif()
+
+  if (NDARRAY_HAVE_HDF5)
+    target_link_libraries(test_ghost_exchange ${HDF5_LIBRARIES})
+  endif()
+
   message("  - test_ghost_exchange: Ghost layer exchange between MPI ranks (run with: mpirun -np 4 ./bin/test_ghost_exchange)")
 endif()
 

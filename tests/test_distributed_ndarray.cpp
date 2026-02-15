@@ -293,9 +293,35 @@ int test_parallel_netcdf_read() {
 
     // Write to NetCDF file (serial write from rank 0)
     try {
-      global_data.to_netcdf("test_distributed.nc", "data");
+#if NDARRAY_HAVE_NETCDF
+      int ncid, varid;
+      int dimids[2];
+
+      // Create file
+      nc_create("test_distributed.nc", NC_CLOBBER | NC_64BIT_OFFSET, &ncid);
+
+      // Define dimensions
+      nc_def_dim(ncid, "x", global_nx, &dimids[0]);
+      nc_def_dim(ncid, "y", global_ny, &dimids[1]);
+
+      // Define variable
+      nc_def_var(ncid, "data", NC_FLOAT, 2, dimids, &varid);
+
+      // End define mode
+      nc_enddef(ncid);
+
+      // Write data
+      global_data.to_netcdf(ncid, varid);
+
+      // Close file
+      nc_close(ncid);
+
       std::cout << "    Created test_distributed.nc with " << global_nx
                 << " × " << global_ny << " array" << std::endl;
+#else
+      std::cerr << "    WARNING: NetCDF not available, skipping test" << std::endl;
+      return 0;
+#endif
     } catch (const std::exception& e) {
       std::cerr << "    WARNING: Could not create test file: " << e.what() << std::endl;
       std::cerr << "    Skipping parallel NetCDF read test" << std::endl;
