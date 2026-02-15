@@ -69,16 +69,45 @@ public:
 
   /**
    * @brief Constructor
-   * @param comm MPI communicator
+   * @param comm MPI communicator (ignored in dry-run mode)
    */
   distributed_stream(MPI_Comm comm = MPI_COMM_WORLD)
-    : comm_(comm)
+    : comm_(comm), dry_run_(false)
   {
     MPI_Comm_rank(comm_, &rank_);
     MPI_Comm_size(comm_, &nprocs_);
 
     // Create underlying regular stream (will be used for metadata and file discovery)
     regular_stream_ = std::make_shared<regular_stream_type>(comm_);
+  }
+
+  /**
+   * @brief Enable/disable dry-run mode
+   *
+   * In dry-run mode:
+   * - YAML configuration is parsed and validated
+   * - File discovery runs normally
+   * - No actual data reading occurs (or optionally serial read on rank 0)
+   * - Reports what would happen with actual MPI execution
+   * - Useful for testing configurations without mpirun
+   *
+   * @param enable Enable dry-run mode
+   * @param report_only If true, only report configuration (no data reading)
+   */
+  void set_dry_run(bool enable, bool report_only = true)
+  {
+    dry_run_ = enable;
+    dry_run_report_only_ = report_only;
+
+    if (dry_run_ && rank_ == 0) {
+      std::cout << "\n=== DRY RUN MODE ENABLED ===" << std::endl;
+      if (dry_run_report_only_) {
+        std::cout << "Mode: Report only (no data reading)" << std::endl;
+      } else {
+        std::cout << "Mode: Serial read on rank 0" << std::endl;
+      }
+      std::cout << "============================\n" << std::endl;
+    }
   }
 
   /**
@@ -131,6 +160,11 @@ public:
     }
 
     n_timesteps_ = regular_stream_->total_timesteps();
+
+    // Report configuration in dry-run mode
+    if (dry_run_ && rank_ == 0) {
+      report_configuration();
+    }
   }
 
   /**
@@ -171,6 +205,51 @@ public:
       throw std::runtime_error("Must set decomposition before reading (via YAML or set_decomposition())");
     }
 
+    // Dry-run mode: report what would be read
+    if (dry_run_) {
+      if (rank_ == 0) {
+        std::cout << "\n[DRY RUN] Reading timestep " << timestep << ":" << std::endl;
+        std::string filename = get_filename_for_timestep(timestep);
+        std::cout << "  File: " << filename << std::endl;
+
+        auto regular_group = regular_stream_->read(timestep);
+        std::cout << "  Variables: ";
+        auto keys = regular_group->keys();
+        for (size_t i = 0; i < keys.size(); i++) {
+          std::cout << keys[i];
+          if (i < keys.size() - 1) std::cout << ", ";
+        }
+        std::cout << std::endl;
+
+        std::cout << "  Would decompose across " << nprocs_ << " ranks:" << std::endl;
+        std::cout << "    Global dims: [";
+        for (size_t i = 0; i < global_dims_.size(); i++) {
+          std::cout << global_dims_[i];
+          if (i < global_dims_.size() - 1) std::cout << ", ";
+        }
+        std::cout << "]" << std::endl;
+
+        if (!ghost_layers_.empty()) {
+          std::cout << "    Ghost layers: [";
+          for (size_t i = 0; i < ghost_layers_.size(); i++) {
+            std::cout << ghost_layers_[i];
+            if (i < ghost_layers_.size() - 1) std::cout << ", ";
+          }
+          std::cout << "]" << std::endl;
+        }
+      }
+
+      // In report-only mode, return nullptr
+      if (dry_run_report_only_) {
+        return nullptr;
+      }
+
+      // Otherwise, do serial read on rank 0 for testing
+      if (rank_ == 0) {
+        std::cout << "  [Reading data in serial mode for validation...]" << std::endl;
+      }
+    }
+
     // Read using regular stream to get data
     auto regular_group = regular_stream_->read(timestep);
 
@@ -201,7 +280,7 @@ public:
       // For parallel formats (NetCDF, HDF5), read directly in parallel
       // This requires format detection and calling read_parallel
       std::string filename = get_filename_for_timestep(timestep);
-      if (!filename.empty()) {
+      if (!filename.empty() && !dry_run_) {
         darray.read_parallel(filename, name, timestep);
       }
 
@@ -289,7 +368,117 @@ public:
   const std::vector<size_t>& decomp_pattern() const { return decomp_pattern_; }
   const std::vector<size_t>& ghost_layers() const { return ghost_layers_; }
 
+  bool is_dry_run() const { return dry_run_; }
+
+  /**
+   * @brief Print configuration report
+   *
+   * Shows decomposition, streams, variables, and file information.
+   * Called automatically in dry-run mode after parse_yaml().
+   */
+  void report_configuration() const
+  {
+    if (rank_ != 0) return;
+
+    std::cout << "\n╔════════════════════════════════════════════════════════════╗" << std::endl;
+    std::cout << "║  Distributed Stream Configuration Report                  ║" << std::endl;
+    std::cout << "╚════════════════════════════════════════════════════════════╝\n" << std::endl;
+
+    // Decomposition
+    std::cout << "Domain Decomposition:" << std::endl;
+    if (decomposition_set_) {
+      std::cout << "  Global dimensions: [";
+      for (size_t i = 0; i < global_dims_.size(); i++) {
+        std::cout << global_dims_[i];
+        if (i < global_dims_.size() - 1) std::cout << " × ";
+      }
+      std::cout << "]" << std::endl;
+
+      std::cout << "  Target processes: " << nprocs_decomp_ << std::endl;
+
+      if (!decomp_pattern_.empty()) {
+        std::cout << "  Decomposition pattern: [";
+        for (size_t i = 0; i < decomp_pattern_.size(); i++) {
+          std::cout << decomp_pattern_[i];
+          if (i < decomp_pattern_.size() - 1) std::cout << " × ";
+        }
+        std::cout << "] (manual)" << std::endl;
+      } else {
+        std::cout << "  Decomposition pattern: automatic (prime factorization)" << std::endl;
+      }
+
+      if (!ghost_layers_.empty()) {
+        std::cout << "  Ghost layers: [";
+        for (size_t i = 0; i < ghost_layers_.size(); i++) {
+          std::cout << ghost_layers_[i];
+          if (i < ghost_layers_.size() - 1) std::cout << ", ";
+        }
+        std::cout << "]" << std::endl;
+      } else {
+        std::cout << "  Ghost layers: none" << std::endl;
+      }
+
+      // Calculate approximate local size per rank
+      size_t total_elements = 1;
+      for (auto dim : global_dims_) total_elements *= dim;
+      size_t approx_local = total_elements / nprocs_decomp_;
+      std::cout << "  Approx. elements per rank: " << approx_local
+                << " (total: " << total_elements << ")" << std::endl;
+    } else {
+      std::cout << "  [Not configured]" << std::endl;
+    }
+
+    // Streams
+    std::cout << "\nData Streams:" << std::endl;
+    if (regular_stream_ && !regular_stream_->substreams.empty()) {
+      for (size_t i = 0; i < regular_stream_->substreams.size(); i++) {
+        auto& sub = regular_stream_->substreams[i];
+        std::cout << "  Stream " << (i + 1) << ": " << sub->name << std::endl;
+        std::cout << "    Format: " << get_format_name(sub) << std::endl;
+        std::cout << "    Files: " << sub->filenames.size() << " files found" << std::endl;
+        if (!sub->filenames.empty()) {
+          std::cout << "      First: " << sub->filenames[0] << std::endl;
+          if (sub->filenames.size() > 1) {
+            std::cout << "      Last:  " << sub->filenames.back() << std::endl;
+          }
+        }
+        std::cout << "    Variables: ";
+        for (size_t j = 0; j < sub->variables.size(); j++) {
+          std::cout << sub->variables[j].name;
+          if (j < sub->variables.size() - 1) std::cout << ", ";
+        }
+        std::cout << std::endl;
+        std::cout << "    Enabled: " << (sub->is_enabled ? "yes" : "no") << std::endl;
+      }
+    } else {
+      std::cout << "  [No streams configured]" << std::endl;
+    }
+
+    // Timesteps
+    std::cout << "\nTime Series:" << std::endl;
+    std::cout << "  Total timesteps: " << n_timesteps_ << std::endl;
+
+    std::cout << "\n" << std::string(60, '=') << "\n" << std::endl;
+  }
+
 private:
+  /**
+   * @brief Get format name from substream (helper for reporting)
+   */
+  std::string get_format_name(const std::shared_ptr<substream<StoragePolicy>>& sub) const
+  {
+    // Simple heuristic based on filename
+    if (!sub->filenames.empty()) {
+      std::string filename = sub->filenames[0];
+      if (filename.find(".nc") != std::string::npos) return "NetCDF";
+      if (filename.find(".h5") != std::string::npos) return "HDF5";
+      if (filename.find(".bp") != std::string::npos) return "ADIOS2";
+      if (filename.find(".bin") != std::string::npos) return "Binary";
+      if (filename.find(".vti") != std::string::npos) return "VTK ImageData";
+      if (filename.find(".vtu") != std::string::npos) return "VTK Unstructured";
+    }
+    return "Unknown";
+  }
   /**
    * @brief Parse decomposition section from YAML
    * @param y YAML node containing decomposition config
@@ -360,6 +549,10 @@ private:
   // Stream parameters
   std::string path_prefix_;
   int n_timesteps_ = 0;
+
+  // Dry-run mode
+  bool dry_run_ = false;
+  bool dry_run_report_only_ = true;
 
   // Underlying regular stream for YAML parsing and file discovery
   std::shared_ptr<regular_stream_type> regular_stream_;

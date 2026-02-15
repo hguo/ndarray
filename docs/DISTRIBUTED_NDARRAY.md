@@ -92,6 +92,47 @@ streams:
       - name: pressure
 ```
 
+### Dry-Run Mode (Testing Without MPI)
+
+Test your configuration without running mpirun:
+
+```cpp
+#include <ndarray/ndarray_group_stream.hh>
+#include <mpi.h>
+
+int main(int argc, char** argv) {
+  MPI_Init(&argc, &argv);
+
+  ftk::distributed_stream<> stream(MPI_COMM_WORLD);
+
+  // Enable dry-run mode (report only, no data reading)
+  stream.set_dry_run(true, true);
+
+  // Parse and validate configuration
+  stream.parse_yaml("config.yaml");
+
+  // Test reading (will print reports instead of loading data)
+  for (int t = 0; t < stream.n_timesteps(); t++) {
+    stream.read(t);  // Reports what would be read
+  }
+
+  MPI_Finalize();
+  return 0;
+}
+```
+
+**Dry-run benefits:**
+- Test YAML syntax without mpirun
+- Validate file paths and discovery
+- Check decomposition parameters
+- Debug configuration on workstation
+- Fast iteration during development
+
+**Run with single rank (no mpirun needed):**
+```bash
+./example  # Or: mpirun -np 1 ./example
+```
+
 ### Compile with MPI
 
 ```bash
