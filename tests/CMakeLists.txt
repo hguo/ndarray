@@ -58,6 +58,11 @@ endif()
 add_executable(test_zero_copy test_zero_copy.cpp)
 target_link_libraries(test_zero_copy ${CMAKE_THREAD_LIBS_INIT})
 add_vtk_if_enabled(test_zero_copy)
+
+if (NDARRAY_HAVE_HDF5)
+  target_link_libraries(test_zero_copy ${HDF5_LIBRARIES})
+endif()
+
 add_test(NAME zero_copy COMMAND test_zero_copy)
 
 # Variable name matching test
@@ -70,12 +75,22 @@ add_test(NAME variable_names COMMAND test_variable_names)
 add_executable(test_vector_conversion test_vector_conversion.cpp)
 target_link_libraries(test_vector_conversion ${CMAKE_THREAD_LIBS_INIT})
 add_vtk_if_enabled(test_vector_conversion)
+
+if (NDARRAY_HAVE_HDF5)
+  target_link_libraries(test_vector_conversion ${HDF5_LIBRARIES})
+endif()
+
 add_test(NAME vector_conversion COMMAND test_vector_conversion)
 
 # F/C ordering demonstration
 add_executable(test_fc_ordering test_fc_ordering.cpp)
 target_link_libraries(test_fc_ordering ${CMAKE_THREAD_LIBS_INIT})
 add_vtk_if_enabled(test_fc_ordering)
+
+if (NDARRAY_HAVE_HDF5)
+  target_link_libraries(test_fc_ordering ${HDF5_LIBRARIES})
+endif()
+
 add_test(NAME fc_ordering COMMAND test_fc_ordering)
 
 # HDF5 functionality tests (requires HDF5 support)
@@ -239,6 +254,10 @@ if (NDARRAY_HAVE_YAML)
   target_link_libraries(test_storage_streams yaml-cpp::yaml-cpp)
 endif()
 
+if (NDARRAY_HAVE_HDF5)
+  target_link_libraries(test_storage_streams ${HDF5_LIBRARIES})
+endif()
+
 add_test(NAME storage_streams COMMAND test_storage_streams)
 message("  - test_storage_streams: Storage backend stream functionality")
 
@@ -246,6 +265,11 @@ message("  - test_storage_streams: Storage backend stream functionality")
 add_executable(test_storage_memory test_storage_memory.cpp)
 target_link_libraries(test_storage_memory ${CMAKE_THREAD_LIBS_INIT})
 add_vtk_if_enabled(test_storage_memory)
+
+if (NDARRAY_HAVE_HDF5)
+  target_link_libraries(test_storage_memory ${HDF5_LIBRARIES})
+endif()
+
 add_test(NAME storage_memory COMMAND test_storage_memory)
 message("  - test_storage_memory: Storage backend memory management")
 
@@ -253,6 +277,11 @@ message("  - test_storage_memory: Storage backend memory management")
 add_executable(benchmark_storage benchmark_storage.cpp)
 target_link_libraries(benchmark_storage ${CMAKE_THREAD_LIBS_INIT})
 add_vtk_if_enabled(benchmark_storage)
+
+if (NDARRAY_HAVE_HDF5)
+  target_link_libraries(benchmark_storage ${HDF5_LIBRARIES})
+endif()
+
 # Note: benchmarks are not added as tests, they are run manually
 message("  - benchmark_storage: Storage backend performance (run manually)")
 

@@ -41,9 +41,13 @@ if (NDARRAY_HAVE_HDF5)
   target_link_libraries(convolution ${HDF5_LIBRARIES})
 endif()
 
-# Vector conversion example (core functionality, no backends needed)
+# Vector conversion example (may need optional backends if enabled)
 add_executable(vector_conversion_example vector_conversion_example.cpp)
 target_link_libraries(vector_conversion_example ${CMAKE_THREAD_LIBS_INIT})
+
+if (NDARRAY_HAVE_HDF5)
+  target_link_libraries(vector_conversion_example ${HDF5_LIBRARIES})
+endif()
 
 # MPI parallel example (requires MPI, may need optional backends)
 if (NDARRAY_HAVE_MPI)
