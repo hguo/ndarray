@@ -29,7 +29,13 @@ NDArray is a **unified I/O abstraction library for time-varying scientific data*
 - **PNG** - Image data
 
 ### Parallel Computing Integration
-- **MPI** - Distributed-memory parallel I/O (collective writes)
+- **Distributed Memory I/O** - Domain decomposition with automatic load balancing
+  - `distributed_ndarray`: MPI-aware arrays with ghost cell exchange
+  - `distributed_stream`: Time-series processing with parallel I/O
+  - Automatic/manual decomposition patterns (1D, 2D, 3D)
+  - Global/local index conversion for distributed algorithms
+  - See [Distributed Arrays Guide](docs/DISTRIBUTED_NDARRAY.md) for details
+- **MPI** - Message Passing Interface for parallel I/O (collective operations)
 - **Parallel-NetCDF (PNetCDF)** - High-performance parallel NetCDF
 - **OpenMP** - Shared-memory parallelism
 - **CUDA** - GPU acceleration (experimental)
