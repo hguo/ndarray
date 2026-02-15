@@ -46,14 +46,14 @@ inline void substream_h5<StoragePolicy>::initialize(YAML::Node y)
     timesteps_per_file = y["timesteps_per_file"].as<int>();
   }
 
-  if (!is_static) {
+  if (!this->is_static) {
     // Total timesteps = number of files × timesteps per file
     this->total_timesteps = this->filenames.size() * timesteps_per_file;
   }
 }
 
 template <typename StoragePolicy>
-inline void substream_h5<StoragePolicy>::read(int i, std::shared_ptr<ndarray_group> g)
+inline void substream_h5<StoragePolicy>::read(int i, std::shared_ptr<group_type> g)
 {
   // Calculate which file and which timestep within that file
   int file_index = i / timesteps_per_file;
@@ -61,7 +61,7 @@ inline void substream_h5<StoragePolicy>::read(int i, std::shared_ptr<ndarray_gro
 
   auto fid = H5Fopen( this->filenames[file_index].c_str(), H5F_ACC_RDONLY, H5P_DEFAULT );
   if (fid >= 0) {
-    for (const auto &var : variables) {
+    for (const auto &var : this->variables) {
 
       // probe variable name, with support for format strings like "data_t%d"
       hid_t did = H5I_INVALID_HID;
