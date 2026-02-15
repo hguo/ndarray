@@ -4,6 +4,8 @@
 **Last Updated**: 2026-02-14
 **Analysis Scope**: Current state after storage backend implementation
 
+**Library Purpose**: Unified interface for reading time-varying scientific data from multiple formats (NetCDF, HDF5, ADIOS2, VTK, etc.) with YAML-driven stream configuration. Primary focus is **I/O abstraction**, not computation performance.
+
 ---
 
 ## Executive Summary
@@ -55,10 +57,10 @@ ftk::ndarray<float, ftk::eigen_storage> arr_eigen;  // Optimized BLAS
 - Zero migration cost (default = native, 100% backward compatible)
 
 **Benefits**:
-- Users can opt into performance (xtensor/Eigen) when needed
-- Library maintains I/O + YAML stream unique features
+- Users can choose storage backend matching their existing code
+- Library provides unified I/O interface regardless of storage
 - Reduces maintenance burden (leverage mature libraries for compute)
-- Clear value proposition: I/O abstraction + storage flexibility
+- Clear value proposition: I/O abstraction + YAML streams + storage flexibility
 
 **Commits**: b8697c6, dbed487, abd6ca7, 32990b9, 7f945e3, a9c4ee2
 
@@ -122,13 +124,11 @@ ftk::ndarray<float, ftk::eigen_storage> arr_eigen;  // Optimized BLAS
 - Data consistency across backends
 - Requires NDARRAY_HAVE_YAML (graceful skip if unavailable)
 
-**benchmark_storage.cpp** (performance benchmarks):
+**benchmark_storage.cpp** (optional performance benchmarks):
 - Element-wise operations (SAXPY)
-- Complex operations (sqrt, sin, cos)
-- Reduction operations (sum)
 - Memory operations (reshape, copy)
 - 2D array access
-- Speedup measurements vs native storage
+- Note: Performance testing is secondary to I/O reliability
 
 **test_storage_memory.cpp** (memory management):
 - Allocation/deallocation lifecycle
@@ -310,22 +310,22 @@ ftk::ndarray<double, ftk::eigen_storage> double_eigen = float_native;
 
 ### 📋 Missing Tests
 
-**Performance Validation**:
-- ⚠️ Performance benchmarks created but not run yet
-- Need to validate 2-4x speedup claims (xtensor SIMD)
-- Need to validate 5-10x speedup claims (Eigen linear algebra)
-- Should test on representative workloads
+**I/O Testing Priority**:
+- Write-then-read round-trip tests for all formats
+- Cross-backend I/O consistency (write with native, read with Eigen)
+- Large file handling (multi-GB datasets)
+- Error recovery and validation
 
-**Stress Testing**:
+**Reliability Testing**:
 - Memory leak detection (valgrind integration)
-- Thread safety verification (if claiming thread-safe)
-- Large allocation limits (>4GB arrays)
+- Large file handling (>4GB datasets)
 - Out-of-memory handling
+- Format-specific edge cases
 
-**I/O Round-Trip Tests**:
-- Write then read back, verify data integrity
-- Cross-backend round-trips (write with native, read with xtensor)
-- All I/O formats (NetCDF, HDF5, ADIOS2, VTK, etc.)
+**Optional Performance Testing**:
+- Performance benchmarks available but not priority
+- Library is I/O-focused, not computation-focused
+- Computation performance depends on storage backend choice
 
 ---
 
@@ -344,22 +344,22 @@ ftk::ndarray<double, ftk::eigen_storage> double_eigen = float_native;
 
 ### Priority 2: Test Coverage ⚠️ IN PROGRESS
 
-**Status**: ⚠️ **70% COMPLETE**
+**Status**: ⚠️ **75% COMPLETE** (Core I/O functionality tested)
 
 **Completed**:
 - ✅ Basic storage operations (377 lines)
 - ✅ Stream functionality (353 lines)
 - ✅ Memory management tests (created)
-- ✅ Performance benchmarks (created)
+- ✅ Backend conversions verified
 
-**Still needed**:
-- ⚠️ Run performance benchmarks and validate speed claims
-- ⚠️ Enable YAML for stream tests
-- ⚠️ Memory leak detection with valgrind
-- ⚠️ Thread safety tests (if claiming thread-safe)
-- ⚠️ I/O round-trip tests for all formats
+**Still needed** (I/O focus):
+- ⚠️ Enable YAML for stream tests (high priority)
+- ⚠️ I/O round-trip tests for all formats (high priority)
+- ⚠️ Memory leak detection with valgrind (medium priority)
+- ⚠️ Large file handling tests (medium priority)
+- ⚠️ Performance benchmarks (low priority - optional)
 
-**Estimated effort**: 1-2 more days
+**Estimated effort**: 1-2 more days for I/O tests
 
 ### Priority 3: Template Compilation Times
 
@@ -386,30 +386,26 @@ ftk::ndarray<double, ftk::eigen_storage> double_eigen = float_native;
 
 **Estimated effort**: 1 day to measure and analyze
 
-### Priority 4: Performance Benchmarks
+### Priority 4: Performance Benchmarks (Optional)
 
-**Status**: ✅ **CREATED**, ⚠️ **NOT RUN**
+**Status**: ✅ **CREATED**, ⚠️ **NOT RUN** - LOW PRIORITY
 
-**Benchmarks created**:
+**Note**: Library is primarily for **I/O**, not computation. Performance benchmarks are **optional** since:
+- I/O dominates runtime for typical use cases
+- Computation performance comes from chosen storage backend (xtensor/Eigen)
+- Users already know xtensor/Eigen performance characteristics
+
+**Benchmarks available** (if needed):
 - Element-wise operations (SAXPY: y = a*x + y)
-- Complex element-wise (sqrt, sin, cos)
-- Reduction operations (sum)
 - Memory operations (reshape, copy)
 - 2D array access (at(i,j))
 
-**Claims to validate**:
-- xtensor: 2-4x faster on vectorizable operations
-- Eigen: 5-10x faster on matrix operations
-- Memory operations: similar performance across backends
-- I/O overhead: minimal (zero-copy design)
+**Backend selection guidance** (without benchmarks):
+- Native: Use when no compute library available, pure I/O workflow
+- xtensor: Use if already using xtensor in codebase, want expression templates
+- Eigen: Use if already using Eigen in codebase, want linear algebra
 
-**Why important**:
-- Validate marketing claims
-- Guide users on backend selection
-- Identify performance regressions
-- Understand when each backend is appropriate
-
-**Estimated effort**: 1 day to run, analyze, document results
+**Estimated effort**: Optional, 1 day if pursuing
 
 ### Priority 5: API Documentation
 
@@ -561,39 +557,37 @@ Would require:
 
 ## Recommended Next Steps
 
-### Immediate (1 Week)
+### Immediate (1 Week) - I/O Focus
 
-1. **Run performance benchmarks** (Priority 4)
-   - Execute benchmark_storage.cpp
-   - Measure native vs Eigen vs xtensor performance
-   - Document results, validate speed claims
-   - Update STORAGE_BACKENDS.md with measurements
-   - Effort: 1 day
-
-2. **Measure compilation times** (Priority 3)
-   - Baseline vs current template-heavy architecture
-   - Identify if mitigation needed
-   - Document findings
-   - Effort: 1 day
-
-3. **Enable YAML for stream tests** (Priority 2)
+1. **Enable YAML for stream tests** (Priority 2 - HIGH)
    - Install yaml-cpp dependency
    - Run test_storage_streams.cpp
    - Verify all tests pass
    - Effort: 1 day
 
-### Short-term (2-4 Weeks)
+2. **I/O round-trip tests** (Priority 2 - HIGH)
+   - Write-then-read tests for NetCDF, HDF5, ADIOS2, VTK
+   - Cross-backend consistency verification
+   - Large file handling
+   - Effort: 2-3 days
 
-4. **Complete test coverage** (Priority 2)
-   - I/O round-trip tests for all formats
-   - Memory leak detection with valgrind
-   - Thread safety tests (if applicable)
-   - Effort: 3-5 days
+3. **Measure compilation times** (Priority 3 - MEDIUM)
+   - Baseline vs current template-heavy architecture
+   - Identify if mitigation needed
+   - Document findings
+   - Effort: 1 day
+
+### Short-term (2-4 Weeks) - If Time Available
+
+4. **Memory leak detection** (Priority 2 - MEDIUM)
+   - Run tests under valgrind
+   - Verify clean memory management
+   - Effort: 1 day
 
 5. **Documentation refinements** (Priority 5 - optional)
-   - Add benchmark results to STORAGE_BACKENDS.md
-   - Update README with compilation time guidance
-   - Add troubleshooting section
+   - Expand I/O format examples
+   - Update README with troubleshooting
+   - Add more YAML stream examples
    - Effort: 2-3 days
 
 ### Long-term (Not Recommended)
@@ -625,41 +619,45 @@ In approximately 2 weeks of focused work (February 2026), the ndarray library wa
 
 ### What Remains
 
-**High-priority** (should complete):
-- Run performance benchmarks (1 day)
-- Measure compilation times (1 day)
+**High-priority** (I/O reliability):
 - Enable YAML for stream tests (1 day)
+- I/O round-trip tests for all formats (2-3 days)
+- Memory leak detection (1 day)
 
-**Medium-priority** (nice to have):
-- Complete test coverage (3-5 days)
-- Add more documentation (2-3 days)
+**Medium-priority** (infrastructure):
+- Measure compilation times (1 day)
+- Large file handling tests (1-2 days)
+- Add more I/O format examples (2-3 days)
 
-**Low-priority** (maintenance mode):
-- API refactor (not recommended)
-- CI/CD setup (optional)
+**Low-priority** (optional):
+- Performance benchmarks (not critical for I/O library)
+- API refactor (not recommended - maintenance mode)
+- CI/CD setup (nice to have)
 
 ### Value Proposition
 
-**ndarray's unique strengths**:
-- I/O abstraction for time-varying scientific data
-- YAML stream configuration
-- Variable name matching (format-specific: h5_name, nc_name)
-- Backend flexibility (native/xtensor/Eigen)
-- Zero-copy optimization
-- Fortran/C ordering support
+**ndarray's unique strengths** (I/O-focused):
+1. **Unified I/O interface** - Read time-varying scientific data from multiple formats
+2. **YAML stream configuration** - Declarative data pipeline specification
+3. **Variable name matching** - Format-specific names (h5_name, nc_name, etc.)
+4. **Zero-copy optimization** - Direct memory access for all I/O formats
+5. **Fortran/C ordering support** - Flexible memory layout for interoperability
+6. **Backend flexibility** - Choose storage (native/xtensor/Eigen) without changing I/O code
+
+**Core purpose**: Read/write time-varying scientific data with minimal code.
 
 **When to use ndarray**:
-- HPC time-series data processing
-- Multiple I/O format support needed (NetCDF, HDF5, ADIOS2, VTK)
+- Reading multi-format time-series data (NetCDF, HDF5, ADIOS2, VTK, PNetCDF)
+- Need YAML-driven data pipeline configuration
+- Want unified interface across I/O formats
 - Integration with FTK topological analysis
-- Need YAML configuration for data streams
-- Want flexibility to choose compute backend (native/xtensor/Eigen)
+- Already using xtensor/Eigen and want compatible I/O layer
 
 **When to use alternatives**:
-- Pure computation: Use Eigen or xtensor directly
-- Python workflow: Use NumPy/Xarray
-- Modern C++: Use std::mdspan (C++23)
-- Cloud-native: Use Zarr or TileDB
+- Pure computation: Use Eigen or xtensor directly (no I/O abstraction needed)
+- Python workflow: Use NumPy/Xarray (better Python integration)
+- Single I/O format: Use format library directly (e.g., netCDF-cxx4)
+- Cloud-native: Use Zarr or TileDB (object store optimized)
 
 ### Strategic Direction
 
@@ -678,13 +676,15 @@ In approximately 2 weeks of focused work (February 2026), the ndarray library wa
 
 ### Final Verdict
 
-**Grade**: B (Production-Ready with Performance Options)
+**Grade**: B (Production-Ready I/O Library with Storage Flexibility)
 
 **Status**: Suitable for its intended use case (HPC time-series I/O, FTK integration)
 
-**Recommendation**: Complete high-priority items (benchmarks, compilation times, YAML tests) then return to maintenance mode.
+**Core strength**: Unified interface for reading time-varying scientific data from multiple formats
 
-**Time investment**: ~3 days to reach strong B grade, then minimal maintenance.
+**Recommendation**: Complete high-priority I/O tests (YAML, round-trip tests) then return to maintenance mode.
+
+**Time investment**: ~3-4 days to reach strong B grade with comprehensive I/O testing, then minimal maintenance.
 
 ---
 
@@ -706,11 +706,17 @@ In approximately 2 weeks of focused work (February 2026), the ndarray library wa
 - Format-specific tests: HDF5, VTK, PNetCDF, ADIOS2, PNG
 - Exception handling tests: test_exception_handling
 
-### Performance Targets (To Be Validated)
-- xtensor backend: 2-4x speedup on vectorizable operations
-- Eigen backend: 5-10x speedup on matrix operations
-- I/O overhead: Minimal (zero-copy design)
-- Memory usage: Same across all backends (contiguous storage)
+### I/O Capabilities (Core Focus)
+- Formats supported: NetCDF, HDF5, ADIOS2, VTK, PNetCDF, Binary, PNG
+- Zero-copy I/O: Direct read/write to storage backend memory
+- Backend-agnostic: All I/O works with native/xtensor/Eigen storage
+- Memory layout: Contiguous storage, same memory usage across backends
+
+### Computation Performance (Secondary)
+- Native backend: Standard std::vector performance
+- xtensor backend: Expression templates and SIMD (if available)
+- Eigen backend: Optimized linear algebra
+- Note: Performance testing is optional - library is I/O-focused
 
 ### Deprecation Status
 - 57 deprecated functions (kept for backward compatibility)
