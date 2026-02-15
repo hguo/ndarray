@@ -16,8 +16,12 @@ namespace ftk {
  * Generates synthetic test data instead of reading from files.
  * Useful for testing and benchmarking without real data files.
  */
-struct substream_synthetic : public substream {
-  substream_synthetic(stream& s) : substream(s) {}
+template <typename StoragePolicy = native_storage>
+struct substream_synthetic : public substream<StoragePolicy> {
+  using stream_type = stream<StoragePolicy>;
+  using group_type = ndarray_group<StoragePolicy>;
+
+  substream_synthetic(stream_type& s) : substream<StoragePolicy>(s) {}
   bool require_input_files() { return false; }
   bool require_dimensions() { return true; }
   int direction() { return SUBSTREAM_DIR_INPUT;}
@@ -35,11 +39,15 @@ struct substream_synthetic : public substream {
  *
  * Used for testing time-varying data workflows.
  */
-struct substream_synthetic_woven : public substream_synthetic {
-  substream_synthetic_woven(stream& s) : substream_synthetic(s) {}
+template <typename StoragePolicy = native_storage>
+struct substream_synthetic_woven : public substream_synthetic<StoragePolicy> {
+  using stream_type = stream<StoragePolicy>;
+  using group_type = ndarray_group<StoragePolicy>;
+
+  substream_synthetic_woven(stream_type& s) : substream_synthetic<StoragePolicy>(s) {}
 
   void initialize(YAML::Node);
-  void read(int, std::shared_ptr<ndarray_group>);
+  void read(int, std::shared_ptr<group_type>);
 
   double scaling_factor = 15.0;
   double t0 = 1e-4, delta = 0.1;
@@ -49,7 +57,8 @@ struct substream_synthetic_woven : public substream_synthetic {
 // Implementation
 ///////////
 
-inline void substream_synthetic::initialize(YAML::Node y)
+template <typename StoragePolicy>
+inline void substream_synthetic<StoragePolicy>::initialize(YAML::Node y)
 {
   if (auto ytimesteps = y["timesteps"])
     this->total_timesteps = ytimesteps.as<int>();
@@ -57,9 +66,10 @@ inline void substream_synthetic::initialize(YAML::Node y)
     this->total_timesteps = 10;
 }
 
-inline void substream_synthetic_woven::initialize(YAML::Node y)
+template <typename StoragePolicy>
+inline void substream_synthetic_woven<StoragePolicy>::initialize(YAML::Node y)
 {
-  substream_synthetic::initialize(y);
+  substream_synthetic<StoragePolicy>::initialize(y);
 
   if (auto yscaling_factor = y["scaling_factor"])
     this->scaling_factor = yscaling_factor.as<double>();
@@ -70,12 +80,13 @@ inline void substream_synthetic_woven::initialize(YAML::Node y)
   if (auto yt0 = y["t0"])
     this->t0 = yt0.as<double>();
 
-  assert(has_dimensions());
+  assert(this->has_dimensions());
 }
 
-inline void substream_synthetic_woven::read(int i, std::shared_ptr<ndarray_group> g)
+template <typename StoragePolicy>
+inline void substream_synthetic_woven<StoragePolicy>::read(int i, std::shared_ptr<group_type> g)
 {
-  for (const auto &var : variables) { // normally, there should be only one variable
+  for (const auto &var : this->variables) { // normally, there should be only one variable
     const auto arr = synthetic_woven_2D<double>(
         this->dimensions[0],
         this->dimensions[1],

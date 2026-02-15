@@ -20,31 +20,37 @@ namespace ftk {
  *
  * Requires dimensions to be specified in YAML configuration.
  */
-struct substream_binary : public substream {
-  substream_binary(stream& s) : substream(s) {}
+template <typename StoragePolicy = native_storage>
+struct substream_binary : public substream<StoragePolicy> {
+  using stream_type = stream<StoragePolicy>;
+  using group_type = ndarray_group<StoragePolicy>;
+
+  substream_binary(stream_type& s) : substream<StoragePolicy>(s) {}
   bool require_input_files() { return true; }
   bool require_dimensions() { return true; }
   int direction() { return SUBSTREAM_DIR_INPUT;}
 
   void initialize(YAML::Node);
-  void read(int, std::shared_ptr<ndarray_group>);
+  void read(int, std::shared_ptr<group_type>);
 };
 
 ///////////
 // Implementation
 ///////////
 
-inline void substream_binary::initialize(YAML::Node y)
+template <typename StoragePolicy>
+inline void substream_binary<StoragePolicy>::initialize(YAML::Node y)
 {
-  this->total_timesteps = filenames.size();
+  this->total_timesteps = this->filenames.size();
 }
 
-inline void substream_binary::read(int i, std::shared_ptr<ndarray_group> g)
+template <typename StoragePolicy>
+inline void substream_binary<StoragePolicy>::read(int i, std::shared_ptr<group_type> g)
 {
-  const auto f = filenames[i]; // assume each file has only one timestep
+  const auto f = this->filenames[i]; // assume each file has only one timestep
   FILE *fp = fopen(f.c_str(), "rb");
 
-  for (const auto &var : variables) {
+  for (const auto &var : this->variables) {
     auto p = ndarray_base::new_by_dtype( var.dtype );
     p->reshapec( var.dimensions );
 

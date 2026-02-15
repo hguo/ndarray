@@ -62,9 +62,10 @@ namespace ftk {
  * - "vtu_resample" - VTU resampled to regular grid (requires NDARRAY_HAVE_VTK)
  * - "vti_output" - VTI output (requires NDARRAY_HAVE_VTK)
  */
-inline void stream::new_substream_from_yaml(YAML::Node y)
+template <typename StoragePolicy>
+inline void stream<StoragePolicy>::new_substream_from_yaml(YAML::Node y)
 {
-  std::shared_ptr<substream> sub;
+  std::shared_ptr<substream<StoragePolicy>> sub;
 
   std::string name;
   if (auto yname = y["name"])
@@ -74,31 +75,31 @@ inline void stream::new_substream_from_yaml(YAML::Node y)
     std::string format = yformat.as<std::string>();
     if (format == "synthetic") {
       if (name == "woven")
-        sub.reset(new substream_synthetic_woven(*this));
+        sub.reset(new substream_synthetic_woven<StoragePolicy>(*this));
       else
         fatal(nd::ERR_STREAM_FORMAT);
     }
     else if (format == "binary")
-      sub.reset(new substream_binary(*this));
+      sub.reset(new substream_binary<StoragePolicy>(*this));
 #if NDARRAY_HAVE_NETCDF
     else if (format == "netcdf")
-      sub.reset(new substream_netcdf(*this));
+      sub.reset(new substream_netcdf<StoragePolicy>(*this));
 #endif
 #if NDARRAY_HAVE_HDF5
     else if (format == "h5")
-      sub.reset(new substream_h5(*this));
+      sub.reset(new substream_h5<StoragePolicy>(*this));
 #endif
 #if NDARRAY_HAVE_ADIOS2
     else if (format == "adios2")
-      sub.reset(new substream_adios2(*this));
+      sub.reset(new substream_adios2<StoragePolicy>(*this));
 #endif
 #if NDARRAY_HAVE_VTK
     else if (format == "vti")
-      sub.reset(new substream_vti(*this));
+      sub.reset(new substream_vti<StoragePolicy>(*this));
     else if (format == "vtu_resample")
-      sub.reset(new substream_vtu_resample(*this));
+      sub.reset(new substream_vtu_resample<StoragePolicy>(*this));
     else if (format == "vti_output")
-      sub.reset(new substream_vti_o(*this));
+      sub.reset(new substream_vti_o<StoragePolicy>(*this));
 #endif
     else
       nd::fatal(nd::ERR_STREAM_FORMAT);
