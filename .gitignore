@@ -10,3 +10,4 @@ __pycache__
 .vscode
 CRITICAL_ANALYSIS.md
 CRITICAL_ANALYSIS.md
+.ci/
