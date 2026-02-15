@@ -75,7 +75,7 @@ struct variable {
   void parse_yaml(YAML::Node);
 };
 
-struct substream;
+template <typename StoragePolicy> struct substream;
 
 /**
  * @brief Stream for time-varying multi-format scientific data
