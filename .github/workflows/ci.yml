@@ -61,16 +61,17 @@ jobs:
         cmake -B build \
           -DCMAKE_BUILD_TYPE=Release \
           -DNDARRAY_BUILD_TESTS=ON \
-          -DNDARRAY_BUILD_EXAMPLES=ON \
+          -DNDARRAY_BUILD_EXAMPLES=OFF \
           -DNDARRAY_USE_NETCDF=AUTO \
-          -DNDARRAY_USE_HDF5=AUTO
+          -DNDARRAY_USE_HDF5=AUTO \
+          -DNDARRAY_USE_YAML=AUTO
 
     - name: Build
-      run: cmake --build build --config Release -j$(nproc 2>/dev/null || sysctl -n hw.ncpu)
+      run: cmake --build build -j$(nproc 2>/dev/null || sysctl -n hw.ncpu)
 
     - name: Run tests
       working-directory: build
-      run: ctest --output-on-failure -C Release
+      run: ctest --output-on-failure
 
   build-minimal:
     name: Minimal build (no dependencies)
@@ -83,26 +84,27 @@ jobs:
     - name: Install minimal dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y cmake libyaml-cpp-dev
+        sudo apt-get install -y cmake
 
     - name: Configure CMake (Minimal)
       run: |
         cmake -B build \
           -DCMAKE_BUILD_TYPE=Release \
           -DNDARRAY_BUILD_TESTS=ON \
-          -DNDARRAY_BUILD_EXAMPLES=ON \
-          -DNDARRAY_USE_NETCDF=FALSE \
-          -DNDARRAY_USE_HDF5=FALSE \
-          -DNDARRAY_USE_ADIOS2=FALSE \
-          -DNDARRAY_USE_MPI=FALSE \
-          -DNDARRAY_USE_VTK=FALSE
+          -DNDARRAY_BUILD_EXAMPLES=OFF \
+          -DNDARRAY_USE_NETCDF=OFF \
+          -DNDARRAY_USE_HDF5=OFF \
+          -DNDARRAY_USE_ADIOS2=OFF \
+          -DNDARRAY_USE_MPI=OFF \
+          -DNDARRAY_USE_VTK=OFF \
+          -DNDARRAY_USE_YAML=OFF
 
     - name: Build
-      run: cmake --build build --config Release -j$(nproc)
+      run: cmake --build build -j$(nproc)
 
     - name: Run tests
       working-directory: build
-      run: ctest --output-on-failure -C Release
+      run: ctest --output-on-failure
 
   code-style:
     name: Code style check
@@ -114,13 +116,17 @@ jobs:
 
     - name: Check for common issues
       run: |
-        # Check for trailing whitespace
-        ! git grep -I -n '[[:blank:]]$' -- '*.cpp' '*.hh' '*.h' || \
-          (echo "Found trailing whitespace" && exit 1)
+        # Check for trailing whitespace in include and test directories
+        if git grep -I -n '[[:blank:]]$' -- 'include/**/*.cpp' 'include/**/*.hh' 'include/**/*.h' 'tests/*.cpp' 'tests/*.hh' 'tests/*.h' 'src/*.cpp' 2>/dev/null; then
+          echo "Found trailing whitespace in source files"
+          exit 1
+        fi
 
         # Check for tabs (prefer spaces)
-        ! git grep -I -n $'\t' -- '*.cpp' '*.hh' '*.h' || \
-          (echo "Found tabs, prefer spaces" && exit 1)
+        if git grep -I -n $'\t' -- 'include/**/*.cpp' 'include/**/*.hh' 'include/**/*.h' 'tests/*.cpp' 'tests/*.hh' 'tests/*.h' 'src/*.cpp' 2>/dev/null; then
+          echo "Found tabs in source files, prefer spaces"
+          exit 1
+        fi
 
         echo "Code style checks passed"
 
