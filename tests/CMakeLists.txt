@@ -214,4 +214,46 @@ if (NDARRAY_HAVE_NETCDF OR NDARRAY_HAVE_PNETCDF)
   message("  - test_exception_handling: Verify exceptions instead of exit()")
 endif()
 
+# Storage backend tests
+add_executable(test_storage_backends test_storage_backends.cpp)
+target_link_libraries(test_storage_backends ${CMAKE_THREAD_LIBS_INIT})
+add_vtk_if_enabled(test_storage_backends)
+
+if (NDARRAY_HAVE_NETCDF)
+  target_link_libraries(test_storage_backends netCDF::netcdf)
+endif()
+
+if (NDARRAY_HAVE_HDF5)
+  target_link_libraries(test_storage_backends ${HDF5_LIBRARIES})
+endif()
+
+add_test(NAME storage_backends COMMAND test_storage_backends)
+message("  - test_storage_backends: Storage backend functionality")
+
+# Storage backend stream tests (requires YAML)
+add_executable(test_storage_streams test_storage_streams.cpp)
+target_link_libraries(test_storage_streams ${CMAKE_THREAD_LIBS_INIT})
+add_vtk_if_enabled(test_storage_streams)
+
+if (NDARRAY_HAVE_YAML)
+  target_link_libraries(test_storage_streams yaml-cpp::yaml-cpp)
+endif()
+
+add_test(NAME storage_streams COMMAND test_storage_streams)
+message("  - test_storage_streams: Storage backend stream functionality")
+
+# Storage backend memory management tests
+add_executable(test_storage_memory test_storage_memory.cpp)
+target_link_libraries(test_storage_memory ${CMAKE_THREAD_LIBS_INIT})
+add_vtk_if_enabled(test_storage_memory)
+add_test(NAME storage_memory COMMAND test_storage_memory)
+message("  - test_storage_memory: Storage backend memory management")
+
+# Storage backend performance benchmarks
+add_executable(benchmark_storage benchmark_storage.cpp)
+target_link_libraries(benchmark_storage ${CMAKE_THREAD_LIBS_INIT})
+add_vtk_if_enabled(benchmark_storage)
+# Note: benchmarks are not added as tests, they are run manually
+message("  - benchmark_storage: Storage backend performance (run manually)")
+
 message("")
