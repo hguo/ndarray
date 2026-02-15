@@ -2085,6 +2085,10 @@ inline void ndarray<T, StoragePolicy>::read_pnetcdf_all(int ncid, int varid, con
   } else {
     nd::fatal("Unsupported type for read_pnetcdf_all");
   }
+}
+
+#endif // NDARRAY_HAVE_PNETCDF
+
 // Type aliases for convenience
 template <typename T>
 using ndarray_native = ndarray<T, native_storage>;
@@ -2099,10 +2103,6 @@ template <typename T>
 using ndarray_eigen = ndarray<T, eigen_storage>;
 #endif
 
-}
+} // namespace ftk
 
-#endif // NDARRAY_HAVE_PNETCDF
-
-} // namespace ndarray
-
-#endif
+#endif // _NDARRAY_HH
