@@ -244,7 +244,7 @@ public: // legacy f-style access
 
   
 public:
-  friend std::ostream& operator<<(std::ostream& os, const ndarray<T>& arr) {arr.print(os); return os;}
+  friend std::ostream& operator<<(std::ostream& os, const ndarray<T, StoragePolicy>& arr) {arr.print(os); return os;}
   friend bool operator==(const ndarray<T, StoragePolicy>& lhs, const ndarray<T, StoragePolicy>& rhs) {
     if (lhs.dims != rhs.dims) return false;
     if (lhs.size() != rhs.size()) return false;
@@ -260,12 +260,12 @@ public:
   template <typename T1> ndarray<T, StoragePolicy>& operator*=(const T1& x);
   template <typename T1> ndarray<T, StoragePolicy>& operator/=(const T1& x);
 
-  template <typename T1> friend ndarray<T1> operator+(const ndarray<T1>& lhs, const ndarray<T1>& rhs);
-  template <typename T1> friend ndarray<T1> operator-(const ndarray<T1>& lhs, const ndarray<T1>& rhs);
+  template <typename T1, typename SP1> friend ndarray<T1, SP1> operator+(const ndarray<T1, SP1>& lhs, const ndarray<T1, SP1>& rhs);
+  template <typename T1, typename SP1> friend ndarray<T1, SP1> operator-(const ndarray<T1, SP1>& lhs, const ndarray<T1, SP1>& rhs);
 
   // template <typename T1> friend ndarray<T> operator*(const ndarray<T>& lhs, const T1& rhs);
-  template <typename T1> friend ndarray<T> operator*(const T1& lhs, const ndarray<T>& rhs) {return rhs * lhs;}
-  template <typename T1> friend ndarray<T> operator/(const ndarray<T>& lhs, const T1& rhs);
+  template <typename T1> friend ndarray<T, StoragePolicy> operator*(const T1& lhs, const ndarray<T, StoragePolicy>& rhs) {return rhs * lhs;}
+  template <typename T1> friend ndarray<T, StoragePolicy> operator/(const ndarray<T, StoragePolicy>& lhs, const T1& rhs);
 
   // element access
   T& operator[](size_t i) {return storage_[i];}
@@ -438,8 +438,8 @@ public: // statistics & misc
   
   ndarray<uint64_t> quantize() const; // quantization based on resolution
 
-  ndarray<T> &perturb(T sigma); // add gaussian noise to the array
-  ndarray<T> &clamp(T min, T max); // clamp data with min and max
+  ndarray<T, StoragePolicy> &perturb(T sigma); // add gaussian noise to the array
+  ndarray<T, StoragePolicy> &clamp(T min, T max); // clamp data with min and max
 
 private:
   storage_type storage_;  // Replaces: std::vector<T> p
@@ -475,8 +475,8 @@ int ndarray<T, StoragePolicy>::type() const {
 }
 
 #if 0
-template <typename T>
-unsigned int ndarray<T>::hash() const
+template <typename T, typename StoragePolicy>
+unsigned int ndarray<T, StoragePolicy>::hash() const
 {
   unsigned int h0 = murmurhash2(storage_.data(), sizeof(T)*storage_.size(), 0);
   unsigned int h1 = murmurhash2(dims.data(), sizeof(size_t)*dims.size(), h0);
@@ -514,10 +514,10 @@ ndarray<T, StoragePolicy>& ndarray<T, StoragePolicy>::operator+=(const ndarray<T
   return *this;
 }
 
-template <typename T>
-ndarray<T> operator+(const ndarray<T>& lhs, const ndarray<T>& rhs)
+template <typename T, typename StoragePolicy>
+ndarray<T, StoragePolicy> operator+(const ndarray<T, StoragePolicy>& lhs, const ndarray<T, StoragePolicy>& rhs)
 {
-  ndarray<T> array;
+  ndarray<T, StoragePolicy> array;
   array.reshape(lhs);
 
   for (auto i = 0; i < array.nelem(); i ++)
@@ -525,20 +525,20 @@ ndarray<T> operator+(const ndarray<T>& lhs, const ndarray<T>& rhs)
   return array;
 }
 
-template <typename T, typename T1>
-ndarray<T> operator*(const ndarray<T>& lhs, const T1& rhs) 
+template <typename T, typename StoragePolicy, typename T1>
+ndarray<T, StoragePolicy> operator*(const ndarray<T, StoragePolicy>& lhs, const T1& rhs)
 {
-  ndarray<T> array;
+  ndarray<T, StoragePolicy> array;
   array.reshape(lhs);
   for (auto i = 0; i < array.nelem(); i ++)
     array[i] = lhs[i] * rhs;
   return array;
 }
 
-template <typename T, typename T1>
-ndarray<T> operator/(const ndarray<T>& lhs, const T1& rhs) 
+template <typename T, typename StoragePolicy, typename T1>
+ndarray<T, StoragePolicy> operator/(const ndarray<T, StoragePolicy>& lhs, const T1& rhs)
 {
-  ndarray<T> array;
+  ndarray<T, StoragePolicy> array;
   array.reshapef(lhs);
   for (auto i = 0; i < array.nelem(); i ++)
     array[i] = lhs[i] / rhs;
@@ -654,12 +654,12 @@ ndarray<T, StoragePolicy> ndarray<T, StoragePolicy>::subarray(const lattice& l0)
     }
   }
 
-  ndarray<T> arr(l.sizes());
+  ndarray<T, StoragePolicy> arr(l.sizes());
   for (auto i = 0; i < arr.nelem(); i ++) {
     auto idx = l.from_integer(i);
     arr[i] = f(idx);
   }
-  
+
   arr.ncd = ncd;
   return arr;
 }
@@ -776,11 +776,11 @@ inline void ndarray<T, StoragePolicy>::from_vtk_array(vtkSmartPointer<vtkAbstrac
   from_vtk_data_array(da);
 }
 
-template<typename T>
-inline void ndarray<T>::from_vtk_data_array(
+template<typename T, typename StoragePolicy>
+inline void ndarray<T, StoragePolicy>::from_vtk_data_array(
     vtkSmartPointer<vtkDataArray> da)
 {
-  const int nc = da->GetNumberOfComponents(), 
+  const int nc = da->GetNumberOfComponents(),
             ne = da->GetNumberOfTuples();
   if (nc > 1) {
     reshapef(nc, ne);
@@ -807,10 +807,10 @@ inline void ndarray<T, StoragePolicy>::from_vtu(
   from_vtk_data_array(da);
 }
 
-template <typename T>
+template <typename T, typename StoragePolicy>
 template <typename VTK_REGULAR_DATA>
-inline void ndarray<T>::from_vtk_regular_data(
-    vtkSmartPointer<VTK_REGULAR_DATA> d, 
+inline void ndarray<T, StoragePolicy>::from_vtk_regular_data(
+    vtkSmartPointer<VTK_REGULAR_DATA> d,
     const std::string array_name)
 {
   vtkSmartPointer<vtkDataArray> da = d->GetPointData()->GetArray(array_name.c_str());
@@ -847,8 +847,8 @@ inline void ndarray<T>::from_vtk_regular_data(
 }
 
 
-template<typename T>
-inline void ndarray<T>::to_vtk_image_data_file(const std::string& filename, const std::string varname) const
+template<typename T, typename StoragePolicy>
+inline void ndarray<T, StoragePolicy>::to_vtk_image_data_file(const std::string& filename, const std::string varname) const
 {
   // fprintf(stderr, "to_vtk_image_data_file, ncd=%zu\n", ncd);
   vtkSmartPointer<vtkXMLImageDataWriter> writer = vtkXMLImageDataWriter::New();
@@ -857,8 +857,8 @@ inline void ndarray<T>::to_vtk_image_data_file(const std::string& filename, cons
   writer->Write();
 }
 
-template<typename T>
-inline vtkSmartPointer<vtkImageData> ndarray<T>::to_vtk_image_data(std::string varname) const
+template<typename T, typename StoragePolicy>
+inline vtkSmartPointer<vtkImageData> ndarray<T, StoragePolicy>::to_vtk_image_data(std::string varname) const
 {
   vtkSmartPointer<vtkImageData> d = vtkImageData::New();
   // fprintf(stderr, "to_vtk_image_data, ncd=%zu\n", ncd);
@@ -1154,7 +1154,7 @@ bool ndarray<T, StoragePolicy>::read_bp_legacy(ADIOS_FILE *fp, const std::string
 template <typename T, typename StoragePolicy>
 ndarray<T, StoragePolicy> ndarray<T, StoragePolicy>::from_bp_legacy(const std::string& filename, const std::string& varname, MPI_Comm comm)
 {
-  ndarray<T> arr;
+  ndarray<T, StoragePolicy> arr;
   arr.read_bp_legacy(filename, varname, comm);
   return arr;
 }
@@ -1394,7 +1394,7 @@ inline void ndarray<T, StoragePolicy>::copy_from_device()
 template <typename T, typename StoragePolicy>
 ndarray<T, StoragePolicy> ndarray<T, StoragePolicy>::from_file(const std::string& filename, const std::string varname, MPI_Comm comm)
 {
-  ndarray<T> array;
+  ndarray<T, StoragePolicy> array;
   array.read_file(filename, varname, comm);
   return array;
 }
@@ -1420,16 +1420,16 @@ bool ndarray<T, StoragePolicy>::read_file(const std::string& filename, const std
 template <typename T, typename StoragePolicy>
 ndarray<T, StoragePolicy> ndarray<T, StoragePolicy>::from_bp(const std::string& filename, const std::string& name, int step, MPI_Comm comm)
 {
-  ndarray<T> array;
+  ndarray<T, StoragePolicy> array;
   array.read_bp(filename, name, step, comm);
-    
+
   return array;
 }
 
 template <typename T, typename StoragePolicy>
 ndarray<T, StoragePolicy> ndarray<T, StoragePolicy>::from_h5(const std::string& filename, const std::string& name)
 {
-  ndarray<T> array;
+  ndarray<T, StoragePolicy> array;
   array.read_h5(filename, name);
   return array;
 }
@@ -1591,9 +1591,9 @@ ndarray<T, StoragePolicy> ndarray<T, StoragePolicy>::get_transpose() const
 }
 
 template <typename T, typename StoragePolicy>
-ndarray<T, StoragePolicy> ndarray<T, StoragePolicy>::concat(const std::vector<ndarray<T>>& arrays)
+ndarray<T, StoragePolicy> ndarray<T, StoragePolicy>::concat(const std::vector<ndarray<T, StoragePolicy>>& arrays)
 {
-  ndarray<T> result;
+  ndarray<T, StoragePolicy> result;
   std::vector<size_t> result_shape = arrays[0].shapef();
   result_shape.insert(result_shape.begin(), arrays.size());
   result.reshapef(result_shape);
@@ -1609,9 +1609,9 @@ ndarray<T, StoragePolicy> ndarray<T, StoragePolicy>::concat(const std::vector<nd
 }
 
 template <typename T, typename StoragePolicy>
-ndarray<T, StoragePolicy> ndarray<T, StoragePolicy>::stack(const std::vector<ndarray<T>>& arrays)
+ndarray<T, StoragePolicy> ndarray<T, StoragePolicy>::stack(const std::vector<ndarray<T, StoragePolicy>>& arrays)
 {
-  ndarray<T> result;
+  ndarray<T, StoragePolicy> result;
   std::vector<size_t> result_shape = arrays[0].shapef();
   result_shape.push_back(arrays.size());
   result.reshapef(result_shape);
@@ -1627,12 +1627,12 @@ ndarray<T, StoragePolicy> ndarray<T, StoragePolicy>::stack(const std::vector<nda
 }
 
 #if NDARRAY_HAVE_PYBIND11
-template <typename T>
-ndarray<T>::ndarray(const pybind11::array_t<T, pybind11::array::c_style | pybind11::array::forcecast> &numpy_array)
+template <typename T, typename StoragePolicy>
+ndarray<T, StoragePolicy>::ndarray(const pybind11::array_t<T, pybind11::array::c_style | pybind11::array::forcecast> &numpy_array)
 {
   from_numpy(numpy_array);
 }
- 
+
 template <typename T, typename StoragePolicy>
 void ndarray<T, StoragePolicy>::from_numpy(const pybind11::array_t<T, pybind11::array::c_style | pybind11::array::forcecast> &array)
 {
@@ -1645,8 +1645,8 @@ void ndarray<T, StoragePolicy>::from_numpy(const pybind11::array_t<T, pybind11::
   from_array((T*)buf.ptr, shape);
 }
 
-template <typename T>
-pybind11::array_t<T, pybind11::array::c_style> ndarray<T>::to_numpy() const
+template <typename T, typename StoragePolicy>
+pybind11::array_t<T, pybind11::array::c_style> ndarray<T, StoragePolicy>::to_numpy() const
 {
   auto result = pybind11::array_t<T>(nelem());
   result.resize(shapef());
@@ -1811,8 +1811,8 @@ inline bool ndarray<float>::read_amira(const std::string& filename)
   return 0;
 }
 
-template <typename T>
-ndarray<T>& ndarray<T>::perturb(T sigma)
+template <typename T, typename StoragePolicy>
+ndarray<T, StoragePolicy>& ndarray<T, StoragePolicy>::perturb(T sigma)
 {
   std::random_device rd{};
   std::mt19937 gen{rd()};
@@ -1824,9 +1824,9 @@ ndarray<T>& ndarray<T>::perturb(T sigma)
   return *this;
 }
 
-template <typename T>
+template <typename T, typename StoragePolicy>
 template <typename F>
-bool ndarray<T>::mlerp(const F x[], T v[]) const 
+bool ndarray<T, StoragePolicy>::mlerp(const F x[], T v[]) const 
 {
   static const size_t maxn = 12; // some arbitrary large number for nd
   const size_t n = nd() - multicomponents(),
@@ -2050,8 +2050,8 @@ inline std::shared_ptr<ndarray_base> ndarray_base::new_by_h5_dtype(hid_t type)
 
 #if NDARRAY_HAVE_PNETCDF
 
-template <typename T>
-inline void ndarray<T>::read_pnetcdf_all(int ncid, int varid, const MPI_Offset *st, const MPI_Offset *sz)
+template <typename T, typename StoragePolicy>
+inline void ndarray<T, StoragePolicy>::read_pnetcdf_all(int ncid, int varid, const MPI_Offset *st, const MPI_Offset *sz)
 {
   // Get variable dimensionality
   int ndims;
@@ -2072,17 +2072,17 @@ inline void ndarray<T>::read_pnetcdf_all(int ncid, int varid, const MPI_Offset *
 
   // Collective read based on type
   if (std::is_same<T, float>::value) {
-    PNC_SAFE_CALL(ncmpi_get_vara_float_all(ncid, varid, st, sz, reinterpret_cast<float*>(p.data())));
+    PNC_SAFE_CALL(ncmpi_get_vara_float_all(ncid, varid, st, sz, reinterpret_cast<float*>(storage_.data())));
   } else if (std::is_same<T, double>::value) {
-    PNC_SAFE_CALL(ncmpi_get_vara_double_all(ncid, varid, st, sz, reinterpret_cast<double*>(p.data())));
+    PNC_SAFE_CALL(ncmpi_get_vara_double_all(ncid, varid, st, sz, reinterpret_cast<double*>(storage_.data())));
   } else if (std::is_same<T, int>::value) {
-    PNC_SAFE_CALL(ncmpi_get_vara_int_all(ncid, varid, st, sz, reinterpret_cast<int*>(p.data())));
+    PNC_SAFE_CALL(ncmpi_get_vara_int_all(ncid, varid, st, sz, reinterpret_cast<int*>(storage_.data())));
   } else if (std::is_same<T, unsigned int>::value) {
-    PNC_SAFE_CALL(ncmpi_get_vara_uint_all(ncid, varid, st, sz, reinterpret_cast<unsigned int*>(p.data())));
+    PNC_SAFE_CALL(ncmpi_get_vara_uint_all(ncid, varid, st, sz, reinterpret_cast<unsigned int*>(storage_.data())));
   } else if (std::is_same<T, short>::value) {
-    PNC_SAFE_CALL(ncmpi_get_vara_short_all(ncid, varid, st, sz, reinterpret_cast<short*>(p.data())));
+    PNC_SAFE_CALL(ncmpi_get_vara_short_all(ncid, varid, st, sz, reinterpret_cast<short*>(storage_.data())));
   } else if (std::is_same<T, long long>::value) {
-    PNC_SAFE_CALL(ncmpi_get_vara_longlong_all(ncid, varid, st, sz, reinterpret_cast<long long*>(p.data())));
+    PNC_SAFE_CALL(ncmpi_get_vara_longlong_all(ncid, varid, st, sz, reinterpret_cast<long long*>(storage_.data())));
   } else {
     nd::fatal("Unsupported type for read_pnetcdf_all");
   }
