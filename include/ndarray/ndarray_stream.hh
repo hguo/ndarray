@@ -84,7 +84,7 @@ struct substream;
  * formats (NetCDF, HDF5, ADIOS2, VTK, binary, synthetic).
  *
  * @code
- * ftk::stream s;
+ * ftk::stream<> s;
  * s.set_input_source_netcdf_file("data.nc");
  * for (int t = 0; t < s.n_timesteps(); t++) {
  *   auto g = s.read(t);
@@ -92,7 +92,10 @@ struct substream;
  * }
  * @endcode
  */
+template <typename StoragePolicy = native_storage>
 struct stream {
+  using group_type = ndarray_group<StoragePolicy>;
+
   stream(MPI_Comm comm = MPI_COMM_WORLD);
   ~stream() {};
 
@@ -101,13 +104,13 @@ struct stream {
    * @param i Timestep index
    * @return ndarray_group containing all variables for this timestep
    */
-  std::shared_ptr<ndarray_group> read(int i);
+  std::shared_ptr<group_type> read(int i);
 
   /**
    * @brief Read static (time-independent) data
    * @return ndarray_group containing static variables
    */
-  std::shared_ptr<ndarray_group> read_static();
+  std::shared_ptr<group_type> read_static();
 
   /**
    * @brief Parse YAML configuration file
@@ -140,7 +143,7 @@ struct stream {
   bool has_dimensions() const { return !dimensions.empty(); }
 
 public:
-  std::vector<std::shared_ptr<substream>> substreams;
+  std::vector<std::shared_ptr<substream<StoragePolicy>>> substreams;
   bool has_adios2_substream = false;
 
   std::string path_prefix;
@@ -162,8 +165,12 @@ public:
  * A substream handles I/O for a specific file format within a stream.
  * Subclasses implement format-specific read operations.
  */
+template <typename StoragePolicy = native_storage>
 struct substream {
-  substream(stream& s) : stream_(s) {}
+  using group_type = ndarray_group<StoragePolicy>;
+  using stream_type = stream<StoragePolicy>;
+
+  substream(stream_type& s) : stream_(s) {}
   virtual ~substream() {}
 
   /**
@@ -184,7 +191,7 @@ struct substream {
    * @param i Timestep index
    * @param g Output ndarray_group
    */
-  virtual void read(int i, std::shared_ptr<ndarray_group> g) = 0;
+  virtual void read(int i, std::shared_ptr<group_type> g) = 0;
 
   /**
    * @brief Get stream direction (input or output)
@@ -229,7 +236,7 @@ struct substream {
   std::vector<int> dimensions;
 
   // reference to the parent stream
-  stream &stream_;
+  stream_type &stream_;
 
   // variables
   std::vector<variable> variables;
@@ -242,7 +249,8 @@ struct substream {
 // Implementation
 ///////////
 
-inline stream::stream(MPI_Comm comm_) :
+template <typename StoragePolicy>
+inline stream<StoragePolicy>::stream(MPI_Comm comm_) :
 #if NDARRAY_HAVE_ADIOS2
   adios(comm_),
 #endif
@@ -250,7 +258,8 @@ inline stream::stream(MPI_Comm comm_) :
 {
 }
 
-inline void stream::parse_yaml(const std::string filename)
+template <typename StoragePolicy>
+inline void stream<StoragePolicy>::parse_yaml(const std::string filename)
 {
   YAML::Node yaml = YAML::LoadFile(filename);
   auto yroot = yaml["stream"];
@@ -286,9 +295,10 @@ inline void stream::parse_yaml(const std::string filename)
   }
 }
 
-inline std::shared_ptr<ndarray_group> stream::read_static()
+template <typename StoragePolicy>
+inline std::shared_ptr<typename stream<StoragePolicy>::group_type> stream<StoragePolicy>::read_static()
 {
-  std::shared_ptr<ndarray_group> g(new ndarray_group);
+  std::shared_ptr<group_type> g(new group_type);
 
   for (auto sub : this->substreams)
     if (sub->is_enabled && sub->is_static) {
@@ -298,7 +308,8 @@ inline std::shared_ptr<ndarray_group> stream::read_static()
   return g;
 }
 
-inline int stream::total_timesteps() const
+template <typename StoragePolicy>
+inline int stream<StoragePolicy>::total_timesteps() const
 {
   for (auto sub : this->substreams)
     if (!sub->is_static)
@@ -307,9 +318,10 @@ inline int stream::total_timesteps() const
   return 0;
 }
 
-inline std::shared_ptr<ndarray_group> stream::read(int i)
+template <typename StoragePolicy>
+inline std::shared_ptr<typename stream<StoragePolicy>::group_type> stream<StoragePolicy>::read(int i)
 {
-  std::shared_ptr<ndarray_group> g(new ndarray_group);
+  std::shared_ptr<group_type> g(new group_type);
 
   for (auto &sub : this->substreams)
     if (sub->is_enabled && !sub->is_static)
@@ -389,7 +401,8 @@ inline void variable::parse_yaml(YAML::Node y)
   }
 }
 
-inline int substream::locate_timestep_file_index(int i)
+template <typename StoragePolicy>
+inline int substream<StoragePolicy>::locate_timestep_file_index(int i)
 {
   int fi = current_file_index;
   int ft = first_timestep_per_file[fi],
@@ -411,6 +424,20 @@ inline int substream::locate_timestep_file_index(int i)
 
   return -1; // not found
 }
+
+// Type aliases for convenience
+using stream_native = stream<native_storage>;
+using substream_native = substream<native_storage>;
+
+#if NDARRAY_HAVE_XTENSOR
+using stream_xtensor = stream<xtensor_storage>;
+using substream_xtensor = substream<xtensor_storage>;
+#endif
+
+#if NDARRAY_HAVE_EIGEN
+using stream_eigen = stream<eigen_storage>;
+using substream_eigen = substream<eigen_storage>;
+#endif
 
 } // namespace ftk
 

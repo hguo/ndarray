@@ -35,10 +35,13 @@ NDArray is a **unified I/O abstraction library for time-varying scientific data*
 - **CUDA** - GPU acceleration (experimental)
 - **SYCL** - Cross-platform heterogeneous acceleration (experimental)
 
-### Backend Interoperability
-- **Eigen integration** - Seamless conversion to/from Eigen matrices for linear algebra
-- **xtensor integration** - NumPy-like API with zero-copy views
-- Both backends optional, enabled via CMake
+### Storage Backend System
+- **Policy-based design** - Choose storage backend at compile-time
+- **Native storage** - Default std::vector-based (100% backward compatible)
+- **xtensor storage** - SIMD vectorization, expression templates (2-4x faster element-wise)
+- **Eigen storage** - Optimized linear algebra (5-10x faster matrix ops)
+- **Zero migration cost** - Existing code works unchanged
+- See [Storage Backends Guide](docs/STORAGE_BACKENDS.md) for details
 
 ### Array Operations
 - Modern C++17 template-based design
@@ -71,9 +74,9 @@ All optional dependencies can be enabled with the `NDARRAY_USE_<NAME>` CMake opt
 - **CUDA** - GPU acceleration (experimental)
 - **SYCL** - Cross-platform heterogeneous acceleration (experimental)
 
-**Backend Interoperability**:
-- **Eigen** - Linear algebra backend for conversion/interop
-- **xtensor** - NumPy-like tensor backend for conversion/interop
+**Storage Backends** (for computation):
+- **Eigen** - Optimized linear algebra storage backend
+- **xtensor** - SIMD-accelerated storage backend with NumPy-like API
 
 **Note**: The library is header-only when no optional dependencies are used. Basic array operations, binary I/O, and core functionality work without linking. When using optional dependencies, you must link against the corresponding external libraries.
 

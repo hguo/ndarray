@@ -255,17 +255,36 @@ elseif (NDARRAY_USE_XTENSOR)
 endif ()
 if (xtensor_FOUND)
   set (NDARRAY_HAVE_XTENSOR TRUE)
-  # xtensor provides xtensor::xtensor target
+  message(STATUS "xtensor found - enabling xtensor storage backend")
 endif ()
 
 
 ###
 
-set (NDARRAY_INCLUDE_DIR 
+set (NDARRAY_INCLUDE_DIR
   ${CMAKE_CURRENT_SOURCE_DIR}/include
   ${CMAKE_CURRENT_BINARY_DIR}/include
 )
+
 include_directories (${NDARRAY_INCLUDE_DIR})
+
+# Add xtensor include directories after basic includes
+if (NDARRAY_HAVE_XTENSOR)
+  if (TARGET xtensor)
+    get_target_property(XTENSOR_INCLUDE_DIRS xtensor INTERFACE_INCLUDE_DIRECTORIES)
+    if (XTENSOR_INCLUDE_DIRS)
+      include_directories (${XTENSOR_INCLUDE_DIRS})
+      message(STATUS "Added xtensor include dirs: ${XTENSOR_INCLUDE_DIRS}")
+    endif ()
+  endif ()
+  if (TARGET xtl)
+    get_target_property(XTL_INCLUDE_DIRS xtl INTERFACE_INCLUDE_DIRECTORIES)
+    if (XTL_INCLUDE_DIRS)
+      include_directories (${XTL_INCLUDE_DIRS})
+      message(STATUS "Added xtl include dirs: ${XTL_INCLUDE_DIRS}")
+    endif ()
+  endif ()
+endif ()
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/include/ndarray/config.hh.in
   ${CMAKE_CURRENT_BINARY_DIR}/include/ndarray/config.hh)
