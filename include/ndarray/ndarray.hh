@@ -1444,18 +1444,18 @@ inline bool ndarray<T, StoragePolicy>::read_h5_did(hid_t did)
     const int h5ndims = H5Sget_simple_extent_ndims(sid);
     hsize_t h5dims[h5ndims];
     H5Sget_simple_extent_dims(sid, h5dims, NULL);
-    
+
     std::vector<size_t> dims(h5ndims);
     for (auto i = 0; i < h5ndims; i ++)
       dims[i] = h5dims[i];
     std::reverse(dims.begin(), dims.end()); // we use a different dimension ordering than hdf5..
     reshapef(dims);
-    
-    H5Dread(did, h5_mem_type_id(), H5S_ALL, H5S_ALL, H5P_DEFAULT, p.data());
+
+    H5Dread(did, h5_mem_type_id(), H5S_ALL, H5S_ALL, H5P_DEFAULT, storage_.data());
   } else if (type == H5S_SCALAR) {
     reshapef(1);
-    H5Dread(did, h5_mem_type_id(), H5S_ALL, H5S_ALL, H5P_DEFAULT, p.data());
-  } else 
+    H5Dread(did, h5_mem_type_id(), H5S_ALL, H5S_ALL, H5P_DEFAULT, storage_.data());
+  } else
     nd::fatal("unsupported h5 extent type");
 
   return true;
