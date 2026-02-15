@@ -256,4 +256,18 @@ add_vtk_if_enabled(benchmark_storage)
 # Note: benchmarks are not added as tests, they are run manually
 message("  - benchmark_storage: Storage backend performance (run manually)")
 
+# Distributed ndarray tests (require MPI)
+if (NDARRAY_HAVE_MPI)
+  add_executable(test_distributed_ndarray test_distributed_ndarray.cpp)
+  target_link_libraries(test_distributed_ndarray ${CMAKE_THREAD_LIBS_INIT})
+  target_link_libraries(test_distributed_ndarray MPI::MPI_CXX)
+  add_vtk_if_enabled(test_distributed_ndarray)
+
+  # Note: Distributed tests should be run with mpirun
+  # add_test(NAME distributed_ndarray COMMAND mpirun -np 4 test_distributed_ndarray)
+  # Note: MPI tests require mpirun which may not be available in all test environments
+  # Users should run manually: mpirun -np 4 ./bin/test_distributed_ndarray
+  message("  - test_distributed_ndarray: Distributed memory decomposition (run with: mpirun -np 4 ./bin/test_distributed_ndarray)")
+endif()
+
 message("")
