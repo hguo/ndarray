@@ -19,14 +19,17 @@ namespace ftk {
  *
  * Reads variables from VTI files.
  */
-struct substream_vti : public substream {
-  substream_vti(stream& s) : substream(s) {}
+template <typename StoragePolicy = native_storage>
+struct substream_vti : public substream<StoragePolicy> {
+  using stream_type = stream<StoragePolicy>;
+  using group_type = ndarray_group<StoragePolicy>;
+  substream_vti(stream_type& s) : substream<StoragePolicy>(s) {}
   bool require_input_files() { return true; }
   bool require_dimensions() { return false; }
   int direction() { return SUBSTREAM_DIR_INPUT;}
 
   void initialize(YAML::Node);
-  void read(int, std::shared_ptr<ndarray_group>);
+  void read(int, std::shared_ptr<group_type>);
 };
 
 /**
@@ -34,14 +37,17 @@ struct substream_vti : public substream {
  *
  * Writes variables to VTI files.
  */
-struct substream_vti_o : public substream {
-  substream_vti_o(stream& s) : substream(s) {}
+template <typename StoragePolicy = native_storage>
+struct substream_vti_o : public substream<StoragePolicy> {
+  using stream_type = stream<StoragePolicy>;
+  using group_type = ndarray_group<StoragePolicy>;
+  substream_vti_o(stream_type& s) : substream<StoragePolicy>(s) {}
   bool require_input_files() { return false; }
   bool require_dimensions() { return false; }
   int direction() { return SUBSTREAM_DIR_OUTPUT;}
 
   void initialize(YAML::Node);
-  void read(int, std::shared_ptr<ndarray_group>);
+  void read(int, std::shared_ptr<group_type>);
 };
 
 /**
@@ -49,14 +55,17 @@ struct substream_vti_o : public substream {
  *
  * Reads VTU (unstructured grid) files and resamples them to regular grids.
  */
-struct substream_vtu_resample : public substream {
-  substream_vtu_resample(stream& s) : substream(s) {}
+template <typename StoragePolicy = native_storage>
+struct substream_vtu_resample : public substream<StoragePolicy> {
+  using stream_type = stream<StoragePolicy>;
+  using group_type = ndarray_group<StoragePolicy>;
+  substream_vtu_resample(stream_type& s) : substream<StoragePolicy>(s) {}
   bool require_input_files() { return true; }
   bool require_dimensions() { return true; }
   int direction() { return SUBSTREAM_DIR_INPUT;}
 
   void initialize(YAML::Node);
-  void read(int, std::shared_ptr<ndarray_group>);
+  void read(int, std::shared_ptr<group_type>);
 
 public:
   bool has_bounds = false;
@@ -67,12 +76,14 @@ public:
 // Implementation
 ///////////
 
-inline void substream_vti::initialize(YAML::Node y)
+template <typename StoragePolicy>
+inline void substream_vti<StoragePolicy>::initialize(YAML::Node y)
 {
   this->total_timesteps = filenames.size();
 }
 
-inline void substream_vti::read(int i, std::shared_ptr<ndarray_group> g)
+template <typename StoragePolicy>
+inline void substream_vti<StoragePolicy>::read(int i, std::shared_ptr<ndarray_group> g)
 {
   const auto f = filenames[i]; // assume each vti has only one timestep
 
@@ -87,11 +98,13 @@ inline void substream_vti::read(int i, std::shared_ptr<ndarray_group> g)
   }
 }
 
-inline void substream_vti_o::initialize(YAML::Node y)
+template <typename StoragePolicy>
+inline void substream_vti_o<StoragePolicy>::initialize(YAML::Node y)
 {
 }
 
-inline void substream_vti_o::read(int i, std::shared_ptr<ndarray_group> g)
+template <typename StoragePolicy>
+inline void substream_vti_o<StoragePolicy>::read(int i, std::shared_ptr<ndarray_group> g)
 {
   const auto f = series_filename(this->filename_pattern, i);
   fprintf(stderr, "writing step %d, f=%s\n", i, f.c_str());
@@ -125,7 +138,8 @@ inline void substream_vti_o::read(int i, std::shared_ptr<ndarray_group> g)
   writer->Write();
 }
 
-inline void substream_vtu_resample::initialize(YAML::Node y)
+template <typename StoragePolicy>
+inline void substream_vtu_resample<StoragePolicy>::initialize(YAML::Node y)
 {
   this->total_timesteps = filenames.size();
 
@@ -133,7 +147,8 @@ inline void substream_vtu_resample::initialize(YAML::Node y)
     nd::fatal("missing dimensions for vtu_resample");
 }
 
-inline void substream_vtu_resample::read(int i, std::shared_ptr<ndarray_group> g)
+template <typename StoragePolicy>
+inline void substream_vtu_resample<StoragePolicy>::read(int i, std::shared_ptr<ndarray_group> g)
 {
   const auto f = filenames[i];
 

@@ -18,27 +18,32 @@ namespace ftk {
  * - Multi-file timesteps
  * - High-performance parallel I/O
  */
-struct substream_adios2 : public substream {
-  substream_adios2(stream& s) : substream(s) {}
+template <typename StoragePolicy = native_storage>
+struct substream_adios2 : public substream<StoragePolicy> {
+  using stream_type = stream<StoragePolicy>;
+  using group_type = ndarray_group<StoragePolicy>;
+  substream_adios2(stream_type& s) : substream<StoragePolicy>(s) {}
   bool require_input_files() { return true; }
   bool require_dimensions() { return false; }
   int direction() { return SUBSTREAM_DIR_INPUT;}
 
   void initialize(YAML::Node);
-  void read(int, std::shared_ptr<ndarray_group>);
+  void read(int, std::shared_ptr<group_type>);
 };
 
 ///////////
 // Implementation
 ///////////
 
-inline void substream_adios2::initialize(YAML::Node y)
+template <typename StoragePolicy>
+inline void substream_adios2<StoragePolicy>::initialize(YAML::Node y)
 {
   if (!is_static)
     this->total_timesteps = this->filenames.size();
 }
 
-inline void substream_adios2::read(int i, std::shared_ptr<ndarray_group> g)
+template <typename StoragePolicy>
+inline void substream_adios2<StoragePolicy>::read(int i, std::shared_ptr<ndarray_group> g)
 {
   const auto f = this->filenames[i];
 

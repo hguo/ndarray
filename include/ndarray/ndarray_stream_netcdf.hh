@@ -21,14 +21,17 @@ namespace ftk {
  * - Multi-file timesteps
  * - File descriptor pooling (prevents double-opening)
  */
-struct substream_netcdf : public substream {
-  substream_netcdf(stream& s) : substream(s) {}
+template <typename StoragePolicy = native_storage>
+struct substream_netcdf : public substream<StoragePolicy> {
+  using stream_type = stream<StoragePolicy>;
+  using group_type = ndarray_group<StoragePolicy>;
+  substream_netcdf(stream_type& s) : substream<StoragePolicy>(s) {}
   bool require_input_files() { return true; }
   bool require_dimensions() { return false; }
   int direction() { return SUBSTREAM_DIR_INPUT;}
 
   void initialize(YAML::Node);
-  void read(int, std::shared_ptr<ndarray_group>);
+  void read(int, std::shared_ptr<group_type>);
 
   bool has_unlimited_time_dimension = false;
 };
@@ -37,7 +40,8 @@ struct substream_netcdf : public substream {
 // Implementation
 ///////////
 
-inline void substream_netcdf::read(int i, std::shared_ptr<ndarray_group> g)
+template <typename StoragePolicy>
+inline void substream_netcdf<StoragePolicy>::read(int i, std::shared_ptr<ndarray_group> g)
 {
   int fi = this->locate_timestep_file_index(i);
 
@@ -138,7 +142,8 @@ inline void substream_netcdf::read(int i, std::shared_ptr<ndarray_group> g)
   }
 }
 
-inline void substream_netcdf::initialize(YAML::Node y)
+template <typename StoragePolicy>
+inline void substream_netcdf<StoragePolicy>::initialize(YAML::Node y)
 {
   auto &pool = fdpool_nc::get_instance();
   for (const auto f : this->filenames) {

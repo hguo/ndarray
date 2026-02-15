@@ -18,14 +18,17 @@ namespace ftk {
  * - Multi-file timesteps
  * - Multiple timesteps per file (using h5_name patterns like "data_t%d")
  */
-struct substream_h5 : public substream {
-  substream_h5(stream& s) : substream(s) {}
+template <typename StoragePolicy = native_storage>
+struct substream_h5 : public substream<StoragePolicy> {
+  using stream_type = stream<StoragePolicy>;
+  using group_type = ndarray_group<StoragePolicy>;
+  substream_h5(stream_type& s) : substream<StoragePolicy>(s) {}
   bool require_input_files() { return true; }
   bool require_dimensions() { return false; }
   int direction() { return SUBSTREAM_DIR_INPUT;}
 
   void initialize(YAML::Node);
-  void read(int, std::shared_ptr<ndarray_group>);
+  void read(int, std::shared_ptr<group_type>);
 
   bool has_unlimited_time_dimension = false;
   int timesteps_per_file = 1;  // Number of timesteps (datasets) per file
@@ -35,7 +38,8 @@ struct substream_h5 : public substream {
 // Implementation
 ///////////
 
-inline void substream_h5::initialize(YAML::Node y)
+template <typename StoragePolicy>
+inline void substream_h5<StoragePolicy>::initialize(YAML::Node y)
 {
   // Read timesteps_per_file if specified
   if (y["timesteps_per_file"]) {
@@ -48,7 +52,8 @@ inline void substream_h5::initialize(YAML::Node y)
   }
 }
 
-inline void substream_h5::read(int i, std::shared_ptr<ndarray_group> g)
+template <typename StoragePolicy>
+inline void substream_h5<StoragePolicy>::read(int i, std::shared_ptr<ndarray_group> g)
 {
   // Calculate which file and which timestep within that file
   int file_index = i / timesteps_per_file;
