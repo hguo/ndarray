@@ -21,6 +21,9 @@
 #if NDARRAY_HAVE_MPI
 #include <mpi.h>
 // #include <ndarray/external/bil/bil.h>
+#if NDARRAY_HAVE_CUDA
+#include <ndarray/ndarray_mpi_gpu.hh>
+#endif
 #endif
 
 #if NDARRAY_HAVE_PNETCDF
@@ -2706,11 +2709,114 @@ template <typename T, typename StoragePolicy>
 void ndarray<T, StoragePolicy>::exchange_ghosts_gpu_direct()
 {
   // GPU-aware MPI: Pass device pointers directly to MPI
-  // TODO: Implement with CUDA kernels for pack/unpack
+  // Use CUDA kernels for pack/unpack operations
 
-  // For now, fall back to staged approach
-  // This will be implemented in Phase 2
-  exchange_ghosts_gpu_staged();
+  // Allocate device buffers for send/recv
+  std::vector<T*> d_send_buffers(dist_->neighbors_.size());
+  std::vector<T*> d_recv_buffers(dist_->neighbors_.size());
+
+  for (size_t i = 0; i < dist_->neighbors_.size(); i++) {
+    CUDA_CHECK(cudaMalloc(&d_send_buffers[i],
+                          dist_->neighbors_[i].send_count * sizeof(T)));
+    CUDA_CHECK(cudaMalloc(&d_recv_buffers[i],
+                          dist_->neighbors_[i].recv_count * sizeof(T)));
+  }
+
+  T* d_array = static_cast<T*>(devptr);
+
+  // Pack boundary data on device using CUDA kernels
+  for (size_t i = 0; i < dist_->neighbors_.size(); i++) {
+    const auto& neighbor = dist_->neighbors_[i];
+    int dim = neighbor.direction / 2;
+    bool is_high = (neighbor.direction % 2) == 1;
+    size_t ghost_width = 1;  // TODO: Get from decomposition
+
+    if (dims.size() == 2 && dim < 2) {
+      // 2D case
+      ftk::nd::launch_pack_boundary_2d(
+          d_send_buffers[i],
+          d_array,
+          static_cast<int>(dims[0]),
+          static_cast<int>(dims[1]),
+          dim,
+          is_high,
+          static_cast<int>(ghost_width),
+          static_cast<int>(dist_->local_core_.size(0)),
+          static_cast<int>(dist_->local_core_.size(1)));
+    }
+    // TODO: Add 1D and 3D cases
+  }
+
+  // Synchronize before MPI operations
+  CUDA_CHECK(cudaDeviceSynchronize());
+
+  // Post non-blocking receives with device pointers
+  std::vector<MPI_Request> requests;
+  for (size_t i = 0; i < dist_->neighbors_.size(); i++) {
+    MPI_Request req;
+    int tag = dist_->neighbors_[i].direction;
+    MPI_Irecv(d_recv_buffers[i],
+              static_cast<int>(dist_->neighbors_[i].recv_count),
+              mpi_datatype(),
+              dist_->neighbors_[i].rank,
+              tag,
+              dist_->comm,
+              &req);
+    requests.push_back(req);
+  }
+
+  // Send boundary data with device pointers
+  for (size_t i = 0; i < dist_->neighbors_.size(); i++) {
+    int tag = dist_->neighbors_[i].direction ^ 1;
+    MPI_Send(d_send_buffers[i],
+             static_cast<int>(dist_->neighbors_[i].send_count),
+             mpi_datatype(),
+             dist_->neighbors_[i].rank,
+             tag,
+             dist_->comm);
+  }
+
+  // Wait for all receives to complete
+  MPI_Waitall(static_cast<int>(requests.size()), requests.data(), MPI_STATUSES_IGNORE);
+
+  // Unpack ghost data on device using CUDA kernels
+  for (size_t i = 0; i < dist_->neighbors_.size(); i++) {
+    const auto& neighbor = dist_->neighbors_[i];
+    int dim = neighbor.direction / 2;
+    bool is_high = (neighbor.direction % 2) == 1;
+    size_t ghost_width = 1;
+
+    // Calculate ghost offsets
+    size_t ghost_low = dist_->local_core_.start(dim) - dist_->local_extent_.start(dim);
+    size_t ghost_high = (dist_->local_extent_.start(dim) + dist_->local_extent_.size(dim)) -
+                        (dist_->local_core_.start(dim) + dist_->local_core_.size(dim));
+
+    if (dims.size() == 2 && dim < 2) {
+      // 2D case
+      ftk::nd::launch_unpack_ghost_2d(
+          d_array,
+          d_recv_buffers[i],
+          static_cast<int>(dims[0]),
+          static_cast<int>(dims[1]),
+          dim,
+          is_high,
+          static_cast<int>(ghost_width),
+          static_cast<int>(ghost_low),
+          static_cast<int>(ghost_high),
+          static_cast<int>(dist_->local_core_.size(0)),
+          static_cast<int>(dist_->local_core_.size(1)));
+    }
+    // TODO: Add 1D and 3D cases
+  }
+
+  // Synchronize after unpacking
+  CUDA_CHECK(cudaDeviceSynchronize());
+
+  // Free device buffers
+  for (size_t i = 0; i < dist_->neighbors_.size(); i++) {
+    CUDA_CHECK(cudaFree(d_send_buffers[i]));
+    CUDA_CHECK(cudaFree(d_recv_buffers[i]));
+  }
 }
 #endif
 
