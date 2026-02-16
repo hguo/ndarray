@@ -49,10 +49,10 @@ All phases implemented and pushed to main (commits 4a4b4a0, f9bd4e7, 77f8228).
   - Launches CUDA kernels to unpack ghosts
   - Zero host staging - all on device!
 
-**Performance:**
+**Functionality:**
 - Eliminates 2x full-array copies (GPU ↔ host)
-- For 1000×800 float array: saves ~1 ms per exchange
-- Matches CPU performance while keeping data on GPU
+- Keeps data on GPU throughout ghost exchange
+- Works transparently with GPU-aware MPI implementations
 
 ### Phase 3: Documentation (Commit 77f8228)
 
@@ -167,18 +167,6 @@ if (temp.has_gpu_aware_mpi()) {
   std::cout << "Using fallback (staged)" << std::endl;
 }
 ```
-
-## Performance Benchmarks
-
-For 1000×800 float array (3.2 MB), 1-layer ghosts:
-
-| Path | Host-Device Copies | Kernel Launches | MPI Time | Total |
-|------|-------------------|-----------------|----------|-------|
-| **GPU Direct** | 0 | 2-4 (pack/unpack) | ~100 μs | ~100 μs |
-| **GPU Staged** | 2 (6.4 MB) | 0 | ~100 μs | ~1.1 ms |
-| **CPU (baseline)** | N/A | N/A | ~100 μs | ~100 μs |
-
-**Speedup:** GPU Direct is ~10x faster than GPU Staged for this array size.
 
 ## Supported Configurations
 

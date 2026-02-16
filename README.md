@@ -44,8 +44,8 @@ NDArray is a **unified I/O abstraction library for time-varying scientific data*
 ### Storage Backend System
 - **Policy-based design** - Choose storage backend at compile-time
 - **Native storage** - Default std::vector-based (100% backward compatible)
-- **xtensor storage** - SIMD vectorization, expression templates (2-4x faster element-wise)
-- **Eigen storage** - Optimized linear algebra (5-10x faster matrix ops)
+- **xtensor storage** - SIMD vectorization and expression templates for computation
+- **Eigen storage** - Linear algebra operations via Eigen library
 - **Zero migration cost** - Existing code works unchanged
 - See [Storage Backends Guide](docs/STORAGE_BACKENDS.md) for details
 

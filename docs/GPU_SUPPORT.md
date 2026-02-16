@@ -365,9 +365,6 @@ float val = arr[0];  // Host data still valid
 **Problem**: Segmentation fault when accessing array
 - **Solution**: Make sure data is on host before accessing with `arr[i]`
 
-**Problem**: Slow performance
-- **Solution**: Profile transfers vs compute. Consider using `copy_to_device()` to keep host copy
-
 **Problem**: Out of memory
 - **Solution**: Use `to_device()` (move semantics) instead of `copy_to_device()`
 
@@ -442,9 +439,9 @@ int main(int argc, char** argv) {
 
 ### Three Automatic Paths
 
-The library chooses the optimal path automatically:
+The library chooses the appropriate path automatically based on runtime detection:
 
-1. **GPU Direct** (Best performance):
+1. **GPU Direct**:
    - Uses GPU-aware MPI for device-to-device transfers
    - CUDA kernels pack/unpack data directly on device
    - No host staging required
@@ -499,24 +496,12 @@ export NDARRAY_DISABLE_GPU_AWARE_MPI=1
 mpirun -np 4 ./my_program
 ```
 
-### Performance Comparison
-
-For 1000×800 float array with 1-layer ghosts:
-
-| Method | Host-Device Transfers | MPI Overhead | Total |
-|--------|----------------------|--------------|-------|
-| **GPU Direct** | 0 (none) | ~100 μs | ~100 μs |
-| **GPU Staged** | ~0.5 ms (×2) | ~100 μs | ~1.1 ms |
-| **CPU (baseline)** | N/A | ~100 μs | ~100 μs |
-
-GPU Direct matches CPU performance while keeping data on device!
-
 ### Best Practices
 
 ✅ **DO:**
 - Let the library auto-detect (no code changes needed)
 - Test with GPU-aware MPI if available
-- Profile to verify performance gains
+- Verify ghost exchange works correctly for your workflow
 
 ❌ **DON'T:**
 - Manually copy to host before `exchange_ghosts()` (automatic now!)
@@ -585,9 +570,6 @@ int main(int argc, char** argv) {
 
 **Problem**: "GPU-aware MPI not detected but I have it"
 - **Solution**: Check with `ompi_info` or similar, set environment variables if needed
-
-**Problem**: Slow performance despite GPU-aware MPI
-- **Solution**: Check `NDARRAY_FORCE_HOST_STAGING` is not set, verify MPI is actually using GPU direct
 
 **Problem**: Segmentation fault in exchange_ghosts()
 - **Solution**: Ensure data is on device before calling, check GPU-aware MPI is working correctly
