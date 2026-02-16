@@ -1,8 +1,8 @@
 /**
- * Distributed ndarray Tests
+ * Unified ndarray Tests with MPI Distribution
  *
  * Tests domain decomposition, index conversion, and parallel I/O for
- * distributed memory settings with MPI.
+ * distributed memory settings with MPI using the unified ndarray API.
  *
  * Run with: mpirun -np 4 ./test_distributed_ndarray
  */
@@ -12,7 +12,7 @@
 
 #if NDARRAY_HAVE_MPI
 
-#include <ndarray/distributed_ndarray.hh>
+#include <ndarray/ndarray.hh>
 #include <mpi.h>
 #include <cassert>
 #include <cmath>
@@ -38,14 +38,15 @@ int test_automatic_decomposition() {
     std::cout << "\n=== Test 1: Automatic Decomposition ===" << std::endl;
   }
 
-  TEST_SECTION("Create distributed array");
-  ftk::distributed_ndarray<float> darray(MPI_COMM_WORLD);
+  TEST_SECTION("Create distributed array with unified API");
+  ftk::ndarray<float> darray;
+
+  TEST_SECTION("Decompose 1000×800 array automatically");
+  darray.decompose(MPI_COMM_WORLD, {1000, 800});
 
   TEST_ASSERT(darray.rank() == rank, "Rank should match MPI rank");
   TEST_ASSERT(darray.nprocs() == nprocs, "Nprocs should match MPI size");
-
-  TEST_SECTION("Decompose 1000×800 array automatically");
-  darray.decompose({1000, 800});
+  TEST_ASSERT(darray.is_distributed(), "Array should be distributed");
 
   // Verify global lattice
   TEST_ASSERT(darray.global_lattice().nd() == 2, "Global lattice should be 2D");
@@ -87,10 +88,11 @@ int test_manual_decomposition() {
   }
 
   TEST_SECTION("1D decomposition along first dimension");
-  ftk::distributed_ndarray<double> darray(MPI_COMM_WORLD);
+  ftk::ndarray<double> darray;
 
   // Split only dimension 0, leave dimension 1 intact
-  darray.decompose({1000, 800},
+  darray.decompose(MPI_COMM_WORLD,
+                   {1000, 800},
                    static_cast<size_t>(nprocs),
                    {static_cast<size_t>(nprocs), 0},  // 1D decomposition
                    {});  // No ghosts
@@ -119,9 +121,10 @@ int test_ghost_layers() {
   }
 
   TEST_SECTION("Decompose with 1-layer ghosts");
-  ftk::distributed_ndarray<float> darray(MPI_COMM_WORLD);
+  ftk::ndarray<float> darray;
 
-  darray.decompose({1000, 800},
+  darray.decompose(MPI_COMM_WORLD,
+                   {1000, 800},
                    0,  // Auto nprocs
                    {},  // Auto decomposition
                    {1, 1});  // 1-layer ghosts in both dimensions
@@ -172,9 +175,10 @@ int test_index_conversion() {
   }
 
   TEST_SECTION("Setup 1000×800 array with 1D decomposition");
-  ftk::distributed_ndarray<int> darray(MPI_COMM_WORLD);
+  ftk::ndarray<int> darray;
 
-  darray.decompose({1000, 800},
+  darray.decompose(MPI_COMM_WORLD,
+                   {1000, 800},
                    static_cast<size_t>(nprocs),
                    {static_cast<size_t>(nprocs), 0});
 
@@ -239,9 +243,9 @@ int test_data_access() {
   }
 
   TEST_SECTION("Create and fill local arrays");
-  ftk::distributed_ndarray<double> darray(MPI_COMM_WORLD);
+  ftk::ndarray<double> darray;
 
-  darray.decompose({100, 80}, 0, {}, {1, 1});
+  darray.decompose(MPI_COMM_WORLD, {100, 80}, 0, {}, {1, 1});
 
   // Fill local array with rank-specific values
   auto& local = darray.local_array();
@@ -332,10 +336,10 @@ int test_parallel_netcdf_read() {
   MPI_Barrier(MPI_COMM_WORLD);
 
   TEST_SECTION("Decompose domain and read in parallel");
-  ftk::distributed_ndarray<float> darray(MPI_COMM_WORLD);
+  ftk::ndarray<float> darray;
 
   // Decompose to match file dimensions
-  darray.decompose({global_nx, global_ny});
+  darray.decompose(MPI_COMM_WORLD, {global_nx, global_ny});
 
   // Parallel read
   try {
@@ -426,9 +430,9 @@ int test_parallel_binary_read() {
   MPI_Barrier(MPI_COMM_WORLD);
 
   TEST_SECTION("Decompose domain and read in parallel with MPI-IO");
-  ftk::distributed_ndarray<double> darray(MPI_COMM_WORLD);
+  ftk::ndarray<double> darray;
 
-  darray.decompose({global_nx, global_ny});
+  darray.decompose(MPI_COMM_WORLD, {global_nx, global_ny});
 
   // Parallel read
   darray.read_parallel("test_distributed.bin");

@@ -1,15 +1,21 @@
 /**
  * Distributed Stream with YAML Configuration Example
  *
- * Demonstrates using YAML configuration files for distributed stream processing,
- * similar to ndarray_group_stream but with automatic parallel I/O and domain
- * decomposition.
+ * NOTE: This example needs updating to use the unified stream API with
+ * the new YAML format (per-variable distribution configuration).
  *
- * YAML configuration provides:
- * - Declarative specification of data sources
- * - Domain decomposition parameters
- * - Multiple substreams (different formats/sources)
- * - Variable lists and metadata
+ * The old distributed_stream class no longer exists. The unified stream
+ * now supports per-variable distribution types (distributed, replicated, auto)
+ * configured via YAML.
+ *
+ * For the new YAML format, see: PHASE4_STREAM_INTEGRATION.md
+ *
+ * For working examples, see:
+ * - distributed_io.cpp: Direct ndarray usage with decomposition
+ * - distributed_stencil.cpp: Ghost exchange for stencil operations
+ * - distributed_analysis.cpp: Time-series processing across ranks
+ *
+ * TODO: Update to use ftk::stream<> with new YAML format
  *
  * Compile and run: mpirun -np 4 ./distributed_stream_yaml
  */

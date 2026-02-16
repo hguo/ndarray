@@ -20,7 +20,7 @@
 
 #if NDARRAY_HAVE_MPI
 
-#include <ndarray/distributed_ndarray.hh>
+#include <ndarray/ndarray.hh>
 #include <mpi.h>
 #include <cmath>
 
@@ -71,11 +71,11 @@ int main(int argc, char** argv) {
     std::cout << "Step 2: Decomposing domain across " << nprocs << " ranks..." << std::endl;
   }
 
-  ftk::distributed_ndarray<float> temperature(MPI_COMM_WORLD);
+  ftk::ndarray<float> temperature;
 
   // Automatic decomposition with 1-layer ghost cells
   // Library will balance load across ranks based on prime factorization
-  temperature.decompose({1000, 800}, 0, {}, {1, 1});
+  temperature.decompose(MPI_COMM_WORLD, {1000, 800}, 0, {}, {1, 1});
 
   std::cout << "  Rank " << rank << " owns: " << temperature.local_core() << std::endl;
   MPI_Barrier(MPI_COMM_WORLD);
@@ -93,7 +93,7 @@ int main(int argc, char** argv) {
   auto start_time = MPI_Wtime();
 
   // Each rank reads its local portion automatically
-  temperature.read_parallel("temperature_field.bin");
+  temperature.read_binary_auto("temperature_field.bin");
 
   auto read_time = MPI_Wtime() - start_time;
 
@@ -231,8 +231,8 @@ int main(int argc, char** argv) {
     std::cout << "  ✓ Local computation with global reductions for statistics" << std::endl;
     std::cout << "  ✓ Flexible index conversion (global ↔ local)" << std::endl;
     std::cout << "\nNext steps:" << std::endl;
-    std::cout << "  - Use exchange_ghosts() for stencil operations (Phase 3)" << std::endl;
-    std::cout << "  - Read from NetCDF/HDF5 with .read_parallel()" << std::endl;
+    std::cout << "  - Use exchange_ghosts() for stencil operations" << std::endl;
+    std::cout << "  - Read from NetCDF/HDF5 with read_netcdf_auto/read_hdf5_auto" << std::endl;
     std::cout << "  - Process multiple timesteps in a loop" << std::endl;
 
     // Cleanup test file

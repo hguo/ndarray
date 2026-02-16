@@ -25,7 +25,7 @@
 
 #if NDARRAY_HAVE_MPI
 
-#include <ndarray/distributed_ndarray.hh>
+#include <ndarray/ndarray.hh>
 #include <mpi.h>
 
 int main(int argc, char** argv) {
@@ -48,13 +48,13 @@ int main(int argc, char** argv) {
     std::cout << "Step 1: Domain decomposition...\n";
   }
 
-  ftk::distributed_ndarray<float> temperature(MPI_COMM_WORLD);
-  ftk::distributed_ndarray<float> temperature_new(MPI_COMM_WORLD);
+  ftk::ndarray<float> temperature;
+  ftk::ndarray<float> temperature_new;
 
   // 2D domain with 1-layer ghosts for 5-point stencil
   const size_t NX = 200, NY = 160;
-  temperature.decompose({NX, NY}, 0, {}, {1, 1});
-  temperature_new.decompose({NX, NY}, 0, {}, {1, 1});
+  temperature.decompose(MPI_COMM_WORLD, {NX, NY}, 0, {}, {1, 1});
+  temperature_new.decompose(MPI_COMM_WORLD, {NX, NY}, 0, {}, {1, 1});
 
   std::cout << "  Rank " << rank << " owns: " << temperature.local_core()
             << std::endl;
@@ -145,9 +145,8 @@ int main(int argc, char** argv) {
       }
     }
 
-    // Step 3c: Update temperature field (swap pointers)
-    std::swap(T, T_new);
-    std::swap(temperature.local_array(), temperature_new.local_array());
+    // Step 3c: Update temperature field (swap arrays)
+    std::swap(temperature, temperature_new);
 
     // Report progress periodically
     if (step % report_interval == 0 || step == num_steps - 1) {

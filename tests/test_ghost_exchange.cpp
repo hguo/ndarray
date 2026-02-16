@@ -17,7 +17,7 @@
 
 #if NDARRAY_HAVE_MPI
 
-#include <ndarray/distributed_ndarray.hh>
+#include <ndarray/ndarray.hh>
 #include <mpi.h>
 #include <cassert>
 #include <cmath>
@@ -44,11 +44,12 @@ int test_1d_ghost_exchange() {
   }
 
   TEST_SECTION("Create 1D decomposition with 1-layer ghosts");
-  ftk::distributed_ndarray<float> darray(MPI_COMM_WORLD);
+  ftk::ndarray<float> darray;
 
   // 1D decomposition: split only dimension 0
   const size_t global_size = 100;
-  darray.decompose({global_size, 20},
+  darray.decompose(MPI_COMM_WORLD,
+                   {global_size, 20},
                    static_cast<size_t>(nprocs),
                    {static_cast<size_t>(nprocs), 0},  // 1D split
                    {1, 0});  // 1-layer ghosts only in dim 0
@@ -102,10 +103,10 @@ int test_2d_ghost_exchange() {
   }
 
   TEST_SECTION("Create 2D decomposition with 1-layer ghosts");
-  ftk::distributed_ndarray<double> darray(MPI_COMM_WORLD);
+  ftk::ndarray<double> darray;
 
   // Automatic 2D decomposition
-  darray.decompose({100, 80}, 0, {}, {1, 1});
+  darray.decompose(MPI_COMM_WORLD, {100, 80}, 0, {}, {1, 1});
 
   TEST_SECTION("Fill local core with unique values");
   auto& local = darray.local_array();
@@ -143,10 +144,11 @@ int test_stencil_with_ghosts() {
   }
 
   TEST_SECTION("Create distributed array with ghosts");
-  ftk::distributed_ndarray<float> temperature(MPI_COMM_WORLD);
+  ftk::ndarray<float> temperature;
 
   // 1D decomposition for simplicity
-  temperature.decompose({100, 20},
+  temperature.decompose(MPI_COMM_WORLD,
+                        {100, 20},
                         static_cast<size_t>(nprocs),
                         {static_cast<size_t>(nprocs), 0},
                         {1, 0});
@@ -167,8 +169,9 @@ int test_stencil_with_ghosts() {
   temperature.exchange_ghosts();
 
   TEST_SECTION("Apply averaging stencil (smooth operation)");
-  ftk::distributed_ndarray<float> smoothed(MPI_COMM_WORLD);
-  smoothed.decompose({100, 20},
+  ftk::ndarray<float> smoothed;
+  smoothed.decompose(MPI_COMM_WORLD,
+                     {100, 20},
                      static_cast<size_t>(nprocs),
                      {static_cast<size_t>(nprocs), 0},
                      {1, 0});
@@ -219,10 +222,10 @@ int test_no_ghosts_no_exchange() {
   }
 
   TEST_SECTION("Create decomposition without ghosts");
-  ftk::distributed_ndarray<int> darray(MPI_COMM_WORLD);
+  ftk::ndarray<int> darray;
 
   // No ghost layers
-  darray.decompose({100, 80});
+  darray.decompose(MPI_COMM_WORLD, {100, 80});
 
   TEST_SECTION("Call exchange_ghosts() with no ghosts");
   // Should be a no-op, should not crash

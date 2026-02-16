@@ -26,7 +26,7 @@
 
 #if NDARRAY_HAVE_MPI
 
-#include <ndarray/distributed_ndarray.hh>
+#include <ndarray/ndarray.hh>
 #include <mpi.h>
 
 int main(int argc, char** argv) {
@@ -103,12 +103,12 @@ int main(int argc, char** argv) {
     std::cout << "Step 2: Decomposing domain across " << nprocs << " ranks...\n";
   }
 
-  ftk::distributed_ndarray<float> u_field(MPI_COMM_WORLD);
-  ftk::distributed_ndarray<float> v_field(MPI_COMM_WORLD);
+  ftk::ndarray<float> u_field;
+  ftk::ndarray<float> v_field;
 
   // 1-layer ghosts for gradient computation
-  u_field.decompose({NX, NY}, 0, {}, {1, 1});
-  v_field.decompose({NX, NY}, 0, {}, {1, 1});
+  u_field.decompose(MPI_COMM_WORLD, {NX, NY}, 0, {}, {1, 1});
+  v_field.decompose(MPI_COMM_WORLD, {NX, NY}, 0, {}, {1, 1});
 
   std::cout << "  Rank " << rank << " owns: " << u_field.local_core()
             << std::endl;
@@ -131,8 +131,8 @@ int main(int argc, char** argv) {
 
   for (int t = 0; t < NUM_TIMESTEPS; t++) {
     // Step 3a: Read velocity components in parallel
-    u_field.read_parallel("velocity_u_t" + std::to_string(t) + ".bin");
-    v_field.read_parallel("velocity_v_t" + std::to_string(t) + ".bin");
+    u_field.read_binary_auto("velocity_u_t" + std::to_string(t) + ".bin");
+    v_field.read_binary_auto("velocity_v_t" + std::to_string(t) + ".bin");
 
     // Step 3b: Exchange ghosts for gradient computation
     u_field.exchange_ghosts();

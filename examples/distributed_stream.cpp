@@ -1,9 +1,23 @@
 /**
  * Distributed Stream Example
  *
- * Demonstrates using distributed_stream for easy time-series processing.
+ * NOTE: This example needs updating to use the unified stream API.
+ * The old distributed_stream class no longer exists.
+ *
+ * For working examples, see:
+ * - distributed_stream_yaml.cpp: YAML-based stream configuration (recommended)
+ * - distributed_io.cpp: Direct ndarray usage with decomposition
+ * - distributed_stencil.cpp: Ghost exchange for stencil operations
+ *
+ * TODO: Update to use ftk::stream<> with YAML configuration or
+ * programmatic set_default_decomposition/set_variable_distribution
+ */
+
+ /*
+ * OLD EXAMPLE - Demonstrates using the unified stream for easy time-series processing
+ * in distributed memory with MPI.
  * The stream interface simplifies iteration over timesteps and automatic
- * parallel reading.
+ * parallel reading with per-variable distribution configuration.
  *
  * Workflow:
  * 1. Configure stream (decomposition, variables)
@@ -19,7 +33,7 @@
 
 #if NDARRAY_HAVE_MPI
 
-#include <ndarray/distributed_ndarray_stream.hh>
+#include <ndarray/ndarray_stream.hh>
 #include <mpi.h>
 
 int main(int argc, char** argv) {

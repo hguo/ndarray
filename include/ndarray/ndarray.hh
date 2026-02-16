@@ -2283,7 +2283,7 @@ void ndarray<T, StoragePolicy>::decompose(MPI_Comm comm,
 
   // Get local core and extent for this rank
   dist_->local_core_ = dist_->partitioner_->get_core(dist_->rank);
-  dist_->local_extent_ = dist_->partitioner_->get_extent(dist_->rank);
+  dist_->local_extent_ = dist_->partitioner_->get_ext(dist_->rank);
 
   // For non-decomposed dimensions (decomp[i]==0), ensure local == global
   if (!decomp.empty()) {

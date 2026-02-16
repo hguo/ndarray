@@ -1,12 +1,15 @@
 /**
  * Distributed Stream Dry-Run Example
  *
- * Demonstrates using dry-run mode to test and validate distributed stream
- * configurations without requiring mpirun. Useful for:
- * - Testing YAML configuration syntax
- * - Validating file paths and discovery
- * - Checking decomposition parameters
- * - Quick iteration during development
+ * NOTE: This example needs updating to use the unified stream API.
+ * The old distributed_stream class no longer exists.
+ *
+ * For working examples, see:
+ * - distributed_io.cpp: Direct ndarray usage with decomposition
+ * - distributed_stencil.cpp: Ghost exchange for stencil operations
+ * - distributed_analysis.cpp: Time-series processing across ranks
+ *
+ * TODO: Update to use ftk::stream<> with new YAML format
  *
  * Compile and run: ./distributed_stream_dryrun (no mpirun needed!)
  */
