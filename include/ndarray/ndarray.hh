@@ -2320,8 +2320,10 @@ void ndarray<T, StoragePolicy>::decompose(MPI_Comm comm,
 
   // Create partitioner
   // Note: lattice_partitioner needs to handle decomp[i]==0 meaning "don't split"
-  dist_->partitioner_ = std::make_unique<lattice_partitioner>(
-    dist_->global_lattice_, np, effective_decomp, effective_ghost);
+  dist_->partitioner_ = std::make_unique<lattice_partitioner>(dist_->global_lattice_);
+
+  // Partition the domain
+  dist_->partitioner_->partition(np, effective_decomp, effective_ghost);
 
   // Get local core and extent for this rank
   dist_->local_core_ = dist_->partitioner_->get_core(dist_->rank);
@@ -2889,8 +2891,8 @@ void ndarray<T, StoragePolicy>::exchange_ghosts_gpu_staged()
   // 2. Perform exchange on host
   exchange_ghosts_cpu();
 
-  // 3. Copy back to device
-  copy_to_device();
+  // 3. Copy back to device (use same device type and ID as before)
+  copy_to_device(device_type, device_id);
 }
 
 #if NDARRAY_HAVE_CUDA
