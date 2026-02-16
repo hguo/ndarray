@@ -612,7 +612,7 @@ mpirun -np 8 ./bin/test_distributed_ndarray  # 2D (4×2) or 3D (2×2×2)
 
 4. **Performance optimization**:
    - No overlapping of communication and computation
-   - No GPU-aware MPI support
+   - ✅ **GPU-aware MPI support**: Implemented! See [GPU_SUPPORT.md](GPU_SUPPORT.md)
    - No asynchronous I/O
 
 ### Future Enhancements
@@ -621,8 +621,7 @@ mpirun -np 8 ./bin/test_distributed_ndarray  # 2D (4×2) or 3D (2×2×2)
 2. **Optimized ghost packing**: Reduce message count, pack multiple faces
 3. **Overlap computation/communication**: Start ghost exchange, compute interior, finish ghosts
 4. **Dynamic load balancing**: Repartition based on runtime characteristics
-5. **GPU support**: GPU-aware MPI for direct device-to-device transfers
-6. **Asynchronous I/O**: Use ADIOS2 async mode for background I/O
+5. **Asynchronous I/O**: Use ADIOS2 async mode for background I/O
 
 ## Troubleshooting
 
