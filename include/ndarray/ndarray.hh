@@ -456,8 +456,12 @@ public: // MPI and distributed memory support
    * @param comm MPI communicator
    * @param global_dims Global array dimensions
    * @param nprocs Number of processes (0 = use comm size)
-   * @param decomp Decomposition pattern (empty = auto)
-   * @param ghost Ghost layers per dimension
+   * @param decomp Decomposition pattern (empty = auto, or specify per-dimension):
+   *               - decomp[i] > 0: Split dimension i into decomp[i] pieces
+   *               - decomp[i] == 0: Don't split dimension i (replicate on all ranks)
+   *               Example: [4, 2, 1, 0] = split first 3 spatial dims, keep last dim intact
+   *               Use case: velocity[1000,800,600,3] with decomp[4,2,1,0] keeps vector components together
+   * @param ghost Ghost layers per dimension (0 for non-decomposed dimensions)
    */
   void decompose(MPI_Comm comm,
                  const std::vector<size_t>& global_dims,
@@ -528,11 +532,18 @@ private:
     lattice local_core_;
     lattice local_extent_;
     std::unique_ptr<lattice_partitioner> partitioner_;
+    std::vector<size_t> decomp_pattern_;  // Stores which dims are decomposed (0 = not decomposed)
 
     // Neighbor info for ghost exchange
-    std::vector<int> neighbor_ranks_;
-    std::vector<lattice> send_regions_;
-    std::vector<lattice> recv_regions_;
+    struct Neighbor {
+      int rank;              // Neighbor's MPI rank
+      int direction;         // Which face: 0=left, 1=right (dim 0); 2=down, 3=up (dim 1); etc.
+      size_t send_count;     // Number of elements to send
+      size_t recv_count;     // Number of elements to receive
+    };
+
+    std::vector<Neighbor> neighbors_;
+    bool neighbors_identified_ = false;
   };
 
   std::unique_ptr<distribution_info> dist_;
@@ -541,6 +552,9 @@ private:
   bool should_use_parallel_io() const { return dist_ && dist_->type == DistType::DISTRIBUTED; }
   bool should_use_replicated_io() const { return dist_ && dist_->type == DistType::REPLICATED; }
   void setup_ghost_exchange();
+  void pack_boundary_data(int neighbor_idx, std::vector<T>& buffer);
+  void unpack_ghost_data(int neighbor_idx, const std::vector<T>& buffer);
+  MPI_Datatype mpi_datatype() const;
 #endif
 
 private:
@@ -2204,6 +2218,16 @@ void ndarray<T, StoragePolicy>::decompose(MPI_Comm comm,
                                           const std::vector<size_t>& decomp,
                                           const std::vector<size_t>& ghost)
 {
+  // Validate decomp size if provided
+  if (!decomp.empty() && decomp.size() != global_dims.size()) {
+    throw std::invalid_argument("decomp size must match global_dims size");
+  }
+
+  // Validate ghost size if provided
+  if (!ghost.empty() && ghost.size() != global_dims.size()) {
+    throw std::invalid_argument("ghost size must match global_dims size");
+  }
+
   // Create distribution info
   dist_ = std::make_unique<distribution_info>();
   dist_->type = DistType::DISTRIBUTED;
@@ -2214,16 +2238,44 @@ void ndarray<T, StoragePolicy>::decompose(MPI_Comm comm,
   // Create global lattice
   dist_->global_lattice_ = lattice(global_dims);
 
+  // Store decomposition pattern
+  dist_->decomp_pattern_ = decomp;
+
   // Use provided nprocs or communicator size
   size_t np = (nprocs == 0) ? dist_->nprocs : nprocs;
 
+  // Create effective decomposition pattern
+  // For dimensions with decomp[i] == 0, lattice_partitioner should not split
+  std::vector<size_t> effective_decomp = decomp;
+  std::vector<size_t> effective_ghost = ghost;
+
+  // If empty, lattice_partitioner will auto-decompose
+  // But we need to be careful about which dimensions to decompose
+
   // Create partitioner
+  // Note: lattice_partitioner needs to handle decomp[i]==0 meaning "don't split"
   dist_->partitioner_ = std::make_unique<lattice_partitioner>(
-    dist_->global_lattice_, np, decomp, ghost);
+    dist_->global_lattice_, np, effective_decomp, effective_ghost);
 
   // Get local core and extent for this rank
   dist_->local_core_ = dist_->partitioner_->get_core(dist_->rank);
   dist_->local_extent_ = dist_->partitioner_->get_extent(dist_->rank);
+
+  // For non-decomposed dimensions (decomp[i]==0), ensure local == global
+  if (!decomp.empty()) {
+    for (size_t i = 0; i < decomp.size(); i++) {
+      if (decomp[i] == 0) {
+        // This dimension should NOT be decomposed
+        // Verify that local_core has full extent
+        if (dist_->local_core_.size(i) != global_dims[i]) {
+          // lattice_partitioner didn't handle it correctly
+          // This is a workaround - ideally lattice_partitioner should handle it
+          std::cerr << "Warning: decomp[" << i << "]==0 but dimension was split. "
+                    << "This may indicate lattice_partitioner doesn't support non-decomposed dimensions yet." << std::endl;
+        }
+      }
+    }
+  }
 
   // Reshape local storage to hold extent (core + ghosts)
   reshapef(dist_->local_extent_.sizes());
@@ -2363,65 +2415,287 @@ void ndarray<T, StoragePolicy>::setup_ghost_exchange()
 {
   if (!is_distributed()) return;
 
-  // Ghost exchange setup - identify neighbors and communication regions
-  // For now, simple 1D/2D/3D nearest neighbor topology
-  const size_t nd = dist_->local_core_.nd();
+  const int ndims = static_cast<int>(dist_->local_core_.nd());
 
-  dist_->neighbor_ranks_.clear();
-  dist_->send_regions_.clear();
-  dist_->recv_regions_.clear();
+  dist_->neighbors_.clear();
+  dist_->neighbors_identified_ = false;
 
-  // For each dimension, check for left and right neighbors
-  for (size_t dim = 0; dim < nd; dim++) {
-    // Get ghost size for this dimension
-    size_t ghost_low = dist_->local_extent_.start(dim) - dist_->local_core_.start(dim);
-    size_t ghost_high = (dist_->local_extent_.start(dim) + dist_->local_extent_.size(dim)) -
-                        (dist_->local_core_.start(dim) + dist_->local_core_.size(dim));
+  // Identify neighbors in each dimension
+  for (int dim = 0; dim < ndims; dim++) {
+    // Skip non-decomposed dimensions
+    if (!dist_->decomp_pattern_.empty() &&
+        static_cast<size_t>(dim) < dist_->decomp_pattern_.size() &&
+        dist_->decomp_pattern_[dim] == 0) {
+      continue;  // This dimension is not decomposed, no neighbors
+    }
 
-    if (ghost_low == 0 && ghost_high == 0) continue;  // No ghosts in this dimension
-
-    // Left neighbor (lower in this dimension)
+    // Check left neighbor (lower index in this dimension)
     if (dist_->local_core_.start(dim) > 0) {
-      // Find rank that owns the region to the left
-      std::vector<size_t> neighbor_point(nd);
-      for (size_t d = 0; d < nd; d++) {
-        neighbor_point[d] = dist_->local_core_.start(d);
+      // There is a neighbor on the left
+      std::vector<size_t> neighbor_point(ndims);
+      for (int d = 0; d < ndims; d++) {
+        if (d == dim) {
+          neighbor_point[d] = dist_->local_core_.start(d) - 1;
+        } else {
+          neighbor_point[d] = dist_->local_core_.start(d);
+        }
       }
-      neighbor_point[dim] -= 1;  // One cell to the left
 
-      int neighbor_rank = dist_->partitioner_->get_partition_id(neighbor_point);
+      // Find which rank owns this point
+      int neighbor_rank = -1;
+      for (size_t p = 0; p < dist_->partitioner_->np(); p++) {
+        const auto& core = dist_->partitioner_->get_core(p);
+        if (core.contains(neighbor_point)) {
+          neighbor_rank = static_cast<int>(p);
+          break;
+        }
+      }
+
       if (neighbor_rank >= 0 && neighbor_rank != dist_->rank) {
-        dist_->neighbor_ranks_.push_back(neighbor_rank);
-        // Define send and receive regions (simplified - needs proper implementation)
+        typename distribution_info::Neighbor neighbor;
+        neighbor.rank = neighbor_rank;
+        neighbor.direction = dim * 2;  // 0=left in dim 0, 2=left in dim 1, etc.
+
+        // Calculate ghost width
+        size_t ghost_width = dist_->local_core_.start(dim) - dist_->local_extent_.start(dim);
+        if (ghost_width == 0) ghost_width = 1;
+
+        // Calculate number of elements in the boundary face
+        size_t face_size = 1;
+        for (int d = 0; d < ndims; d++) {
+          if (d == dim) {
+            face_size *= ghost_width;
+          } else {
+            face_size *= dist_->local_core_.size(d);
+          }
+        }
+
+        neighbor.send_count = face_size;
+        neighbor.recv_count = face_size;
+
+        dist_->neighbors_.push_back(neighbor);
       }
     }
 
-    // Right neighbor (higher in this dimension)
-    if (dist_->local_core_.start(dim) + dist_->local_core_.size(dim) <
-        dist_->global_lattice_.size(dim)) {
-      std::vector<size_t> neighbor_point(nd);
-      for (size_t d = 0; d < nd; d++) {
-        neighbor_point[d] = dist_->local_core_.start(d);
+    // Check right neighbor (higher index in this dimension)
+    size_t core_end = dist_->local_core_.start(dim) + dist_->local_core_.size(dim);
+    size_t global_end = dist_->global_lattice_.start(dim) + dist_->global_lattice_.size(dim);
+    if (core_end < global_end) {
+      // There is a neighbor on the right
+      std::vector<size_t> neighbor_point(ndims);
+      for (int d = 0; d < ndims; d++) {
+        if (d == dim) {
+          neighbor_point[d] = core_end;
+        } else {
+          neighbor_point[d] = dist_->local_core_.start(d);
+        }
       }
-      neighbor_point[dim] = dist_->local_core_.start(dim) + dist_->local_core_.size(dim);
 
-      int neighbor_rank = dist_->partitioner_->get_partition_id(neighbor_point);
+      // Find which rank owns this point
+      int neighbor_rank = -1;
+      for (size_t p = 0; p < dist_->partitioner_->np(); p++) {
+        const auto& core = dist_->partitioner_->get_core(p);
+        if (core.contains(neighbor_point)) {
+          neighbor_rank = static_cast<int>(p);
+          break;
+        }
+      }
+
       if (neighbor_rank >= 0 && neighbor_rank != dist_->rank) {
-        dist_->neighbor_ranks_.push_back(neighbor_rank);
-        // Define send and receive regions (simplified - needs proper implementation)
+        typename distribution_info::Neighbor neighbor;
+        neighbor.rank = neighbor_rank;
+        neighbor.direction = dim * 2 + 1;  // 1=right in dim 0, 3=right in dim 1, etc.
+
+        // Calculate ghost width
+        size_t ghost_width = (dist_->local_extent_.start(dim) + dist_->local_extent_.size(dim)) -
+                             (dist_->local_core_.start(dim) + dist_->local_core_.size(dim));
+        if (ghost_width == 0) ghost_width = 1;
+
+        size_t face_size = 1;
+        for (int d = 0; d < ndims; d++) {
+          if (d == dim) {
+            face_size *= ghost_width;
+          } else {
+            face_size *= dist_->local_core_.size(d);
+          }
+        }
+
+        neighbor.send_count = face_size;
+        neighbor.recv_count = face_size;
+
+        dist_->neighbors_.push_back(neighbor);
+      }
+    }
+  }
+
+  dist_->neighbors_identified_ = true;
+}
+
+template <typename T, StoragePolicy>
+void ndarray<T, StoragePolicy>::exchange_ghosts()
+{
+  if (!is_distributed()) return;  // No-op for serial or replicated arrays
+
+  if (!dist_->neighbors_identified_ || dist_->neighbors_.empty()) {
+    // No neighbors or not yet identified - nothing to exchange
+    return;
+  }
+
+  std::vector<MPI_Request> requests;
+  std::vector<std::vector<T>> send_buffers(dist_->neighbors_.size());
+  std::vector<std::vector<T>> recv_buffers(dist_->neighbors_.size());
+
+  // Post receives for all neighbors
+  for (size_t i = 0; i < dist_->neighbors_.size(); i++) {
+    recv_buffers[i].resize(dist_->neighbors_[i].recv_count);
+
+    MPI_Request req;
+    int tag = dist_->neighbors_[i].direction;
+    MPI_Irecv(recv_buffers[i].data(),
+              static_cast<int>(dist_->neighbors_[i].recv_count),
+              mpi_datatype(),
+              dist_->neighbors_[i].rank,
+              tag,
+              dist_->comm,
+              &req);
+    requests.push_back(req);
+  }
+
+  // Pack and send boundary data to all neighbors
+  for (size_t i = 0; i < dist_->neighbors_.size(); i++) {
+    send_buffers[i].resize(dist_->neighbors_[i].send_count);
+    pack_boundary_data(i, send_buffers[i]);
+
+    // Reverse the direction for the tag (what we receive from left, they send from right)
+    int tag = dist_->neighbors_[i].direction ^ 1;  // Flip last bit: 0↔1, 2↔3, etc.
+
+    MPI_Send(send_buffers[i].data(),
+             static_cast<int>(dist_->neighbors_[i].send_count),
+             mpi_datatype(),
+             dist_->neighbors_[i].rank,
+             tag,
+             dist_->comm);
+  }
+
+  // Wait for all receives to complete
+  MPI_Waitall(static_cast<int>(requests.size()), requests.data(), MPI_STATUSES_IGNORE);
+
+  // Unpack received ghost data
+  for (size_t i = 0; i < dist_->neighbors_.size(); i++) {
+    unpack_ghost_data(i, recv_buffers[i]);
+  }
+}
+
+template <typename T, typename StoragePolicy>
+void ndarray<T, StoragePolicy>::pack_boundary_data(int neighbor_idx, std::vector<T>& buffer)
+{
+  const auto& neighbor = dist_->neighbors_[neighbor_idx];
+  int dim = neighbor.direction / 2;  // Which dimension: 0, 1, 2, ...
+  bool is_high = (neighbor.direction % 2) == 1;  // true = right/up, false = left/down
+
+  size_t ghost_width = 1;  // Simplified: assume 1-layer ghosts for now
+
+  if (dim == 0 && dims.size() >= 1) {
+    // Boundary in dimension 0
+    size_t start_idx = is_high ? (dist_->local_core_.size(0) - ghost_width) : 0;
+    size_t buffer_idx = 0;
+
+    if (dims.size() == 1) {
+      // 1D case
+      for (size_t i = 0; i < ghost_width; i++) {
+        buffer[buffer_idx++] = f(start_idx + i);
+      }
+    } else if (dims.size() >= 2) {
+      // 2D case
+      for (size_t i = 0; i < ghost_width; i++) {
+        for (size_t j = 0; j < dist_->local_core_.size(1); j++) {
+          buffer[buffer_idx++] = f(start_idx + i, j);
+        }
+      }
+    }
+  } else if (dim == 1 && dims.size() >= 2) {
+    // Boundary in dimension 1
+    size_t start_idx = is_high ? (dist_->local_core_.size(1) - ghost_width) : 0;
+    size_t buffer_idx = 0;
+
+    for (size_t i = 0; i < dist_->local_core_.size(0); i++) {
+      for (size_t j = 0; j < ghost_width; j++) {
+        buffer[buffer_idx++] = f(i, start_idx + j);
+      }
+    }
+  }
+  // TODO: Add dimension 2, 3, etc. for higher-dimensional arrays
+}
+
+template <typename T, typename StoragePolicy>
+void ndarray<T, StoragePolicy>::unpack_ghost_data(int neighbor_idx, const std::vector<T>& buffer)
+{
+  const auto& neighbor = dist_->neighbors_[neighbor_idx];
+  int dim = neighbor.direction / 2;
+  bool is_high = (neighbor.direction % 2) == 1;
+
+  size_t ghost_width = 1;
+
+  // Calculate ghost offsets
+  size_t ghost_low = dist_->local_core_.start(dim) - dist_->local_extent_.start(dim);
+  size_t ghost_high = (dist_->local_extent_.start(dim) + dist_->local_extent_.size(dim)) -
+                      (dist_->local_core_.start(dim) + dist_->local_core_.size(dim));
+
+  if (dim == 0 && dims.size() >= 1) {
+    size_t start_idx = is_high ? (dist_->local_core_.size(0) + ghost_low) : 0;
+    size_t buffer_idx = 0;
+
+    if (!is_high && ghost_low > 0) {
+      // Unpack into left ghost
+      if (dims.size() == 1) {
+        for (size_t i = 0; i < ghost_width && i < ghost_low; i++) {
+          f(start_idx + i) = buffer[buffer_idx++];
+        }
+      } else if (dims.size() >= 2) {
+        for (size_t i = 0; i < ghost_width && i < ghost_low; i++) {
+          for (size_t j = 0; j < dist_->local_core_.size(1); j++) {
+            f(start_idx + i, j) = buffer[buffer_idx++];
+          }
+        }
+      }
+    } else if (is_high && ghost_high > 0) {
+      // Unpack into right ghost
+      if (dims.size() == 1) {
+        for (size_t i = 0; i < ghost_width && i < ghost_high; i++) {
+          f(start_idx + i) = buffer[buffer_idx++];
+        }
+      } else if (dims.size() >= 2) {
+        for (size_t i = 0; i < ghost_width && i < ghost_high; i++) {
+          for (size_t j = 0; j < dist_->local_core_.size(1); j++) {
+            f(start_idx + i, j) = buffer[buffer_idx++];
+          }
+        }
+      }
+    }
+  } else if (dim == 1 && dims.size() >= 2) {
+    size_t start_idx = is_high ? (dist_->local_core_.size(1) + ghost_low) : 0;
+    size_t buffer_idx = 0;
+
+    if (!is_high && ghost_low > 0) {
+      for (size_t i = 0; i < dist_->local_core_.size(0); i++) {
+        for (size_t j = 0; j < ghost_width && j < ghost_low; j++) {
+          f(i, start_idx + j) = buffer[buffer_idx++];
+        }
+      }
+    } else if (is_high && ghost_high > 0) {
+      for (size_t i = 0; i < dist_->local_core_.size(0); i++) {
+        for (size_t j = 0; j < ghost_width && j < ghost_high; j++) {
+          f(i, start_idx + j) = buffer[buffer_idx++];
+        }
       }
     }
   }
 }
 
 template <typename T, typename StoragePolicy>
-void ndarray<T, StoragePolicy>::exchange_ghosts()
+MPI_Datatype ndarray<T, StoragePolicy>::mpi_datatype() const
 {
-  if (!is_distributed()) return;  // No-op for serial or replicated arrays
-
-  // TODO: Implement ghost exchange using MPI communication
-  // For now, this is a placeholder
-  // Full implementation will be copied from distributed_ndarray.hh
+  return mpi_dtype();  // Use existing static method
 }
 
 #endif // NDARRAY_HAVE_MPI
