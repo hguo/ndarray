@@ -442,6 +442,30 @@ public: // statistics & misc
   ndarray<T, StoragePolicy> &perturb(T sigma); // add gaussian noise to the array
   ndarray<T, StoragePolicy> &clamp(T min, T max); // clamp data with min and max
 
+public: // Distribution-aware I/O (automatically chooses parallel/replicated/serial)
+#if NDARRAY_HAVE_MPI && NDARRAY_HAVE_NETCDF
+  /**
+   * @brief Read from NetCDF with automatic parallel/replicated/serial detection
+   *
+   * Behavior:
+   * - Distributed: Parallel read (each rank reads local portion)
+   * - Replicated: Rank 0 reads + MPI_Bcast
+   * - Serial: Regular serial read
+   */
+  void read_netcdf_auto(const std::string& filename, const std::string& varname);
+  void write_netcdf_auto(const std::string& filename, const std::string& varname);
+#endif
+
+#if NDARRAY_HAVE_MPI && NDARRAY_HAVE_HDF5
+  void read_hdf5_auto(const std::string& filename, const std::string& varname);
+  void write_hdf5_auto(const std::string& filename, const std::string& varname);
+#endif
+
+#if NDARRAY_HAVE_MPI
+  void read_binary_auto(const std::string& filename);
+  void write_binary_auto(const std::string& filename);
+#endif
+
 public: // MPI and distributed memory support
 #if NDARRAY_HAVE_MPI
   /**
@@ -2531,7 +2555,7 @@ void ndarray<T, StoragePolicy>::setup_ghost_exchange()
   dist_->neighbors_identified_ = true;
 }
 
-template <typename T, StoragePolicy>
+template <typename T, typename StoragePolicy>
 void ndarray<T, StoragePolicy>::exchange_ghosts()
 {
   if (!is_distributed()) return;  // No-op for serial or replicated arrays
@@ -2696,6 +2720,405 @@ template <typename T, typename StoragePolicy>
 MPI_Datatype ndarray<T, StoragePolicy>::mpi_datatype() const
 {
   return mpi_dtype();  // Use existing static method
+}
+
+#endif // NDARRAY_HAVE_MPI
+
+//////////////////////////////////
+// Distribution-aware I/O implementations
+//////////////////////////////////
+
+#if NDARRAY_HAVE_MPI && NDARRAY_HAVE_NETCDF
+
+template <typename T, typename StoragePolicy>
+void ndarray<T, StoragePolicy>::read_netcdf_auto(
+  const std::string& filename, const std::string& varname)
+{
+  if (should_use_parallel_io()) {
+    // Distributed mode: Parallel read using local core region
+    const auto& core = dist_->local_core_;
+    std::vector<size_t> starts(core.nd());
+    std::vector<size_t> sizes(core.nd());
+
+    for (size_t d = 0; d < core.nd(); d++) {
+      starts[d] = core.start(d);
+      sizes[d] = core.size(d);
+    }
+
+    // Use base class parallel read with start/size
+    this->read_netcdf(filename, varname, starts.data(), sizes.data(), dist_->comm);
+
+  } else if (should_use_replicated_io()) {
+    // Replicated mode: Rank 0 reads, broadcast to others
+    if (dist_->rank == 0) {
+      // Rank 0 reads full array
+      this->read_netcdf(filename, varname, MPI_COMM_SELF);
+    }
+
+    // Broadcast size from rank 0
+    size_t total_size = this->size();
+    MPI_Bcast(&total_size, 1, MPI_UNSIGNED_LONG, 0, dist_->comm);
+
+    // Other ranks allocate
+    if (dist_->rank != 0) {
+      this->reshapef(this->dims);  // Dims should already be set
+    }
+
+    // Broadcast data
+    MPI_Bcast(this->data(), static_cast<int>(total_size), mpi_datatype(), 0, dist_->comm);
+
+  } else {
+    // Serial mode: Regular read
+    this->read_netcdf(filename, varname, MPI_COMM_SELF);
+  }
+}
+
+template <typename T, typename StoragePolicy>
+void ndarray<T, StoragePolicy>::write_netcdf_auto(
+  const std::string& filename, const std::string& varname)
+{
+  if (should_use_parallel_io()) {
+    // Distributed mode: Parallel write using local core region
+    const auto& core = dist_->local_core_;
+    std::vector<size_t> starts(core.nd());
+    std::vector<size_t> sizes(core.nd());
+
+    for (size_t d = 0; d < core.nd(); d++) {
+      starts[d] = core.start(d);
+      sizes[d] = core.size(d);
+    }
+
+    // Create file on rank 0
+    if (dist_->rank == 0) {
+      int ncid;
+      NC_SAFE_CALL(nc_create(filename.c_str(), NC_NETCDF4, &ncid));
+
+      // Define dimensions
+      std::vector<int> dimids(core.nd());
+      for (size_t d = 0; d < core.nd(); d++) {
+        std::string dimname = "dim" + std::to_string(d);
+        NC_SAFE_CALL(nc_def_dim(ncid, dimname.c_str(), dist_->global_lattice_.size(d), &dimids[d]));
+      }
+
+      // Define variable
+      int varid;
+      NC_SAFE_CALL(nc_def_var(ncid, varname.c_str(), this->nc_dtype(), core.nd(), dimids.data(), &varid));
+      NC_SAFE_CALL(nc_enddef(ncid));
+      NC_SAFE_CALL(nc_close(ncid));
+    }
+
+    MPI_Barrier(dist_->comm);
+
+    // All ranks write their portion
+    int ncid;
+    NC_SAFE_CALL(nc_open_par(filename.c_str(), NC_WRITE, dist_->comm, MPI_INFO_NULL, &ncid));
+
+    int varid;
+    NC_SAFE_CALL(nc_inq_varid(ncid, varname.c_str(), &varid));
+
+    this->to_netcdf(ncid, varid, starts.data(), sizes.data());
+
+    NC_SAFE_CALL(nc_close(ncid));
+
+  } else if (should_use_replicated_io()) {
+    // Replicated mode: Only rank 0 writes
+    if (dist_->rank == 0) {
+      this->to_netcdf(filename, varname);
+    }
+    MPI_Barrier(dist_->comm);
+
+  } else {
+    // Serial mode: Regular write
+    this->to_netcdf(filename, varname);
+  }
+}
+
+#endif // NDARRAY_HAVE_MPI && NDARRAY_HAVE_NETCDF
+
+#if NDARRAY_HAVE_MPI && NDARRAY_HAVE_HDF5
+
+template <typename T, typename StoragePolicy>
+void ndarray<T, StoragePolicy>::read_hdf5_auto(
+  const std::string& filename, const std::string& varname)
+{
+  if (should_use_parallel_io()) {
+    // Distributed mode: Parallel HDF5 read
+    const auto& core = dist_->local_core_;
+
+    // Open file with MPI-IO
+    hid_t plist_id = H5Pcreate(H5P_FILE_ACCESS);
+    H5Pset_fapl_mpio(plist_id, dist_->comm, MPI_INFO_NULL);
+
+    hid_t file_id = H5Fopen(filename.c_str(), H5F_ACC_RDONLY, plist_id);
+    H5Pclose(plist_id);
+
+    if (file_id < 0) {
+      throw std::runtime_error("Failed to open HDF5 file: " + filename);
+    }
+
+    // Open dataset
+    hid_t dataset_id = H5Dopen(file_id, varname.c_str(), H5P_DEFAULT);
+    if (dataset_id < 0) {
+      H5Fclose(file_id);
+      throw std::runtime_error("Failed to open HDF5 dataset: " + varname);
+    }
+
+    // Get dataspace
+    hid_t space_id = H5Dget_space(dataset_id);
+
+    // Define hyperslab (local core region)
+    std::vector<hsize_t> starts(core.nd());
+    std::vector<hsize_t> counts(core.nd());
+    for (size_t d = 0; d < core.nd(); d++) {
+      starts[d] = core.start(d);
+      counts[d] = core.size(d);
+    }
+
+    H5Sselect_hyperslab(space_id, H5S_SELECT_SET, starts.data(), NULL, counts.data(), NULL);
+
+    // Memory space
+    hid_t memspace_id = H5Screate_simple(core.nd(), counts.data(), NULL);
+
+    // Collective read
+    hid_t xfer_plist = H5Pcreate(H5P_DATASET_XFER);
+    H5Pset_dxpl_mpio(xfer_plist, H5FD_MPIO_COLLECTIVE);
+
+    H5Dread(dataset_id, H5T_NATIVE_FLOAT, memspace_id, space_id, xfer_plist, this->data());
+
+    H5Pclose(xfer_plist);
+    H5Sclose(memspace_id);
+    H5Sclose(space_id);
+    H5Dclose(dataset_id);
+    H5Fclose(file_id);
+
+  } else if (should_use_replicated_io()) {
+    // Replicated mode: Rank 0 reads + broadcast
+    if (dist_->rank == 0) {
+      this->read_hdf5(filename, varname);
+    }
+
+    size_t total_size = this->size();
+    MPI_Bcast(&total_size, 1, MPI_UNSIGNED_LONG, 0, dist_->comm);
+
+    if (dist_->rank != 0) {
+      this->reshapef(this->dims);
+    }
+
+    MPI_Bcast(this->data(), static_cast<int>(total_size), mpi_datatype(), 0, dist_->comm);
+
+  } else {
+    // Serial mode
+    this->read_hdf5(filename, varname);
+  }
+}
+
+template <typename T, typename StoragePolicy>
+void ndarray<T, StoragePolicy>::write_hdf5_auto(
+  const std::string& filename, const std::string& varname)
+{
+  if (should_use_parallel_io()) {
+    // Distributed mode: Parallel HDF5 write
+    const auto& core = dist_->local_core_;
+
+    // Create file with MPI-IO (rank 0 creates, all wait)
+    hid_t file_id;
+    if (dist_->rank == 0) {
+      hid_t plist_id = H5Pcreate(H5P_FILE_ACCESS);
+      H5Pset_fapl_mpio(plist_id, dist_->comm, MPI_INFO_NULL);
+      file_id = H5Fcreate(filename.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, plist_id);
+      H5Pclose(plist_id);
+    }
+
+    MPI_Barrier(dist_->comm);
+
+    if (dist_->rank != 0) {
+      hid_t plist_id = H5Pcreate(H5P_FILE_ACCESS);
+      H5Pset_fapl_mpio(plist_id, dist_->comm, MPI_INFO_NULL);
+      file_id = H5Fopen(filename.c_str(), H5F_ACC_RDWR, plist_id);
+      H5Pclose(plist_id);
+    }
+
+    // Create dataspace for global array
+    std::vector<hsize_t> global_dims(core.nd());
+    for (size_t d = 0; d < core.nd(); d++) {
+      global_dims[d] = dist_->global_lattice_.size(d);
+    }
+    hid_t space_id = H5Screate_simple(core.nd(), global_dims.data(), NULL);
+
+    // Create dataset (rank 0 only)
+    hid_t dataset_id;
+    if (dist_->rank == 0) {
+      dataset_id = H5Dcreate(file_id, varname.c_str(), H5T_NATIVE_FLOAT,
+                             space_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    }
+    MPI_Barrier(dist_->comm);
+
+    if (dist_->rank != 0) {
+      dataset_id = H5Dopen(file_id, varname.c_str(), H5P_DEFAULT);
+    }
+
+    // Select hyperslab
+    std::vector<hsize_t> starts(core.nd());
+    std::vector<hsize_t> counts(core.nd());
+    for (size_t d = 0; d < core.nd(); d++) {
+      starts[d] = core.start(d);
+      counts[d] = core.size(d);
+    }
+    H5Sselect_hyperslab(space_id, H5S_SELECT_SET, starts.data(), NULL, counts.data(), NULL);
+
+    // Memory space
+    hid_t memspace_id = H5Screate_simple(core.nd(), counts.data(), NULL);
+
+    // Collective write
+    hid_t xfer_plist = H5Pcreate(H5P_DATASET_XFER);
+    H5Pset_dxpl_mpio(xfer_plist, H5FD_MPIO_COLLECTIVE);
+
+    H5Dwrite(dataset_id, H5T_NATIVE_FLOAT, memspace_id, space_id, xfer_plist, this->data());
+
+    H5Pclose(xfer_plist);
+    H5Sclose(memspace_id);
+    H5Sclose(space_id);
+    H5Dclose(dataset_id);
+    H5Fclose(file_id);
+
+  } else if (should_use_replicated_io()) {
+    // Replicated mode: Only rank 0 writes
+    if (dist_->rank == 0) {
+      this->to_hdf5(filename, varname);
+    }
+    MPI_Barrier(dist_->comm);
+
+  } else {
+    // Serial mode
+    this->to_hdf5(filename, varname);
+  }
+}
+
+#endif // NDARRAY_HAVE_MPI && NDARRAY_HAVE_HDF5
+
+#if NDARRAY_HAVE_MPI
+
+template <typename T, typename StoragePolicy>
+void ndarray<T, StoragePolicy>::read_binary_auto(const std::string& filename)
+{
+  if (should_use_parallel_io()) {
+    // Distributed mode: MPI-IO parallel read
+    // Read only the local core region using column-major (Fortran) order
+    const auto& core = dist_->local_core_;
+    const size_t nd = core.nd();
+
+    MPI_File fh;
+    MPI_File_open(dist_->comm, filename.c_str(), MPI_MODE_RDONLY, MPI_INFO_NULL, &fh);
+
+    // Calculate offset for column-major order
+    MPI_Offset offset = 0;
+    MPI_Offset stride = sizeof(T);
+
+    for (size_t d = 0; d < nd; d++) {
+      offset += static_cast<MPI_Offset>(core.start(d)) * stride;
+      stride *= dist_->global_lattice_.size(d);
+    }
+
+    // For simplicity, read column-by-column for 2D
+    if (nd == 2) {
+      size_t core_size0 = core.size(0);
+      size_t core_size1 = core.size(1);
+      size_t global_size0 = dist_->global_lattice_.size(0);
+
+      for (size_t j = 0; j < core_size1; j++) {
+        size_t global_j = core.start(1) + j;
+        size_t global_i = core.start(0);
+        MPI_Offset col_offset = (global_i + global_j * global_size0) * sizeof(T);
+
+        T* col_ptr = &this->f(0, j);
+        MPI_File_read_at_all(fh, col_offset, col_ptr, static_cast<int>(core_size0),
+                             mpi_datatype(), MPI_STATUS_IGNORE);
+      }
+    } else {
+      // 1D or higher-D: simple contiguous read
+      MPI_File_read_at_all(fh, offset, this->data(), static_cast<int>(core.n()),
+                           mpi_datatype(), MPI_STATUS_IGNORE);
+    }
+
+    MPI_File_close(&fh);
+
+  } else if (should_use_replicated_io()) {
+    // Replicated mode: Rank 0 reads + broadcast
+    if (dist_->rank == 0) {
+      this->read_binary_file(filename);
+    }
+
+    size_t total_size = this->size();
+    MPI_Bcast(&total_size, 1, MPI_UNSIGNED_LONG, 0, dist_->comm);
+
+    if (dist_->rank != 0) {
+      this->reshapef(this->dims);
+    }
+
+    MPI_Bcast(this->data(), static_cast<int>(total_size), mpi_datatype(), 0, dist_->comm);
+
+  } else {
+    // Serial mode
+    this->read_binary_file(filename);
+  }
+}
+
+template <typename T, typename StoragePolicy>
+void ndarray<T, StoragePolicy>::write_binary_auto(const std::string& filename)
+{
+  if (should_use_parallel_io()) {
+    // Distributed mode: MPI-IO parallel write
+    const auto& core = dist_->local_core_;
+    const size_t nd = core.nd();
+
+    MPI_File fh;
+    MPI_File_open(dist_->comm, filename.c_str(),
+                  MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &fh);
+
+    // Calculate offset for column-major order
+    MPI_Offset offset = 0;
+    MPI_Offset stride = sizeof(T);
+
+    for (size_t d = 0; d < nd; d++) {
+      offset += static_cast<MPI_Offset>(core.start(d)) * stride;
+      stride *= dist_->global_lattice_.size(d);
+    }
+
+    // For 2D, write column-by-column
+    if (nd == 2) {
+      size_t core_size0 = core.size(0);
+      size_t core_size1 = core.size(1);
+      size_t global_size0 = dist_->global_lattice_.size(0);
+
+      for (size_t j = 0; j < core_size1; j++) {
+        size_t global_j = core.start(1) + j;
+        size_t global_i = core.start(0);
+        MPI_Offset col_offset = (global_i + global_j * global_size0) * sizeof(T);
+
+        const T* col_ptr = &this->f(0, j);
+        MPI_File_write_at_all(fh, col_offset, const_cast<T*>(col_ptr),
+                              static_cast<int>(core_size0),
+                              mpi_datatype(), MPI_STATUS_IGNORE);
+      }
+    } else {
+      // 1D or higher-D: simple contiguous write
+      MPI_File_write_at_all(fh, offset, this->data(), static_cast<int>(core.n()),
+                            mpi_datatype(), MPI_STATUS_IGNORE);
+    }
+
+    MPI_File_close(&fh);
+
+  } else if (should_use_replicated_io()) {
+    // Replicated mode: Only rank 0 writes
+    if (dist_->rank == 0) {
+      this->to_binary_file(filename);
+    }
+    MPI_Barrier(dist_->comm);
+
+  } else {
+    // Serial mode
+    this->to_binary_file(filename);
+  }
 }
 
 #endif // NDARRAY_HAVE_MPI
