@@ -140,6 +140,41 @@ int main(int argc, char** argv) {
     }
   }
 
+  // ========================================================================
+  // Method 4: CONVENIENCE - Direct global access (NEW!)
+  // ========================================================================
+
+  // NEW convenience methods: at_global(), f_global(), c_global()
+  // These do the conversion internally - simpler syntax!
+
+  std::vector<std::vector<size_t>> points_of_interest = {
+    {500, 400},  // Center
+    {0, 0},      // Corner
+    {999, 799}   // Other corner
+  };
+
+  for (const auto& pt : points_of_interest) {
+    try {
+      // Direct access with global indices (throws if not local)
+      float value = temp.at_global(pt[0], pt[1]);
+
+      std::cout << "Global [" << pt[0] << ", " << pt[1]
+                << "] = " << value << std::endl;
+
+      // Can also write with global indices
+      temp.at_global(pt[0], pt[1]) = value * 2.0f;
+
+    } catch (const std::out_of_range& e) {
+      // This global point is not on this rank
+    }
+  }
+
+  // Also available: f_global() and c_global() for explicit ordering
+  if (temp.is_local({500, 400})) {
+    float val_f = temp.f_global(500, 400);  // Fortran-order
+    float val_c = temp.c_global(500, 400);  // C-order
+  }
+
   MPI_Finalize();
   return 0;
 }
@@ -258,7 +293,7 @@ std::vector<size_t> local_to_global(const std::vector<size_t>& local_idx) const;
 bool is_local(const std::vector<size_t>& global_idx) const;
 ```
 
-### Data Access (Always with LOCAL indices)
+### Data Access with LOCAL Indices
 ```cpp
 // Get local array (includes ghosts)
 ndarray<T>& local_array();
@@ -269,6 +304,31 @@ T& at(size_t i0, size_t i1, ...);           // Fortran-order
 T& f(size_t i0, size_t i1, ...);            // Fortran-order (explicit)
 T& c(size_t i0, size_t i1, ...);            // C-order
 T& operator()(size_t i0, size_t i1, ...);   // Default order
+```
+
+### Data Access with GLOBAL Indices (NEW - Convenience)
+```cpp
+// Direct access with global indices (throws if not in local core)
+// These methods internally call global_to_local() then access local_array()
+
+// Fortran-order (column-major)
+T& at_global(size_t i0, size_t i1, ...);      // 1D, 2D, 3D, 4D
+const T& at_global(size_t i0, size_t i1, ...) const;
+
+// Explicit Fortran-order
+T& f_global(size_t i0, size_t i1, ...);       // 1D, 2D, 3D, 4D
+const T& f_global(size_t i0, size_t i1, ...) const;
+
+// C-order (row-major)
+T& c_global(size_t i0, size_t i1, ...);       // 1D, 2D, 3D, 4D
+const T& c_global(size_t i0, size_t i1, ...) const;
+
+// Example usage:
+float value = temp.at_global(500, 400);       // Read with global indices
+temp.at_global(500, 400) = 273.15f;           // Write with global indices
+
+// Throws std::out_of_range if global index not in local core
+// Throws std::runtime_error if array not distributed
 ```
 
 ## Common Patterns
@@ -284,13 +344,30 @@ for (size_t i = 0; i < temp.local_core().size(0); i++) {
 }
 ```
 
-### Pattern 2: Check Specific Global Points
+### Pattern 2: Check Specific Global Points (Manual Conversion)
 ```cpp
 std::vector<size_t> global_point = {500, 400};
 if (temp.is_local(global_point)) {
   auto local_point = temp.global_to_local(global_point);
   float value = temp.local_array().at(local_point[0], local_point[1]);
   // ... process this specific point ...
+}
+```
+
+### Pattern 2b: Direct Global Access (NEW - Convenience)
+```cpp
+// Simpler syntax with at_global() - does conversion internally
+try {
+  float value = temp.at_global(500, 400);    // Read
+  temp.at_global(500, 400) = value * 2.0f;   // Write
+  // ... process ...
+} catch (const std::out_of_range& e) {
+  // Global index not in local core (this rank doesn't own it)
+}
+
+// Or check first to avoid exception
+if (temp.is_local({500, 400})) {
+  float value = temp.at_global(500, 400);  // Safe - won't throw
 }
 ```
 
@@ -333,17 +410,19 @@ for (size_t i = 1; i < local.dim(0) - 1; i++) {    // LOCAL extent indices
 
 ## Key Takeaways
 
-1. **Data access is ALWAYS with local indices**: `temp.local_array().at(i, j)` where `i` and `j` are local
+1. **Default: Local indexing for performance**: `temp.local_array().at(i, j)` where `i` and `j` are local
 
-2. **Global indices are for coordinate conversion**: Use `global_to_local()` when you have a global coordinate and need to access data
+2. **NEW: Convenience methods for global access**: `temp.at_global(500, 400)` - does conversion internally
 
-3. **Loop bounds use local sizes**: `for (i = 0; i < temp.local_core().size(0); i++)`
+3. **Global indices for coordinate conversion**: Use `global_to_local()` manually when needed, or use `at_global()` for convenience
 
-4. **Manual conversion when needed**: `global_i = temp.local_core().start(0) + local_i`
+4. **Loop bounds use local sizes**: `for (i = 0; i < temp.local_core().size(0); i++)`
 
-5. **Check ownership first**: `if (temp.is_local(global_point))` before converting
+5. **Manual conversion when needed**: `global_i = temp.local_core().start(0) + local_i`
 
-6. **Ghost regions are part of local array**: `local_array().dim(0)` includes ghosts, `local_core().size(0)` does not
+6. **Check ownership first**: `if (temp.is_local(global_point))` before accessing, or catch `std::out_of_range`
+
+7. **Ghost regions are part of local array**: `local_array().dim(0)` includes ghosts, `local_core().size(0)` does not
 
 ## Why This Design?
 

@@ -538,6 +538,37 @@ public: // MPI and distributed memory support
   std::vector<size_t> local_to_global(const std::vector<size_t>& local_idx) const;
   bool is_local(const std::vector<size_t>& global_idx) const;
 
+  // Global index access (convenience methods - throw if not in local core)
+  // Fortran-order (column-major)
+  T& at_global(size_t i0);
+  T& at_global(size_t i0, size_t i1);
+  T& at_global(size_t i0, size_t i1, size_t i2);
+  T& at_global(size_t i0, size_t i1, size_t i2, size_t i3);
+  const T& at_global(size_t i0) const;
+  const T& at_global(size_t i0, size_t i1) const;
+  const T& at_global(size_t i0, size_t i1, size_t i2) const;
+  const T& at_global(size_t i0, size_t i1, size_t i2, size_t i3) const;
+
+  // Explicit Fortran-order
+  T& f_global(size_t i0);
+  T& f_global(size_t i0, size_t i1);
+  T& f_global(size_t i0, size_t i1, size_t i2);
+  T& f_global(size_t i0, size_t i1, size_t i2, size_t i3);
+  const T& f_global(size_t i0) const;
+  const T& f_global(size_t i0, size_t i1) const;
+  const T& f_global(size_t i0, size_t i1, size_t i2) const;
+  const T& f_global(size_t i0, size_t i1, size_t i2, size_t i3) const;
+
+  // C-order (row-major)
+  T& c_global(size_t i0);
+  T& c_global(size_t i0, size_t i1);
+  T& c_global(size_t i0, size_t i1, size_t i2);
+  T& c_global(size_t i0, size_t i1, size_t i2, size_t i3);
+  const T& c_global(size_t i0) const;
+  const T& c_global(size_t i0, size_t i1) const;
+  const T& c_global(size_t i0, size_t i1, size_t i2) const;
+  const T& c_global(size_t i0, size_t i1, size_t i2, size_t i3) const;
+
   // MPI accessors
   MPI_Comm comm() const;
   int rank() const;
@@ -2443,6 +2474,164 @@ bool ndarray<T, StoragePolicy>::is_local(const std::vector<size_t>& global_idx) 
     }
   }
   return true;
+}
+
+// Global index access convenience methods
+
+// 1D Fortran-order (at_global)
+template <typename T, typename StoragePolicy>
+T& ndarray<T, StoragePolicy>::at_global(size_t i0) {
+  auto local_idx = global_to_local({i0});
+  return local_array().at(local_idx[0]);
+}
+
+template <typename T, typename StoragePolicy>
+const T& ndarray<T, StoragePolicy>::at_global(size_t i0) const {
+  auto local_idx = global_to_local({i0});
+  return local_array().at(local_idx[0]);
+}
+
+// 2D Fortran-order (at_global)
+template <typename T, typename StoragePolicy>
+T& ndarray<T, StoragePolicy>::at_global(size_t i0, size_t i1) {
+  auto local_idx = global_to_local({i0, i1});
+  return local_array().at(local_idx[0], local_idx[1]);
+}
+
+template <typename T, typename StoragePolicy>
+const T& ndarray<T, StoragePolicy>::at_global(size_t i0, size_t i1) const {
+  auto local_idx = global_to_local({i0, i1});
+  return local_array().at(local_idx[0], local_idx[1]);
+}
+
+// 3D Fortran-order (at_global)
+template <typename T, typename StoragePolicy>
+T& ndarray<T, StoragePolicy>::at_global(size_t i0, size_t i1, size_t i2) {
+  auto local_idx = global_to_local({i0, i1, i2});
+  return local_array().at(local_idx[0], local_idx[1], local_idx[2]);
+}
+
+template <typename T, typename StoragePolicy>
+const T& ndarray<T, StoragePolicy>::at_global(size_t i0, size_t i1, size_t i2) const {
+  auto local_idx = global_to_local({i0, i1, i2});
+  return local_array().at(local_idx[0], local_idx[1], local_idx[2]);
+}
+
+// 4D Fortran-order (at_global)
+template <typename T, typename StoragePolicy>
+T& ndarray<T, StoragePolicy>::at_global(size_t i0, size_t i1, size_t i2, size_t i3) {
+  auto local_idx = global_to_local({i0, i1, i2, i3});
+  return local_array().at(local_idx[0], local_idx[1], local_idx[2], local_idx[3]);
+}
+
+template <typename T, typename StoragePolicy>
+const T& ndarray<T, StoragePolicy>::at_global(size_t i0, size_t i1, size_t i2, size_t i3) const {
+  auto local_idx = global_to_local({i0, i1, i2, i3});
+  return local_array().at(local_idx[0], local_idx[1], local_idx[2], local_idx[3]);
+}
+
+// 1D Fortran-order (f_global)
+template <typename T, typename StoragePolicy>
+T& ndarray<T, StoragePolicy>::f_global(size_t i0) {
+  auto local_idx = global_to_local({i0});
+  return local_array().f(local_idx[0]);
+}
+
+template <typename T, typename StoragePolicy>
+const T& ndarray<T, StoragePolicy>::f_global(size_t i0) const {
+  auto local_idx = global_to_local({i0});
+  return local_array().f(local_idx[0]);
+}
+
+// 2D Fortran-order (f_global)
+template <typename T, typename StoragePolicy>
+T& ndarray<T, StoragePolicy>::f_global(size_t i0, size_t i1) {
+  auto local_idx = global_to_local({i0, i1});
+  return local_array().f(local_idx[0], local_idx[1]);
+}
+
+template <typename T, typename StoragePolicy>
+const T& ndarray<T, StoragePolicy>::f_global(size_t i0, size_t i1) const {
+  auto local_idx = global_to_local({i0, i1});
+  return local_array().f(local_idx[0], local_idx[1]);
+}
+
+// 3D Fortran-order (f_global)
+template <typename T, typename StoragePolicy>
+T& ndarray<T, StoragePolicy>::f_global(size_t i0, size_t i1, size_t i2) {
+  auto local_idx = global_to_local({i0, i1, i2});
+  return local_array().f(local_idx[0], local_idx[1], local_idx[2]);
+}
+
+template <typename T, typename StoragePolicy>
+const T& ndarray<T, StoragePolicy>::f_global(size_t i0, size_t i1, size_t i2) const {
+  auto local_idx = global_to_local({i0, i1, i2});
+  return local_array().f(local_idx[0], local_idx[1], local_idx[2]);
+}
+
+// 4D Fortran-order (f_global)
+template <typename T, typename StoragePolicy>
+T& ndarray<T, StoragePolicy>::f_global(size_t i0, size_t i1, size_t i2, size_t i3) {
+  auto local_idx = global_to_local({i0, i1, i2, i3});
+  return local_array().f(local_idx[0], local_idx[1], local_idx[2], local_idx[3]);
+}
+
+template <typename T, typename StoragePolicy>
+const T& ndarray<T, StoragePolicy>::f_global(size_t i0, size_t i1, size_t i2, size_t i3) const {
+  auto local_idx = global_to_local({i0, i1, i2, i3});
+  return local_array().f(local_idx[0], local_idx[1], local_idx[2], local_idx[3]);
+}
+
+// 1D C-order (c_global)
+template <typename T, typename StoragePolicy>
+T& ndarray<T, StoragePolicy>::c_global(size_t i0) {
+  auto local_idx = global_to_local({i0});
+  return local_array().c(local_idx[0]);
+}
+
+template <typename T, typename StoragePolicy>
+const T& ndarray<T, StoragePolicy>::c_global(size_t i0) const {
+  auto local_idx = global_to_local({i0});
+  return local_array().c(local_idx[0]);
+}
+
+// 2D C-order (c_global)
+template <typename T, typename StoragePolicy>
+T& ndarray<T, StoragePolicy>::c_global(size_t i0, size_t i1) {
+  auto local_idx = global_to_local({i0, i1});
+  return local_array().c(local_idx[0], local_idx[1]);
+}
+
+template <typename T, typename StoragePolicy>
+const T& ndarray<T, StoragePolicy>::c_global(size_t i0, size_t i1) const {
+  auto local_idx = global_to_local({i0, i1});
+  return local_array().c(local_idx[0], local_idx[1]);
+}
+
+// 3D C-order (c_global)
+template <typename T, typename StoragePolicy>
+T& ndarray<T, StoragePolicy>::c_global(size_t i0, size_t i1, size_t i2) {
+  auto local_idx = global_to_local({i0, i1, i2});
+  return local_array().c(local_idx[0], local_idx[1], local_idx[2]);
+}
+
+template <typename T, typename StoragePolicy>
+const T& ndarray<T, StoragePolicy>::c_global(size_t i0, size_t i1, size_t i2) const {
+  auto local_idx = global_to_local({i0, i1, i2});
+  return local_array().c(local_idx[0], local_idx[1], local_idx[2]);
+}
+
+// 4D C-order (c_global)
+template <typename T, typename StoragePolicy>
+T& ndarray<T, StoragePolicy>::c_global(size_t i0, size_t i1, size_t i2, size_t i3) {
+  auto local_idx = global_to_local({i0, i1, i2, i3});
+  return local_array().c(local_idx[0], local_idx[1], local_idx[2], local_idx[3]);
+}
+
+template <typename T, typename StoragePolicy>
+const T& ndarray<T, StoragePolicy>::c_global(size_t i0, size_t i1, size_t i2, size_t i3) const {
+  auto local_idx = global_to_local({i0, i1, i2, i3});
+  return local_array().c(local_idx[0], local_idx[1], local_idx[2], local_idx[3]);
 }
 
 template <typename T, typename StoragePolicy>
