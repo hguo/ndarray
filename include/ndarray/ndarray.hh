@@ -579,6 +579,14 @@ private:
   void pack_boundary_data(int neighbor_idx, std::vector<T>& buffer);
   void unpack_ghost_data(int neighbor_idx, const std::vector<T>& buffer);
   MPI_Datatype mpi_datatype() const;
+
+  // GPU-aware MPI support
+  bool has_gpu_aware_mpi() const;
+  void exchange_ghosts_cpu();      // CPU path (current implementation)
+  void exchange_ghosts_gpu_staged();  // GPU with host staging fallback
+#if NDARRAY_HAVE_CUDA
+  void exchange_ghosts_gpu_direct();  // GPU direct (requires GPU-aware MPI)
+#endif
 #endif
 
 private:
@@ -2565,6 +2573,73 @@ void ndarray<T, StoragePolicy>::exchange_ghosts()
     return;
   }
 
+  // Route to appropriate implementation based on device state
+  if (is_on_device()) {
+    // GPU path
+#if NDARRAY_HAVE_CUDA
+    if (get_device_type() == NDARRAY_DEVICE_CUDA) {
+      // Check environment variable to force host staging
+      const char* force_staging = std::getenv("NDARRAY_FORCE_HOST_STAGING");
+      if (force_staging && std::string(force_staging) == "1") {
+        exchange_ghosts_gpu_staged();
+      } else if (has_gpu_aware_mpi()) {
+        exchange_ghosts_gpu_direct();
+      } else {
+        exchange_ghosts_gpu_staged();
+      }
+      return;
+    }
+#endif
+    // For other device types (SYCL, HIP), fall back to staged for now
+    exchange_ghosts_gpu_staged();
+  } else {
+    // CPU path
+    exchange_ghosts_cpu();
+  }
+}
+
+template <typename T, typename StoragePolicy>
+bool ndarray<T, StoragePolicy>::has_gpu_aware_mpi() const
+{
+#if NDARRAY_HAVE_CUDA
+  // Check if GPU-aware MPI detection is disabled
+  const char* disable = std::getenv("NDARRAY_DISABLE_GPU_AWARE_MPI");
+  if (disable && std::string(disable) == "1") {
+    return false;
+  }
+
+  // Method 1: Compile-time detection (MPICH, MVAPICH2, recent OpenMPI)
+#if defined(MPIX_CUDA_AWARE_SUPPORT) && MPIX_CUDA_AWARE_SUPPORT
+  return true;
+#elif defined(MPIX_Query_cuda_support)
+  // Method 2: Runtime query (some MPI implementations)
+  return MPIX_Query_cuda_support() == 1;
+#else
+  // Method 3: Environment variable detection (fallback)
+  // MPICH/MVAPICH2
+  const char* mpich = std::getenv("MPICH_GPU_SUPPORT_ENABLED");
+  if (mpich && std::string(mpich) == "1") return true;
+
+  // OpenMPI
+  const char* ompi = std::getenv("OMPI_MCA_opal_cuda_support");
+  if (ompi && std::string(ompi) == "true") return true;
+
+  // Cray MPI
+  const char* cray = std::getenv("CRAY_CUDA_MPS");
+  if (cray && std::string(cray) == "1") return true;
+
+  // Conservative default: assume not available
+  return false;
+#endif
+#else
+  return false;  // No CUDA support compiled in
+#endif
+}
+
+template <typename T, typename StoragePolicy>
+void ndarray<T, StoragePolicy>::exchange_ghosts_cpu()
+{
+  // Original CPU implementation
   std::vector<MPI_Request> requests;
   std::vector<std::vector<T>> send_buffers(dist_->neighbors_.size());
   std::vector<std::vector<T>> recv_buffers(dist_->neighbors_.size());
@@ -2609,6 +2684,35 @@ void ndarray<T, StoragePolicy>::exchange_ghosts()
     unpack_ghost_data(i, recv_buffers[i]);
   }
 }
+
+template <typename T, typename StoragePolicy>
+void ndarray<T, StoragePolicy>::exchange_ghosts_gpu_staged()
+{
+  // Fallback: Stage through host memory
+  // Strategy: GPU → host → MPI exchange → GPU
+
+  // 1. Copy full array from device to host
+  copy_from_device();
+
+  // 2. Perform exchange on host
+  exchange_ghosts_cpu();
+
+  // 3. Copy back to device
+  copy_to_device();
+}
+
+#if NDARRAY_HAVE_CUDA
+template <typename T, typename StoragePolicy>
+void ndarray<T, StoragePolicy>::exchange_ghosts_gpu_direct()
+{
+  // GPU-aware MPI: Pass device pointers directly to MPI
+  // TODO: Implement with CUDA kernels for pack/unpack
+
+  // For now, fall back to staged approach
+  // This will be implemented in Phase 2
+  exchange_ghosts_gpu_staged();
+}
+#endif
 
 template <typename T, typename StoragePolicy>
 void ndarray<T, StoragePolicy>::pack_boundary_data(int neighbor_idx, std::vector<T>& buffer)
