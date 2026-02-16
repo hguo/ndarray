@@ -83,7 +83,7 @@ inline void substream_vti<StoragePolicy>::initialize(YAML::Node y)
 }
 
 template <typename StoragePolicy>
-inline void substream_vti<StoragePolicy>::read(int i, std::shared_ptr<ndarray_group> g)
+inline void substream_vti<StoragePolicy>::read(int i, std::shared_ptr<group_type> g)
 {
   const auto f = filenames[i]; // assume each vti has only one timestep
 
@@ -104,7 +104,7 @@ inline void substream_vti_o<StoragePolicy>::initialize(YAML::Node y)
 }
 
 template <typename StoragePolicy>
-inline void substream_vti_o<StoragePolicy>::read(int i, std::shared_ptr<ndarray_group> g)
+inline void substream_vti_o<StoragePolicy>::read(int i, std::shared_ptr<group_type> g)
 {
   const auto f = series_filename(this->filename_pattern, i);
   fprintf(stderr, "writing step %d, f=%s\n", i, f.c_str());
@@ -148,7 +148,7 @@ inline void substream_vtu_resample<StoragePolicy>::initialize(YAML::Node y)
 }
 
 template <typename StoragePolicy>
-inline void substream_vtu_resample<StoragePolicy>::read(int i, std::shared_ptr<ndarray_group> g)
+inline void substream_vtu_resample<StoragePolicy>::read(int i, std::shared_ptr<group_type> g)
 {
   const auto f = filenames[i];
 

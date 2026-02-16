@@ -41,7 +41,7 @@ struct substream_netcdf : public substream<StoragePolicy> {
 ///////////
 
 template <typename StoragePolicy>
-inline void substream_netcdf<StoragePolicy>::read(int i, std::shared_ptr<ndarray_group> g)
+inline void substream_netcdf<StoragePolicy>::read(int i, std::shared_ptr<group_type> g)
 {
   int fi = this->locate_timestep_file_index(i);
 

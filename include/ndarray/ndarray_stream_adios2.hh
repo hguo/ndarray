@@ -43,7 +43,7 @@ inline void substream_adios2<StoragePolicy>::initialize(YAML::Node y)
 }
 
 template <typename StoragePolicy>
-inline void substream_adios2<StoragePolicy>::read(int i, std::shared_ptr<ndarray_group> g)
+inline void substream_adios2<StoragePolicy>::read(int i, std::shared_ptr<group_type> g)
 {
   const auto f = this->filenames[i];
 
