@@ -214,10 +214,11 @@ public:
 
         auto regular_group = regular_stream_->read(timestep);
         std::cout << "  Variables: ";
-        auto keys = regular_group->keys();
-        for (size_t i = 0; i < keys.size(); i++) {
-          std::cout << keys[i];
-          if (i < keys.size() - 1) std::cout << ", ";
+        bool first = true;
+        for (const auto& kv : *regular_group) {
+          if (!first) std::cout << ", ";
+          std::cout << kv.first;
+          first = false;
         }
         std::cout << std::endl;
 
@@ -257,7 +258,8 @@ public:
     auto dist_group = std::make_shared<distributed_group_type>(comm_);
 
     // For each array in regular group, create distributed array
-    for (const auto& name : regular_group->keys()) {
+    for (const auto& kv : *regular_group) {
+      const auto& name = kv.first;
       distributed_array_type darray(comm_);
 
       // Set decomposition

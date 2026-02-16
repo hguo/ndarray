@@ -9,51 +9,55 @@ endif ()
 
 add_library (ndarray SHARED ndarray.cpp)
 
+# Link all dependencies with PUBLIC visibility so they propagate to consumers
+# This allows examples/tests to simply link against ndarray without manually
+# specifying each optional dependency
+
 if (NDARRAY_HAVE_YAML)
-  target_link_libraries (ndarray yaml-cpp::yaml-cpp)
+  target_link_libraries (ndarray PUBLIC yaml-cpp::yaml-cpp)
 endif ()
 
 if (NDARRAY_HAVE_ADIOS2)
-  target_link_libraries (ndarray adios2::adios2)
+  target_link_libraries (ndarray PUBLIC adios2::adios2)
 endif ()
 
 if (NDARRAY_HAVE_VTK)
-  target_link_libraries (ndarray VTK::CommonCore VTK::CommonDataModel VTK::IOLegacy VTK::IOXML VTK::IOParallelXML VTK::FiltersSources VTK::FiltersCore)
+  target_link_libraries (ndarray PUBLIC VTK::CommonCore VTK::CommonDataModel VTK::IOLegacy VTK::IOXML VTK::IOParallelXML VTK::FiltersSources VTK::FiltersCore)
 endif ()
 
 if (NDARRAY_HAVE_NETCDF)
-  target_link_libraries (ndarray netCDF::netcdf)
+  target_link_libraries (ndarray PUBLIC netCDF::netcdf)
 endif ()
 
 if (NDARRAY_HAVE_PNETCDF)
-  target_link_libraries (ndarray ${PNETCDF_LIBRARY})
+  target_link_libraries (ndarray PUBLIC ${PNETCDF_LIBRARIES})
 endif ()
 
 if (NDARRAY_HAVE_HDF5)
-  target_link_libraries (ndarray HDF5::HDF5)
+  target_link_libraries (ndarray PUBLIC ${HDF5_LIBRARIES})
 endif ()
 
 if (NDARRAY_HAVE_HENSON)
-  target_link_libraries (ndarray ${HENSON_PMPI_LIBRARY} ${HENSON_LIBRARY})
+  target_link_libraries (ndarray PUBLIC ${HENSON_PMPI_LIBRARY} ${HENSON_LIBRARY})
 endif ()
 
 if (NDARRAY_HAVE_MPI AND TARGET MPI::MPI_CXX)
-  target_link_libraries (ndarray MPI::MPI_CXX)
+  target_link_libraries (ndarray PUBLIC MPI::MPI_CXX)
   if (TARGET MPI::MPI_C)
-    target_link_libraries (ndarray MPI::MPI_C)
+    target_link_libraries (ndarray PUBLIC MPI::MPI_C)
   endif ()
 endif ()
 
 if (NDARRAY_HAVE_PNG)
-  target_link_libraries (ndarray PNG::PNG)
+  target_link_libraries (ndarray PUBLIC PNG::PNG)
 endif ()
 
 if (NDARRAY_HAVE_OPENMP)
-  target_link_libraries (ndarray OpenMP::OpenMP_CXX)
+  target_link_libraries (ndarray PUBLIC OpenMP::OpenMP_CXX)
 endif ()
 
 if (NDARRAY_HAVE_CUDA)
-  target_link_libraries (ndarray CUDA::cudart)
+  target_link_libraries (ndarray PUBLIC CUDA::cudart)
 endif ()
 
 
