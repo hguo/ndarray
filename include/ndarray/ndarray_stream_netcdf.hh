@@ -48,14 +48,14 @@ inline void substream_netcdf<StoragePolicy>::read(int i, std::shared_ptr<group_t
   if (this->is_static) fi = 0;
   if (fi < 0) return;
 
-  const std::string f = filenames[fi];
+  const std::string f = this->filenames[fi];
 
-  fprintf(stderr, "static=%d, filename=%s, i=%d, fi=%d, filenames.size=%zu\n", this->is_static, f.c_str(), i, fi, filenames.size());
+  fprintf(stderr, "static=%d, filename=%s, i=%d, fi=%d, filenames.size=%zu\n", this->is_static, f.c_str(), i, fi, this->filenames.size());
 
   auto &pool = fdpool_nc::get_instance();
-  int ncid = pool.open(f, comm);
+  int ncid = pool.open(f, this->comm);
 
-  for (const auto &var : variables) {
+  for (const auto &var : this->variables) {
     int varid = -1;
     std::string found_varname;
 
@@ -118,9 +118,9 @@ inline void substream_netcdf<StoragePolicy>::read(int i, std::shared_ptr<group_t
             time_varying = true;
 
       if (time_varying)
-        p->read_netcdf_timestep(ncid, varid, i - first_timestep_per_file[fi], comm);
+        p->read_netcdf_timestep(ncid, varid, i - this->first_timestep_per_file[fi], this->comm);
       else
-        p->read_netcdf(ncid, varid, comm);
+        p->read_netcdf(ncid, varid, this->comm);
 
       if (var.multicomponents)
         p->make_multicomponents();
@@ -147,22 +147,22 @@ inline void substream_netcdf<StoragePolicy>::initialize(YAML::Node y)
 {
   auto &pool = fdpool_nc::get_instance();
   for (const auto f : this->filenames) {
-    int ncid = pool.open(f, comm);
+    int ncid = pool.open(f, this->comm);
 
     size_t nt = 0;
     int unlimited_recid;
     nc_inq_unlimdim(ncid, &unlimited_recid);
 
     if (unlimited_recid >= 0) {
-      has_unlimited_time_dimension = true;
+      this->has_unlimited_time_dimension = true;
 
       NC_SAFE_CALL( nc_inq_dimlen(ncid, unlimited_recid, &nt) );
     } else {
-      has_unlimited_time_dimension = false;
+      this->has_unlimited_time_dimension = false;
     }
 
-    timesteps_per_file.push_back(nt);
-    first_timestep_per_file.push_back( this->total_timesteps );
+    this->timesteps_per_file.push_back(nt);
+    this->first_timestep_per_file.push_back( this->total_timesteps );
     this->total_timesteps += nt;
     fprintf(stderr, "filename=%s, nt=%zu\n", f.c_str(), nt);
   }

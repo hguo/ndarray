@@ -43,12 +43,12 @@ inline void substream_h5<StoragePolicy>::initialize(YAML::Node y)
 {
   // Read timesteps_per_file if specified
   if (y["timesteps_per_file"]) {
-    timesteps_per_file = y["timesteps_per_file"].as<int>();
+    this->timesteps_per_file = y["timesteps_per_file"].as<int>();
   }
 
   if (!this->is_static) {
     // Total timesteps = number of files × timesteps per file
-    this->total_timesteps = this->filenames.size() * timesteps_per_file;
+    this->total_timesteps = this->filenames.size() * this->timesteps_per_file;
   }
 }
 
@@ -56,8 +56,8 @@ template <typename StoragePolicy>
 inline void substream_h5<StoragePolicy>::read(int i, std::shared_ptr<group_type> g)
 {
   // Calculate which file and which timestep within that file
-  int file_index = i / timesteps_per_file;
-  int local_timestep = i % timesteps_per_file;
+  int file_index = i / this->timesteps_per_file;
+  int local_timestep = i % this->timesteps_per_file;
 
   auto fid = H5Fopen( this->filenames[file_index].c_str(), H5F_ACC_RDONLY, H5P_DEFAULT );
   if (fid >= 0) {

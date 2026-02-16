@@ -48,9 +48,9 @@ inline void substream_adios2<StoragePolicy>::read(int i, std::shared_ptr<group_t
   const auto f = this->filenames[i];
 
   adios2::Engine reader = this->stream_.io.Open(f, adios2::Mode::Read);
-  auto available_variables = stream_.io.AvailableVariables(true);
+  auto available_variables = this->stream_.io.AvailableVariables(true);
 
-  for (const auto &var : variables) {
+  for (const auto &var : this->variables) {
     std::string actual_varname;
     for (const auto varname : var.possible_names) {
       if (available_variables.find(varname) != available_variables.end()) {

@@ -79,20 +79,20 @@ public:
 template <typename StoragePolicy>
 inline void substream_vti<StoragePolicy>::initialize(YAML::Node y)
 {
-  this->total_timesteps = filenames.size();
+  this->total_timesteps = this->filenames.size();
 }
 
 template <typename StoragePolicy>
 inline void substream_vti<StoragePolicy>::read(int i, std::shared_ptr<group_type> g)
 {
-  const auto f = filenames[i]; // assume each vti has only one timestep
+  const auto f = this->filenames[i]; // assume each vti has only one timestep
 
   vtkSmartPointer<vtkXMLImageDataReader> reader = vtkXMLImageDataReader::New();
   reader->SetFileName(f.c_str());
   reader->Update();
   vtkSmartPointer<vtkImageData> vti = reader->GetOutput();
 
-  for (const auto &var : variables) {
+  for (const auto &var : this->variables) {
     std::shared_ptr<ndarray_base> p = ndarray_base::new_from_vtk_image_data(vti, var.name);
     g->set(var.name, p);
   }
@@ -141,7 +141,7 @@ inline void substream_vti_o<StoragePolicy>::read(int i, std::shared_ptr<group_ty
 template <typename StoragePolicy>
 inline void substream_vtu_resample<StoragePolicy>::initialize(YAML::Node y)
 {
-  this->total_timesteps = filenames.size();
+  this->total_timesteps = this->filenames.size();
 
   if (!this->has_dimensions())
     nd::fatal("missing dimensions for vtu_resample");
@@ -150,7 +150,7 @@ inline void substream_vtu_resample<StoragePolicy>::initialize(YAML::Node y)
 template <typename StoragePolicy>
 inline void substream_vtu_resample<StoragePolicy>::read(int i, std::shared_ptr<group_type> g)
 {
-  const auto f = filenames[i];
+  const auto f = this->filenames[i];
 
   vtkSmartPointer<vtkUnstructuredGrid> grid;
 
@@ -175,7 +175,7 @@ inline void substream_vtu_resample<StoragePolicy>::read(int i, std::shared_ptr<g
 
   if (this->has_bounds) {
     resample->SetUseInputBounds(false);
-    resample->SetSamplingBounds(lb[0], lb[1], lb[2], ub[0], ub[1], ub[2]);
+    resample->SetSamplingBounds(this->lb[0], this->lb[1], this->lb[2], this->ub[0], this->ub[1], this->ub[2]);
   } else
     resample->SetUseInputBounds(true);
 
@@ -183,7 +183,7 @@ inline void substream_vtu_resample<StoragePolicy>::read(int i, std::shared_ptr<g
   resample->Update();
 
   vtkSmartPointer<vtkImageData> vti = resample->GetOutput();
-  for (const auto &var : variables) {
+  for (const auto &var : this->variables) {
     std::shared_ptr<ndarray_base> p = ndarray_base::new_from_vtk_image_data(vti, var.name);
     g->set(var.name, p);
   }
