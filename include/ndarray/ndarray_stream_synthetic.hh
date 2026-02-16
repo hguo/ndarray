@@ -87,12 +87,38 @@ template <typename StoragePolicy>
 inline void substream_synthetic_woven<StoragePolicy>::read(int i, std::shared_ptr<group_type> g)
 {
   for (const auto &var : this->variables) { // normally, there should be only one variable
-    const auto arr = synthetic_woven_2D<double>(
-        this->dimensions[0],
-        this->dimensions[1],
-        t0 + delta * i,
-        scaling_factor);
-    g->set(var.name, arr);
+    // Respect dtype from YAML configuration
+    if (var.dtype == NDARRAY_DTYPE_FLOAT) {
+      const auto arr = synthetic_woven_2D<float>(
+          this->dimensions[0],
+          this->dimensions[1],
+          static_cast<float>(t0 + delta * i),
+          static_cast<float>(scaling_factor));
+      g->set(var.name, arr);
+    } else if (var.dtype == NDARRAY_DTYPE_DOUBLE || var.is_dtype_auto) {
+      // Default to double if dtype is auto or explicitly double
+      const auto arr = synthetic_woven_2D<double>(
+          this->dimensions[0],
+          this->dimensions[1],
+          t0 + delta * i,
+          scaling_factor);
+      g->set(var.name, arr);
+    } else if (var.dtype == NDARRAY_DTYPE_INT) {
+      const auto arr = synthetic_woven_2D<int>(
+          this->dimensions[0],
+          this->dimensions[1],
+          static_cast<int>(t0 + delta * i),
+          static_cast<int>(scaling_factor));
+      g->set(var.name, arr);
+    } else {
+      // Fallback: use double for unsupported dtypes
+      const auto arr = synthetic_woven_2D<double>(
+          this->dimensions[0],
+          this->dimensions[1],
+          t0 + delta * i,
+          scaling_factor);
+      g->set(var.name, arr);
+    }
   }
 }
 
