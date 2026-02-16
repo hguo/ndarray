@@ -10,6 +10,9 @@
 #include <ndarray/config.hh>
 #include <iostream>
 
+// Include reference implementation for verification
+#include "reference_ghost_exchange.cpp"
+
 #if NDARRAY_HAVE_MPI
 
 #include <ndarray/ndarray.hh>
@@ -546,6 +549,104 @@ int test_ghost_exchange_correctness() {
   return 0;
 }
 
+int test_ghost_exchange_vs_reference() {
+  int rank, nprocs;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+
+  if (rank == 0) {
+    std::cout << "\n=== Test 8B: Ghost Exchange vs Reference Implementation ===" << std::endl;
+  }
+
+  TEST_SECTION("Create global test array (rank 0)");
+  const size_t nx = 100, ny = 80;
+  ftk::ndarray<float> global_data;
+
+  // Rank 0 creates global array with known pattern
+  if (rank == 0) {
+    global_data = ftk::reference::create_test_array<float>(nx, ny, 100.0f);
+  }
+
+  // Broadcast global data to all ranks for reference computation
+  global_data.reshapef(nx, ny);
+  MPI_Bcast(global_data.data(), global_data.size(), MPI_FLOAT, 0, MPI_COMM_WORLD);
+
+  TEST_SECTION("Compute reference ghost exchange");
+  auto reference_arrays = ftk::reference::reference_ghost_exchange_2d(
+      global_data, {nx, ny}, nprocs, {}, {1, 1});
+
+  TEST_SECTION("Perform distributed ghost exchange");
+  ftk::ndarray<float> darray;
+  darray.decompose(MPI_COMM_WORLD, {nx, ny}, 0, {}, {1, 1});
+
+  // Fill local core from global data
+  size_t ghost_offset_0 = darray.local_core().start(0) - darray.local_extent().start(0);
+  size_t ghost_offset_1 = darray.local_core().start(1) - darray.local_extent().start(1);
+
+  for (size_t i = 0; i < darray.local_core().size(0); i++) {
+    for (size_t j = 0; j < darray.local_core().size(1); j++) {
+      size_t global_i = darray.local_core().start(0) + i;
+      size_t global_j = darray.local_core().start(1) + j;
+      darray.f(ghost_offset_0 + i, ghost_offset_1 + j) = global_data.f(global_i, global_j);
+    }
+  }
+
+  // Exchange ghosts
+  darray.exchange_ghosts();
+
+  TEST_SECTION("Verify distributed matches reference");
+  const auto& ref = reference_arrays[rank];
+  bool match = true;
+
+  // Debug: print array info
+  if (rank == 0) {
+    std::cout << "    Rank 0 - Core: starts=" << darray.local_core().start(0) << ","
+              << darray.local_core().start(1) << ", sizes=" << darray.local_core().size(0)
+              << "," << darray.local_core().size(1) << std::endl;
+    std::cout << "    Rank 0 - Extent: starts=" << darray.local_extent().start(0) << ","
+              << darray.local_extent().start(1) << ", sizes=" << darray.local_extent().size(0)
+              << "," << darray.local_extent().size(1) << std::endl;
+    std::cout << "    Rank 0 - Array dims: " << darray.dimf(0) << " × " << darray.dimf(1) << std::endl;
+    std::cout << "    Rank 0 - Ghost offsets: [" << ghost_offset_0 << "," << ghost_offset_1 << "]" << std::endl;
+  }
+
+  int mismatch_count = 0;
+  for (size_t i = 0; i < darray.dimf(0) && i < ref.dimf(0); i++) {
+    for (size_t j = 0; j < darray.dimf(1) && j < ref.dimf(1); j++) {
+      float dist_val = darray.f(i, j);
+      float ref_val = ref.f(i, j);
+
+      if (std::abs(dist_val - ref_val) > 1e-5f) {
+        if (mismatch_count < 5) {  // Print first 5 mismatches
+          size_t global_i = darray.local_extent().start(0) + i;
+          size_t global_j = darray.local_extent().start(1) + j;
+          std::cerr << "[Rank " << rank << "] Mismatch at local [" << i << "," << j
+                    << "] (global [" << global_i << "," << global_j << "]): "
+                    << "distributed=" << dist_val << ", reference=" << ref_val << std::endl;
+          mismatch_count++;
+        }
+        match = false;
+      }
+    }
+  }
+
+  if (mismatch_count > 0) {
+    std::cerr << "[Rank " << rank << "] Total mismatches: " << mismatch_count << " (showing first 5)" << std::endl;
+  }
+
+  TEST_ASSERT(match, "Distributed ghost exchange should match reference");
+
+  // Verify all ranks agree
+  int all_match = match ? 1 : 0;
+  int global_match = 0;
+  MPI_Allreduce(&all_match, &global_match, 1, MPI_INT, MPI_LAND, MPI_COMM_WORLD);
+
+  TEST_ASSERT(global_match == 1, "All ranks should match reference");
+
+  if (rank == 0) std::cout << "  ✓ Ghost exchange matches reference implementation" << std::endl;
+  return 0;
+}
+
 int test_2d_decomposition() {
   int rank, nprocs;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -1068,6 +1169,7 @@ int main(int argc, char** argv) {
 
   // Ghost exchange tests
   result |= test_ghost_exchange_correctness();
+  result |= test_ghost_exchange_vs_reference();
 
   // Decomposition pattern tests
   result |= test_2d_decomposition();
