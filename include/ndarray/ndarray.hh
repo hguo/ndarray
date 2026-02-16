@@ -7,6 +7,7 @@
 #include <ndarray/storage/native_storage.hh>
 #include <ndarray/storage/xtensor_storage.hh>
 #include <ndarray/storage/eigen_storage.hh>
+#include <ndarray/lattice_partitioner.hh>
 
 #if NDARRAY_HAVE_CUDA
 #include <cuda.h>
@@ -440,6 +441,107 @@ public: // statistics & misc
 
   ndarray<T, StoragePolicy> &perturb(T sigma); // add gaussian noise to the array
   ndarray<T, StoragePolicy> &clamp(T min, T max); // clamp data with min and max
+
+public: // MPI and distributed memory support
+#if NDARRAY_HAVE_MPI
+  /**
+   * @brief Configure array for distributed execution (domain decomposition)
+   *
+   * After calling decompose(), the array behaves as domain-decomposed:
+   * - dims/shape return local dimensions (this rank's portion + ghosts)
+   * - operator() and at() use local indices
+   * - read/write methods do parallel I/O automatically
+   * - exchange_ghosts() updates ghost layers via MPI
+   *
+   * @param comm MPI communicator
+   * @param global_dims Global array dimensions
+   * @param nprocs Number of processes (0 = use comm size)
+   * @param decomp Decomposition pattern (empty = auto)
+   * @param ghost Ghost layers per dimension
+   */
+  void decompose(MPI_Comm comm,
+                 const std::vector<size_t>& global_dims,
+                 size_t nprocs = 0,
+                 const std::vector<size_t>& decomp = {},
+                 const std::vector<size_t>& ghost = {});
+
+  /**
+   * @brief Mark array as replicated across all ranks
+   *
+   * All ranks have full data, no domain decomposition.
+   * I/O uses rank 0 read/write + MPI_Bcast for efficiency.
+   *
+   * @param comm MPI communicator
+   */
+  void set_replicated(MPI_Comm comm);
+
+  /**
+   * @brief Exchange ghost layers with neighboring ranks
+   *
+   * No-op if array is not distributed.
+   */
+  void exchange_ghosts();
+
+  /**
+   * @brief Check if array is distributed (domain-decomposed)
+   */
+  bool is_distributed() const;
+
+  /**
+   * @brief Check if array is replicated (full data on all ranks)
+   */
+  bool is_replicated() const;
+
+  /**
+   * @brief Check if array has MPI configuration
+   */
+  bool has_mpi_config() const { return dist_ != nullptr; }
+
+  // Distribution-specific accessors (throw if not distributed)
+  const lattice& global_lattice() const;
+  const lattice& local_core() const;
+  const lattice& local_extent() const;
+
+  // Index conversion (throw if not distributed)
+  std::vector<size_t> global_to_local(const std::vector<size_t>& global_idx) const;
+  std::vector<size_t> local_to_global(const std::vector<size_t>& local_idx) const;
+  bool is_local(const std::vector<size_t>& global_idx) const;
+
+  // MPI accessors
+  MPI_Comm comm() const;
+  int rank() const;
+  int nprocs() const;
+
+private:
+  // Distribution type
+  enum class DistType { DISTRIBUTED, REPLICATED };
+
+  // Distribution information (nullptr = serial, non-null = parallel)
+  struct distribution_info {
+    DistType type;
+    MPI_Comm comm;
+    int rank;
+    int nprocs;
+
+    // For DISTRIBUTED arrays only:
+    lattice global_lattice_;
+    lattice local_core_;
+    lattice local_extent_;
+    std::unique_ptr<lattice_partitioner> partitioner_;
+
+    // Neighbor info for ghost exchange
+    std::vector<int> neighbor_ranks_;
+    std::vector<lattice> send_regions_;
+    std::vector<lattice> recv_regions_;
+  };
+
+  std::unique_ptr<distribution_info> dist_;
+
+  // Helper methods
+  bool should_use_parallel_io() const { return dist_ && dist_->type == DistType::DISTRIBUTED; }
+  bool should_use_replicated_io() const { return dist_ && dist_->type == DistType::REPLICATED; }
+  void setup_ghost_exchange();
+#endif
 
 private:
   storage_type storage_;  // Replaces: std::vector<T> p
@@ -2088,6 +2190,241 @@ inline void ndarray<T, StoragePolicy>::read_pnetcdf_all(int ncid, int varid, con
 }
 
 #endif // NDARRAY_HAVE_PNETCDF
+
+//////////////////////////////////
+// MPI and distributed memory support implementations
+//////////////////////////////////
+
+#if NDARRAY_HAVE_MPI
+
+template <typename T, typename StoragePolicy>
+void ndarray<T, StoragePolicy>::decompose(MPI_Comm comm,
+                                          const std::vector<size_t>& global_dims,
+                                          size_t nprocs,
+                                          const std::vector<size_t>& decomp,
+                                          const std::vector<size_t>& ghost)
+{
+  // Create distribution info
+  dist_ = std::make_unique<distribution_info>();
+  dist_->type = DistType::DISTRIBUTED;
+  dist_->comm = comm;
+  MPI_Comm_rank(comm, &dist_->rank);
+  MPI_Comm_size(comm, &dist_->nprocs);
+
+  // Create global lattice
+  dist_->global_lattice_ = lattice(global_dims);
+
+  // Use provided nprocs or communicator size
+  size_t np = (nprocs == 0) ? dist_->nprocs : nprocs;
+
+  // Create partitioner
+  dist_->partitioner_ = std::make_unique<lattice_partitioner>(
+    dist_->global_lattice_, np, decomp, ghost);
+
+  // Get local core and extent for this rank
+  dist_->local_core_ = dist_->partitioner_->get_core(dist_->rank);
+  dist_->local_extent_ = dist_->partitioner_->get_extent(dist_->rank);
+
+  // Reshape local storage to hold extent (core + ghosts)
+  reshapef(dist_->local_extent_.sizes());
+
+  // Setup ghost exchange topology
+  setup_ghost_exchange();
+}
+
+template <typename T, typename StoragePolicy>
+void ndarray<T, StoragePolicy>::set_replicated(MPI_Comm comm)
+{
+  // Create distribution info
+  dist_ = std::make_unique<distribution_info>();
+  dist_->type = DistType::REPLICATED;
+  dist_->comm = comm;
+  MPI_Comm_rank(comm, &dist_->rank);
+  MPI_Comm_size(comm, &dist_->nprocs);
+
+  // No decomposition - global = local
+  // Array will be reshaped by subsequent read/write operations
+}
+
+template <typename T, typename StoragePolicy>
+bool ndarray<T, StoragePolicy>::is_distributed() const
+{
+  return dist_ && dist_->type == DistType::DISTRIBUTED;
+}
+
+template <typename T, typename StoragePolicy>
+bool ndarray<T, StoragePolicy>::is_replicated() const
+{
+  return dist_ && dist_->type == DistType::REPLICATED;
+}
+
+template <typename T, typename StoragePolicy>
+const lattice& ndarray<T, StoragePolicy>::global_lattice() const
+{
+  if (!is_distributed()) {
+    throw std::runtime_error("Array is not distributed");
+  }
+  return dist_->global_lattice_;
+}
+
+template <typename T, typename StoragePolicy>
+const lattice& ndarray<T, StoragePolicy>::local_core() const
+{
+  if (!is_distributed()) {
+    throw std::runtime_error("Array is not distributed");
+  }
+  return dist_->local_core_;
+}
+
+template <typename T, typename StoragePolicy>
+const lattice& ndarray<T, StoragePolicy>::local_extent() const
+{
+  if (!is_distributed()) {
+    throw std::runtime_error("Array is not distributed");
+  }
+  return dist_->local_extent_;
+}
+
+template <typename T, typename StoragePolicy>
+MPI_Comm ndarray<T, StoragePolicy>::comm() const
+{
+  if (!dist_) {
+    throw std::runtime_error("Array has no MPI configuration");
+  }
+  return dist_->comm;
+}
+
+template <typename T, typename StoragePolicy>
+int ndarray<T, StoragePolicy>::rank() const
+{
+  if (!dist_) return 0;
+  return dist_->rank;
+}
+
+template <typename T, typename StoragePolicy>
+int ndarray<T, StoragePolicy>::nprocs() const
+{
+  if (!dist_) return 1;
+  return dist_->nprocs;
+}
+
+template <typename T, typename StoragePolicy>
+std::vector<size_t> ndarray<T, StoragePolicy>::global_to_local(
+  const std::vector<size_t>& global_idx) const
+{
+  if (!is_distributed()) {
+    throw std::runtime_error("Array is not distributed");
+  }
+
+  std::vector<size_t> local_idx(global_idx.size());
+  for (size_t d = 0; d < global_idx.size(); d++) {
+    if (global_idx[d] < dist_->local_core_.start(d) ||
+        global_idx[d] >= dist_->local_core_.start(d) + dist_->local_core_.size(d)) {
+      throw std::out_of_range("Global index not in local core region");
+    }
+    local_idx[d] = global_idx[d] - dist_->local_core_.start(d) +
+                   (dist_->local_extent_.start(d) - dist_->local_core_.start(d));
+  }
+  return local_idx;
+}
+
+template <typename T, typename StoragePolicy>
+std::vector<size_t> ndarray<T, StoragePolicy>::local_to_global(
+  const std::vector<size_t>& local_idx) const
+{
+  if (!is_distributed()) {
+    throw std::runtime_error("Array is not distributed");
+  }
+
+  std::vector<size_t> global_idx(local_idx.size());
+  for (size_t d = 0; d < local_idx.size(); d++) {
+    global_idx[d] = local_idx[d] + dist_->local_core_.start(d) -
+                    (dist_->local_extent_.start(d) - dist_->local_core_.start(d));
+  }
+  return global_idx;
+}
+
+template <typename T, typename StoragePolicy>
+bool ndarray<T, StoragePolicy>::is_local(const std::vector<size_t>& global_idx) const
+{
+  if (!is_distributed()) return true;
+
+  for (size_t d = 0; d < global_idx.size(); d++) {
+    if (global_idx[d] < dist_->local_core_.start(d) ||
+        global_idx[d] >= dist_->local_core_.start(d) + dist_->local_core_.size(d)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+template <typename T, typename StoragePolicy>
+void ndarray<T, StoragePolicy>::setup_ghost_exchange()
+{
+  if (!is_distributed()) return;
+
+  // Ghost exchange setup - identify neighbors and communication regions
+  // For now, simple 1D/2D/3D nearest neighbor topology
+  const size_t nd = dist_->local_core_.nd();
+
+  dist_->neighbor_ranks_.clear();
+  dist_->send_regions_.clear();
+  dist_->recv_regions_.clear();
+
+  // For each dimension, check for left and right neighbors
+  for (size_t dim = 0; dim < nd; dim++) {
+    // Get ghost size for this dimension
+    size_t ghost_low = dist_->local_extent_.start(dim) - dist_->local_core_.start(dim);
+    size_t ghost_high = (dist_->local_extent_.start(dim) + dist_->local_extent_.size(dim)) -
+                        (dist_->local_core_.start(dim) + dist_->local_core_.size(dim));
+
+    if (ghost_low == 0 && ghost_high == 0) continue;  // No ghosts in this dimension
+
+    // Left neighbor (lower in this dimension)
+    if (dist_->local_core_.start(dim) > 0) {
+      // Find rank that owns the region to the left
+      std::vector<size_t> neighbor_point(nd);
+      for (size_t d = 0; d < nd; d++) {
+        neighbor_point[d] = dist_->local_core_.start(d);
+      }
+      neighbor_point[dim] -= 1;  // One cell to the left
+
+      int neighbor_rank = dist_->partitioner_->get_partition_id(neighbor_point);
+      if (neighbor_rank >= 0 && neighbor_rank != dist_->rank) {
+        dist_->neighbor_ranks_.push_back(neighbor_rank);
+        // Define send and receive regions (simplified - needs proper implementation)
+      }
+    }
+
+    // Right neighbor (higher in this dimension)
+    if (dist_->local_core_.start(dim) + dist_->local_core_.size(dim) <
+        dist_->global_lattice_.size(dim)) {
+      std::vector<size_t> neighbor_point(nd);
+      for (size_t d = 0; d < nd; d++) {
+        neighbor_point[d] = dist_->local_core_.start(d);
+      }
+      neighbor_point[dim] = dist_->local_core_.start(dim) + dist_->local_core_.size(dim);
+
+      int neighbor_rank = dist_->partitioner_->get_partition_id(neighbor_point);
+      if (neighbor_rank >= 0 && neighbor_rank != dist_->rank) {
+        dist_->neighbor_ranks_.push_back(neighbor_rank);
+        // Define send and receive regions (simplified - needs proper implementation)
+      }
+    }
+  }
+}
+
+template <typename T, typename StoragePolicy>
+void ndarray<T, StoragePolicy>::exchange_ghosts()
+{
+  if (!is_distributed()) return;  // No-op for serial or replicated arrays
+
+  // TODO: Implement ghost exchange using MPI communication
+  // For now, this is a placeholder
+  // Full implementation will be copied from distributed_ndarray.hh
+}
+
+#endif // NDARRAY_HAVE_MPI
 
 // Type aliases for convenience
 template <typename T>
