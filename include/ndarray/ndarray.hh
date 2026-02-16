@@ -3020,9 +3020,13 @@ void ndarray<T, StoragePolicy>::pack_boundary_data(int neighbor_idx, std::vector
 
   size_t ghost_width = 1;  // Simplified: assume 1-layer ghosts for now
 
+  // Calculate ghost offset
+  size_t ghost_offset_0 = dist_->local_core_.start(0) - dist_->local_extent_.start(0);
+
   if (dim == 0 && dims.size() >= 1) {
     // Boundary in dimension 0
     size_t start_idx = is_high ? (dist_->local_core_.size(0) - ghost_width) : 0;
+    start_idx += ghost_offset_0;  // Account for ghost offset!
     size_t buffer_idx = 0;
 
     if (dims.size() == 1) {
@@ -3040,12 +3044,14 @@ void ndarray<T, StoragePolicy>::pack_boundary_data(int neighbor_idx, std::vector
     }
   } else if (dim == 1 && dims.size() >= 2) {
     // Boundary in dimension 1
+    size_t ghost_offset_1 = dist_->local_core_.start(1) - dist_->local_extent_.start(1);
     size_t start_idx = is_high ? (dist_->local_core_.size(1) - ghost_width) : 0;
+    start_idx += ghost_offset_1;  // Account for ghost offset!
     size_t buffer_idx = 0;
 
     for (size_t i = 0; i < dist_->local_core_.size(0); i++) {
       for (size_t j = 0; j < ghost_width; j++) {
-        buffer[buffer_idx++] = f(i, start_idx + j);
+        buffer[buffer_idx++] = f(ghost_offset_0 + i, start_idx + j);
       }
     }
   }

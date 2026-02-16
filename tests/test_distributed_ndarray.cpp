@@ -591,8 +591,17 @@ int test_ghost_exchange_vs_reference() {
     }
   }
 
+  // Debug: Check if neighbors were found
+  if (rank == 0) {
+    std::cout << "    About to exchange ghosts..." << std::endl;
+  }
+
   // Exchange ghosts
   darray.exchange_ghosts();
+
+  if (rank == 0) {
+    std::cout << "    Ghost exchange completed" << std::endl;
+  }
 
   TEST_SECTION("Verify distributed matches reference");
   const auto& ref = reference_arrays[rank];
