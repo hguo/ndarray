@@ -15,6 +15,7 @@
 #include <ndarray/ndarray.hh>
 #include <ndarray/config.hh>
 #include <iostream>
+#include <iomanip>
 #include <vector>
 #include <cassert>
 #include <cmath>
