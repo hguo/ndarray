@@ -44,24 +44,9 @@ if (NDARRAY_HAVE_CUDA OR NDARRAY_HAVE_SYCL)
   endif()
 endif()
 
-# Distributed stream examples (requires MPI and YAML)
-# TODO: Disabled until distributed_stream class is implemented
-# The distributed_stream class was planned but not completed
-# For now, use regular stream with manual decompose() calls
-#
-# if (NDARRAY_HAVE_MPI AND NDARRAY_HAVE_YAML)
-#   # Basic distributed stream example
-#   add_executable(distributed_stream distributed_stream.cpp)
-#   target_link_libraries(distributed_stream ndarray MPI::MPI_CXX ${CMAKE_THREAD_LIBS_INIT})
-#
-#   # YAML-based distributed stream example
-#   add_executable(distributed_stream_yaml distributed_stream_yaml.cpp)
-#   target_link_libraries(distributed_stream_yaml ndarray MPI::MPI_CXX ${CMAKE_THREAD_LIBS_INIT})
-#
-#   # Dry-run example
-#   add_executable(distributed_stream_dryrun distributed_stream_dryrun.cpp)
-#   target_link_libraries(distributed_stream_dryrun ndarray MPI::MPI_CXX ${CMAKE_THREAD_LIBS_INIT})
-# endif()
+# NOTE: Distributed stream functionality is built into the regular stream class.
+# Use ftk::stream with MPI communicator and decompose() on arrays for distributed I/O.
+# See parallel_mpi.cpp for distributed array examples.
 
 # Installation
 install(TARGETS basic_usage io_operations convolution
@@ -70,12 +55,6 @@ install(TARGETS basic_usage io_operations convolution
 if (NDARRAY_HAVE_MPI)
   install(TARGETS parallel_mpi
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}/examples)
-
-  # TODO: Re-enable when distributed_stream is implemented
-  # if (NDARRAY_HAVE_YAML)
-  #   install(TARGETS distributed_stream distributed_stream_yaml distributed_stream_dryrun
-  #     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}/examples)
-  # endif()
 endif()
 
 if (NDARRAY_HAVE_SYCL)
