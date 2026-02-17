@@ -194,8 +194,19 @@ jobs:
         sudo apt-get install -y \
           cmake \
           libyaml-cpp-dev \
-          libeigen3-dev \
-          libxtensor-dev
+          libeigen3-dev
+
+    - name: Install xtensor (header-only library)
+      run: |
+        git clone https://github.com/xtensor-stack/xtl.git /tmp/xtl
+        cd /tmp/xtl
+        cmake -B build -DCMAKE_INSTALL_PREFIX=/usr/local
+        sudo cmake --build build --target install
+
+        git clone https://github.com/xtensor-stack/xtensor.git /tmp/xtensor
+        cd /tmp/xtensor
+        cmake -B build -DCMAKE_INSTALL_PREFIX=/usr/local
+        sudo cmake --build build --target install
 
     - name: Configure CMake (Storage backends)
       run: |
