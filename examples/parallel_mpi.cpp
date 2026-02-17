@@ -95,17 +95,21 @@ int main(int argc, char** argv) {
   }
 
 #if NDARRAY_HAVE_PNETCDF
-  // Parallel NetCDF write
-  try {
-    local_data.write_pnetcdf("parallel_output.nc", "data", MPI_COMM_WORLD);
-    if (rank == 0) {
-      std::cout << "   - Successfully wrote parallel NetCDF file" << std::endl;
-    }
-  } catch (const std::exception& e) {
-    if (rank == 0) {
-      std::cerr << "   - Error with parallel NetCDF: " << e.what() << std::endl;
-    }
+  // TODO: Parallel NetCDF write (write_pnetcdf not yet implemented)
+  // For now, use serial write from rank 0
+  if (rank == 0) {
+    std::cout << "   - PNetCDF parallel write not yet implemented, skipping" << std::endl;
   }
+  // try {
+  //   local_data.write_pnetcdf("parallel_output.nc", "data", MPI_COMM_WORLD);
+  //   if (rank == 0) {
+  //     std::cout << "   - Successfully wrote parallel NetCDF file" << std::endl;
+  //   }
+  // } catch (const std::exception& e) {
+  //   if (rank == 0) {
+  //     std::cerr << "   - Error with parallel NetCDF: " << e.what() << std::endl;
+  //   }
+  // }
 #else
   if (rank == 0) {
     std::cout << "   - Parallel NetCDF not enabled" << std::endl;

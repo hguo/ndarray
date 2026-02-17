@@ -3337,7 +3337,7 @@ void ndarray<T, StoragePolicy>::read_hdf5_auto(
     H5Dclose(dataset_id);
     H5Fclose(file_id);
 #else
-    nd::fatal("Parallel HDF5 I/O requested but HDF5 was not built with parallel support");
+    nd::fatal(nd::ERR_HDF5_NOT_PARALLEL);
 #endif
 
   } else if (should_use_replicated_io()) {
@@ -3432,7 +3432,7 @@ void ndarray<T, StoragePolicy>::write_hdf5_auto(
     H5Dclose(dataset_id);
     H5Fclose(file_id);
 #else
-    nd::fatal("Parallel HDF5 I/O requested but HDF5 was not built with parallel support");
+    nd::fatal(nd::ERR_HDF5_NOT_PARALLEL);
 #endif
 
   } else if (should_use_replicated_io()) {

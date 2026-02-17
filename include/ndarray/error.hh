@@ -58,6 +58,8 @@ enum {
   ERR_NETCDF_FILE_NOT_OPEN,
   ERR_NETCDF_IO,              // NetCDF I/O operation failed
   ERR_PNETCDF_IO,             // Parallel-NetCDF I/O operation failed
+  ERR_HDF5_NOT_PARALLEL,      // HDF5 was not built with parallel support
+  ERR_HDF5_IO,                // HDF5 I/O operation failed
   ERR_ADIOS2 = 7000,
   ERR_ADIOS2_VARIABLE_NOT_FOUND,
   ERR_MESH_UNSUPPORTED_FORMAT = 8000,
@@ -115,6 +117,8 @@ inline std::string err2str(int e)
   case ERR_NETCDF_MISSING_VARIABLE: return "missing netcdf variable name(s)";
   case ERR_NETCDF_IO: return "NetCDF I/O error";
   case ERR_PNETCDF_IO: return "Parallel-NetCDF I/O error";
+  case ERR_HDF5_NOT_PARALLEL: return "HDF5 was not built with parallel support";
+  case ERR_HDF5_IO: return "HDF5 I/O error";
   case ERR_ADIOS2: return "adios2 error";
   case ERR_ADIOS2_VARIABLE_NOT_FOUND: return "adios2 variable not found";
   case ERR_MESH_UNSUPPORTED_FORMAT: return "unsupported mesh format";
