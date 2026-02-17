@@ -2980,7 +2980,16 @@ void ndarray<T, StoragePolicy>::exchange_ghosts_gpu_direct()
     bool is_high = (neighbor.direction % 2) == 1;
     size_t ghost_width = 1;  // TODO: Get from decomposition
 
-    if (dims.size() == 2 && dim < 2) {
+    if (dims.size() == 1) {
+      // 1D case
+      nd::launch_pack_boundary_1d(
+          d_send_buffers[i],
+          d_array,
+          static_cast<int>(dims[0]),
+          is_high,
+          static_cast<int>(ghost_width),
+          static_cast<int>(dist_->local_core_.size(0)));
+    } else if (dims.size() == 2 && dim < 2) {
       // 2D case
       nd::launch_pack_boundary_2d(
           d_send_buffers[i],
@@ -2992,8 +3001,21 @@ void ndarray<T, StoragePolicy>::exchange_ghosts_gpu_direct()
           static_cast<int>(ghost_width),
           static_cast<int>(dist_->local_core_.size(0)),
           static_cast<int>(dist_->local_core_.size(1)));
+    } else if (dims.size() == 3 && dim < 3) {
+      // 3D case
+      nd::launch_pack_boundary_3d(
+          d_send_buffers[i],
+          d_array,
+          static_cast<int>(dims[0]),
+          static_cast<int>(dims[1]),
+          static_cast<int>(dims[2]),
+          dim,
+          is_high,
+          static_cast<int>(ghost_width),
+          static_cast<int>(dist_->local_core_.size(0)),
+          static_cast<int>(dist_->local_core_.size(1)),
+          static_cast<int>(dist_->local_core_.size(2)));
     }
-    // TODO: Add 1D and 3D cases
   }
 
   // Synchronize before MPI operations
@@ -3040,7 +3062,18 @@ void ndarray<T, StoragePolicy>::exchange_ghosts_gpu_direct()
     size_t ghost_high = (dist_->local_extent_.start(dim) + dist_->local_extent_.size(dim)) -
                         (dist_->local_core_.start(dim) + dist_->local_core_.size(dim));
 
-    if (dims.size() == 2 && dim < 2) {
+    if (dims.size() == 1) {
+      // 1D case
+      nd::launch_unpack_ghost_1d(
+          d_array,
+          d_recv_buffers[i],
+          static_cast<int>(dims[0]),
+          is_high,
+          static_cast<int>(ghost_width),
+          static_cast<int>(ghost_low),
+          static_cast<int>(ghost_high),
+          static_cast<int>(dist_->local_core_.size(0)));
+    } else if (dims.size() == 2 && dim < 2) {
       // 2D case
       nd::launch_unpack_ghost_2d(
           d_array,
@@ -3054,8 +3087,23 @@ void ndarray<T, StoragePolicy>::exchange_ghosts_gpu_direct()
           static_cast<int>(ghost_high),
           static_cast<int>(dist_->local_core_.size(0)),
           static_cast<int>(dist_->local_core_.size(1)));
+    } else if (dims.size() == 3 && dim < 3) {
+      // 3D case
+      nd::launch_unpack_ghost_3d(
+          d_array,
+          d_recv_buffers[i],
+          static_cast<int>(dims[0]),
+          static_cast<int>(dims[1]),
+          static_cast<int>(dims[2]),
+          dim,
+          is_high,
+          static_cast<int>(ghost_width),
+          static_cast<int>(ghost_low),
+          static_cast<int>(ghost_high),
+          static_cast<int>(dist_->local_core_.size(0)),
+          static_cast<int>(dist_->local_core_.size(1)),
+          static_cast<int>(dist_->local_core_.size(2)));
     }
-    // TODO: Add 1D and 3D cases
   }
 
   // Synchronize after unpacking
@@ -3118,13 +3166,41 @@ void ndarray<T, StoragePolicy>::pack_boundary_data(int neighbor_idx, std::vector
     start_idx += ghost_offset_1;  // Account for ghost offset!
     size_t buffer_idx = 0;
 
+    if (dims.size() == 2) {
+      // 2D case
+      for (size_t i = 0; i < dist_->local_core_.size(0); i++) {
+        for (size_t j = 0; j < ghost_width; j++) {
+          buffer[buffer_idx++] = f(ghost_offset_0 + i, start_idx + j);
+        }
+      }
+    } else if (dims.size() >= 3) {
+      // 3D case
+      size_t ghost_offset_2 = dist_->local_core_.start(2) - dist_->local_extent_.start(2);
+      for (size_t i = 0; i < dist_->local_core_.size(0); i++) {
+        for (size_t j = 0; j < ghost_width; j++) {
+          for (size_t k = 0; k < dist_->local_core_.size(2); k++) {
+            buffer[buffer_idx++] = f(ghost_offset_0 + i, start_idx + j, ghost_offset_2 + k);
+          }
+        }
+      }
+    }
+  } else if (dim == 2 && dims.size() >= 3) {
+    // Boundary in dimension 2 (3D arrays)
+    size_t ghost_offset_0 = dist_->local_core_.start(0) - dist_->local_extent_.start(0);
+    size_t ghost_offset_1 = dist_->local_core_.start(1) - dist_->local_extent_.start(1);
+    size_t ghost_offset_2 = dist_->local_core_.start(2) - dist_->local_extent_.start(2);
+    size_t start_idx = is_high ? (dist_->local_core_.size(2) - ghost_width) : 0;
+    start_idx += ghost_offset_2;  // Account for ghost offset!
+    size_t buffer_idx = 0;
+
     for (size_t i = 0; i < dist_->local_core_.size(0); i++) {
-      for (size_t j = 0; j < ghost_width; j++) {
-        buffer[buffer_idx++] = f(ghost_offset_0 + i, start_idx + j);
+      for (size_t j = 0; j < dist_->local_core_.size(1); j++) {
+        for (size_t k = 0; k < ghost_width; k++) {
+          buffer[buffer_idx++] = f(ghost_offset_0 + i, ghost_offset_1 + j, start_idx + k);
+        }
       }
     }
   }
-  // TODO: Add dimension 2, 3, etc. for higher-dimensional arrays
 }
 
 template <typename T, typename StoragePolicy>
@@ -3151,11 +3227,21 @@ void ndarray<T, StoragePolicy>::unpack_ghost_data(int neighbor_idx, const std::v
         for (size_t i = 0; i < ghost_width && i < ghost_low; i++) {
           f(start_idx + i) = buffer[buffer_idx++];
         }
-      } else if (dims.size() >= 2) {
+      } else if (dims.size() == 2) {
         size_t ghost_offset_1 = dist_->local_core_.start(1) - dist_->local_extent_.start(1);
         for (size_t i = 0; i < ghost_width && i < ghost_low; i++) {
           for (size_t j = 0; j < dist_->local_core_.size(1); j++) {
             f(start_idx + i, ghost_offset_1 + j) = buffer[buffer_idx++];
+          }
+        }
+      } else if (dims.size() >= 3) {
+        size_t ghost_offset_1 = dist_->local_core_.start(1) - dist_->local_extent_.start(1);
+        size_t ghost_offset_2 = dist_->local_core_.start(2) - dist_->local_extent_.start(2);
+        for (size_t i = 0; i < ghost_width && i < ghost_low; i++) {
+          for (size_t j = 0; j < dist_->local_core_.size(1); j++) {
+            for (size_t k = 0; k < dist_->local_core_.size(2); k++) {
+              f(start_idx + i, ghost_offset_1 + j, ghost_offset_2 + k) = buffer[buffer_idx++];
+            }
           }
         }
       }
@@ -3165,11 +3251,21 @@ void ndarray<T, StoragePolicy>::unpack_ghost_data(int neighbor_idx, const std::v
         for (size_t i = 0; i < ghost_width && i < ghost_high; i++) {
           f(start_idx + i) = buffer[buffer_idx++];
         }
-      } else if (dims.size() >= 2) {
+      } else if (dims.size() == 2) {
         size_t ghost_offset_1 = dist_->local_core_.start(1) - dist_->local_extent_.start(1);
         for (size_t i = 0; i < ghost_width && i < ghost_high; i++) {
           for (size_t j = 0; j < dist_->local_core_.size(1); j++) {
             f(start_idx + i, ghost_offset_1 + j) = buffer[buffer_idx++];
+          }
+        }
+      } else if (dims.size() >= 3) {
+        size_t ghost_offset_1 = dist_->local_core_.start(1) - dist_->local_extent_.start(1);
+        size_t ghost_offset_2 = dist_->local_core_.start(2) - dist_->local_extent_.start(2);
+        for (size_t i = 0; i < ghost_width && i < ghost_high; i++) {
+          for (size_t j = 0; j < dist_->local_core_.size(1); j++) {
+            for (size_t k = 0; k < dist_->local_core_.size(2); k++) {
+              f(start_idx + i, ghost_offset_1 + j, ghost_offset_2 + k) = buffer[buffer_idx++];
+            }
           }
         }
       }
@@ -3180,15 +3276,60 @@ void ndarray<T, StoragePolicy>::unpack_ghost_data(int neighbor_idx, const std::v
     size_t buffer_idx = 0;
 
     if (!is_high && ghost_low > 0) {
+      if (dims.size() == 2) {
+        for (size_t i = 0; i < dist_->local_core_.size(0); i++) {
+          for (size_t j = 0; j < ghost_width && j < ghost_low; j++) {
+            f(ghost_offset_0 + i, start_idx + j) = buffer[buffer_idx++];
+          }
+        }
+      } else if (dims.size() >= 3) {
+        size_t ghost_offset_2 = dist_->local_core_.start(2) - dist_->local_extent_.start(2);
+        for (size_t i = 0; i < dist_->local_core_.size(0); i++) {
+          for (size_t j = 0; j < ghost_width && j < ghost_low; j++) {
+            for (size_t k = 0; k < dist_->local_core_.size(2); k++) {
+              f(ghost_offset_0 + i, start_idx + j, ghost_offset_2 + k) = buffer[buffer_idx++];
+            }
+          }
+        }
+      }
+    } else if (is_high && ghost_high > 0) {
+      if (dims.size() == 2) {
+        for (size_t i = 0; i < dist_->local_core_.size(0); i++) {
+          for (size_t j = 0; j < ghost_width && j < ghost_high; j++) {
+            f(ghost_offset_0 + i, start_idx + j) = buffer[buffer_idx++];
+          }
+        }
+      } else if (dims.size() >= 3) {
+        size_t ghost_offset_2 = dist_->local_core_.start(2) - dist_->local_extent_.start(2);
+        for (size_t i = 0; i < dist_->local_core_.size(0); i++) {
+          for (size_t j = 0; j < ghost_width && j < ghost_high; j++) {
+            for (size_t k = 0; k < dist_->local_core_.size(2); k++) {
+              f(ghost_offset_0 + i, start_idx + j, ghost_offset_2 + k) = buffer[buffer_idx++];
+            }
+          }
+        }
+      }
+    }
+  } else if (dim == 2 && dims.size() >= 3) {
+    size_t ghost_offset_0 = dist_->local_core_.start(0) - dist_->local_extent_.start(0);
+    size_t ghost_offset_1 = dist_->local_core_.start(1) - dist_->local_extent_.start(1);
+    size_t start_idx = is_high ? (dist_->local_core_.size(2) + ghost_low) : 0;
+    size_t buffer_idx = 0;
+
+    if (!is_high && ghost_low > 0) {
       for (size_t i = 0; i < dist_->local_core_.size(0); i++) {
-        for (size_t j = 0; j < ghost_width && j < ghost_low; j++) {
-          f(ghost_offset_0 + i, start_idx + j) = buffer[buffer_idx++];
+        for (size_t j = 0; j < dist_->local_core_.size(1); j++) {
+          for (size_t k = 0; k < ghost_width && k < ghost_low; k++) {
+            f(ghost_offset_0 + i, ghost_offset_1 + j, start_idx + k) = buffer[buffer_idx++];
+          }
         }
       }
     } else if (is_high && ghost_high > 0) {
       for (size_t i = 0; i < dist_->local_core_.size(0); i++) {
-        for (size_t j = 0; j < ghost_width && j < ghost_high; j++) {
-          f(ghost_offset_0 + i, start_idx + j) = buffer[buffer_idx++];
+        for (size_t j = 0; j < dist_->local_core_.size(1); j++) {
+          for (size_t k = 0; k < ghost_width && k < ghost_high; k++) {
+            f(ghost_offset_0 + i, ghost_offset_1 + j, start_idx + k) = buffer[buffer_idx++];
+          }
         }
       }
     }
