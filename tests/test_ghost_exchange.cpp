@@ -193,8 +193,8 @@ int test_stencil_with_ghosts() {
   bool values_reasonable = true;
   for (size_t i = 1; i < temperature.local_core().size(0) - 1; i++) {
     for (size_t j = 0; j < temperature.local_core().size(1); j++) {
-      float original = local.at(i, j);
-      float smoothed_val = smooth_local.at(i, j);
+      float original = temperature.at(i, j);
+      float smoothed_val = smoothed.at(i, j);
 
       // Smoothed value should be close to original for smooth functions
       if (std::abs(smoothed_val - original) > 50.0f) {
