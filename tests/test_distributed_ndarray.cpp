@@ -452,7 +452,7 @@ int test_parallel_binary_read() {
               << darray.local_extent().start(0) << "," << darray.local_extent().start(1)
               << "], size=[" << darray.local_extent().size(0) << "," << darray.local_extent().size(1) << "]" << std::endl;
     std::cout << "[Rank " << rank << "] Local array shape: ["
-              << darray.dims[0] << "," << darray.dims[1] << "]" << std::endl;
+              << darray.dimf(0) << "," << darray.dimf(1) << "]" << std::endl;
   }
 
   // Parallel read (automatic in distributed mode)
