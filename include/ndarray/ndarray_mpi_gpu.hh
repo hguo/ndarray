@@ -10,6 +10,10 @@
 namespace ftk {
 namespace nd {
 
+// Only include CUDA kernel implementations when compiling with nvcc
+// __CUDACC__ is defined by nvcc, not by regular C++ compilers
+#ifdef __CUDACC__
+
 /**
  * CUDA kernel to pack boundary data from device array
  *
@@ -181,6 +185,8 @@ inline void launch_unpack_ghost_2d(
       d_array, d_buffer, dim0, dim1, ghost_dim, is_high,
       ghost_width, ghost_low, ghost_high, core_size0, core_size1);
 }
+
+#endif // __CUDACC__
 
 } // namespace nd
 } // namespace ftk
