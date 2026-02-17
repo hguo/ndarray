@@ -2725,13 +2725,13 @@ void ndarray<T, StoragePolicy>::setup_ghost_exchange()
         if (ghost_width == 0) ghost_width = 1;
 
         // Calculate number of elements in the boundary face
-        // Include full extent (with ghosts) in perpendicular dimensions to capture corners/edges
+        // Use core size in perpendicular dimensions (corners handled separately)
         size_t face_size = 1;
         for (int d = 0; d < ndims; d++) {
           if (d == dim) {
             face_size *= ghost_width;
           } else {
-            face_size *= dist_->local_extent_.size(d);
+            face_size *= dist_->local_core_.size(d);
           }
         }
 
@@ -2776,13 +2776,13 @@ void ndarray<T, StoragePolicy>::setup_ghost_exchange()
                              (dist_->local_core_.start(dim) + dist_->local_core_.size(dim));
         if (ghost_width == 0) ghost_width = 1;
 
-        // Include full extent (with ghosts) in perpendicular dimensions to capture corners/edges
+        // Use core size in perpendicular dimensions (corners handled separately)
         size_t face_size = 1;
         for (int d = 0; d < ndims; d++) {
           if (d == dim) {
             face_size *= ghost_width;
           } else {
-            face_size *= dist_->local_extent_.size(d);
+            face_size *= dist_->local_core_.size(d);
           }
         }
 
@@ -2879,49 +2879,54 @@ bool ndarray<T, StoragePolicy>::has_gpu_aware_mpi() const
 template <typename T, typename StoragePolicy>
 void ndarray<T, StoragePolicy>::exchange_ghosts_cpu()
 {
-  // Original CPU implementation
-  std::vector<MPI_Request> requests;
-  std::vector<std::vector<T>> send_buffers(dist_->neighbors_.size());
-  std::vector<std::vector<T>> recv_buffers(dist_->neighbors_.size());
+  // Two-pass exchange to fill both faces and corners:
+  // Pass 1: Fill face ghosts
+  // Pass 2: Fill corner ghosts (which now exist in neighbors' face ghosts from pass 1)
 
-  // Post receives for all neighbors
-  for (size_t i = 0; i < dist_->neighbors_.size(); i++) {
-    recv_buffers[i].resize(dist_->neighbors_[i].recv_count);
+  for (int pass = 0; pass < 2; pass++) {
+    std::vector<MPI_Request> requests;
+    std::vector<std::vector<T>> send_buffers(dist_->neighbors_.size());
+    std::vector<std::vector<T>> recv_buffers(dist_->neighbors_.size());
 
-    MPI_Request req;
-    int tag = dist_->neighbors_[i].direction;
-    MPI_Irecv(recv_buffers[i].data(),
-              static_cast<int>(dist_->neighbors_[i].recv_count),
-              mpi_datatype(),
-              dist_->neighbors_[i].rank,
-              tag,
-              dist_->comm,
-              &req);
-    requests.push_back(req);
-  }
+    // Post receives for all neighbors
+    for (size_t i = 0; i < dist_->neighbors_.size(); i++) {
+      recv_buffers[i].resize(dist_->neighbors_[i].recv_count);
 
-  // Pack and send boundary data to all neighbors
-  for (size_t i = 0; i < dist_->neighbors_.size(); i++) {
-    send_buffers[i].resize(dist_->neighbors_[i].send_count);
-    pack_boundary_data(i, send_buffers[i]);
+      MPI_Request req;
+      int tag = dist_->neighbors_[i].direction * 10 + pass;  // Different tag per pass
+      MPI_Irecv(recv_buffers[i].data(),
+                static_cast<int>(dist_->neighbors_[i].recv_count),
+                mpi_datatype(),
+                dist_->neighbors_[i].rank,
+                tag,
+                dist_->comm,
+                &req);
+      requests.push_back(req);
+    }
 
-    // Reverse the direction for the tag (what we receive from left, they send from right)
-    int tag = dist_->neighbors_[i].direction ^ 1;  // Flip last bit: 0↔1, 2↔3, etc.
+    // Pack and send boundary data to all neighbors
+    for (size_t i = 0; i < dist_->neighbors_.size(); i++) {
+      send_buffers[i].resize(dist_->neighbors_[i].send_count);
+      pack_boundary_data(i, send_buffers[i]);
 
-    MPI_Send(send_buffers[i].data(),
-             static_cast<int>(dist_->neighbors_[i].send_count),
-             mpi_datatype(),
-             dist_->neighbors_[i].rank,
-             tag,
-             dist_->comm);
-  }
+      // Reverse the direction for the tag (what we receive from left, they send from right)
+      int tag = (dist_->neighbors_[i].direction ^ 1) * 10 + pass;  // Different tag per pass
 
-  // Wait for all receives to complete
-  MPI_Waitall(static_cast<int>(requests.size()), requests.data(), MPI_STATUSES_IGNORE);
+      MPI_Send(send_buffers[i].data(),
+               static_cast<int>(dist_->neighbors_[i].send_count),
+               mpi_datatype(),
+               dist_->neighbors_[i].rank,
+               tag,
+               dist_->comm);
+    }
 
-  // Unpack received ghost data
-  for (size_t i = 0; i < dist_->neighbors_.size(); i++) {
-    unpack_ghost_data(i, recv_buffers[i]);
+    // Wait for all receives to complete
+    MPI_Waitall(static_cast<int>(requests.size()), requests.data(), MPI_STATUSES_IGNORE);
+
+    // Unpack received ghost data
+    for (size_t i = 0; i < dist_->neighbors_.size(); i++) {
+      unpack_ghost_data(i, recv_buffers[i]);
+    }
   }
 }
 
@@ -3090,24 +3095,25 @@ void ndarray<T, StoragePolicy>::pack_boundary_data(int neighbor_idx, std::vector
         buffer[buffer_idx++] = f(start_idx + i);
       }
     } else if (dims.size() >= 2) {
-      // 2D case - include full extent in dim 1 to capture corners
+      // 2D case
+      size_t ghost_offset_1 = dist_->local_core_.start(1) - dist_->local_extent_.start(1);
       for (size_t i = 0; i < ghost_width; i++) {
-        for (size_t j = 0; j < dist_->local_extent_.size(1); j++) {
-          buffer[buffer_idx++] = f(start_idx + i, j);
+        for (size_t j = 0; j < dist_->local_core_.size(1); j++) {
+          buffer[buffer_idx++] = f(start_idx + i, ghost_offset_1 + j);
         }
       }
     }
   } else if (dim == 1 && dims.size() >= 2) {
     // Boundary in dimension 1
+    size_t ghost_offset_0 = dist_->local_core_.start(0) - dist_->local_extent_.start(0);
     size_t ghost_offset_1 = dist_->local_core_.start(1) - dist_->local_extent_.start(1);
     size_t start_idx = is_high ? (dist_->local_core_.size(1) - ghost_width) : 0;
     start_idx += ghost_offset_1;  // Account for ghost offset!
     size_t buffer_idx = 0;
 
-    // Include full extent in dim 0 to capture corners
-    for (size_t i = 0; i < dist_->local_extent_.size(0); i++) {
+    for (size_t i = 0; i < dist_->local_core_.size(0); i++) {
       for (size_t j = 0; j < ghost_width; j++) {
-        buffer[buffer_idx++] = f(i, start_idx + j);
+        buffer[buffer_idx++] = f(ghost_offset_0 + i, start_idx + j);
       }
     }
   }
@@ -3139,10 +3145,10 @@ void ndarray<T, StoragePolicy>::unpack_ghost_data(int neighbor_idx, const std::v
           f(start_idx + i) = buffer[buffer_idx++];
         }
       } else if (dims.size() >= 2) {
-        // Unpack full extent in dim 1 to capture corners
+        size_t ghost_offset_1 = dist_->local_core_.start(1) - dist_->local_extent_.start(1);
         for (size_t i = 0; i < ghost_width && i < ghost_low; i++) {
-          for (size_t j = 0; j < dist_->local_extent_.size(1); j++) {
-            f(start_idx + i, j) = buffer[buffer_idx++];
+          for (size_t j = 0; j < dist_->local_core_.size(1); j++) {
+            f(start_idx + i, ghost_offset_1 + j) = buffer[buffer_idx++];
           }
         }
       }
@@ -3153,30 +3159,29 @@ void ndarray<T, StoragePolicy>::unpack_ghost_data(int neighbor_idx, const std::v
           f(start_idx + i) = buffer[buffer_idx++];
         }
       } else if (dims.size() >= 2) {
-        // Unpack full extent in dim 1 to capture corners
+        size_t ghost_offset_1 = dist_->local_core_.start(1) - dist_->local_extent_.start(1);
         for (size_t i = 0; i < ghost_width && i < ghost_high; i++) {
-          for (size_t j = 0; j < dist_->local_extent_.size(1); j++) {
-            f(start_idx + i, j) = buffer[buffer_idx++];
+          for (size_t j = 0; j < dist_->local_core_.size(1); j++) {
+            f(start_idx + i, ghost_offset_1 + j) = buffer[buffer_idx++];
           }
         }
       }
     }
   } else if (dim == 1 && dims.size() >= 2) {
+    size_t ghost_offset_0 = dist_->local_core_.start(0) - dist_->local_extent_.start(0);
     size_t start_idx = is_high ? (dist_->local_core_.size(1) + ghost_low) : 0;
     size_t buffer_idx = 0;
 
     if (!is_high && ghost_low > 0) {
-      // Unpack full extent in dim 0 to capture corners
-      for (size_t i = 0; i < dist_->local_extent_.size(0); i++) {
+      for (size_t i = 0; i < dist_->local_core_.size(0); i++) {
         for (size_t j = 0; j < ghost_width && j < ghost_low; j++) {
-          f(i, start_idx + j) = buffer[buffer_idx++];
+          f(ghost_offset_0 + i, start_idx + j) = buffer[buffer_idx++];
         }
       }
     } else if (is_high && ghost_high > 0) {
-      // Unpack full extent in dim 0 to capture corners
-      for (size_t i = 0; i < dist_->local_extent_.size(0); i++) {
+      for (size_t i = 0; i < dist_->local_core_.size(0); i++) {
         for (size_t j = 0; j < ghost_width && j < ghost_high; j++) {
-          f(i, start_idx + j) = buffer[buffer_idx++];
+          f(ghost_offset_0 + i, start_idx + j) = buffer[buffer_idx++];
         }
       }
     }
