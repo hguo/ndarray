@@ -458,6 +458,9 @@ jobs:
           qt5-qmake \
           qtbase5-dev-tools
 
+    - name: Clean build directory
+      run: rm -rf build
+
     - name: Configure CMake (VTK)
       run: |
         cmake -B build \
