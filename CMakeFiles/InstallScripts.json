@@ -1,9 +1,0 @@
-{
-	"InstallScripts" : 
-	[
-		"/Users/guo.2154/workspace/projects/ndarray/cmake_install.cmake",
-		"/Users/guo.2154/workspace/projects/ndarray/src/cmake_install.cmake",
-		"/Users/guo.2154/workspace/projects/ndarray/tests/cmake_install.cmake"
-	],
-	"Parallel" : false
-}
