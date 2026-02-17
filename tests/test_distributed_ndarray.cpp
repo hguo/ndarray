@@ -344,6 +344,7 @@ int test_parallel_netcdf_read() {
   // Decompose to match file dimensions
   darray.decompose(MPI_COMM_WORLD, {global_nx, global_ny});
 
+#if NDARRAY_HAVE_NETCDF
   // Parallel read (automatic in distributed mode)
   try {
     darray.read_netcdf_auto("test_distributed.nc", "data");
@@ -390,6 +391,11 @@ int test_parallel_netcdf_read() {
       std::cerr << "  This may be expected if PNetCDF is not fully configured" << std::endl;
     }
   }
+#else
+  if (rank == 0) {
+    std::cout << "  Skipping parallel NetCDF read test (NetCDF not available)" << std::endl;
+  }
+#endif
 
   // Cleanup
   if (rank == 0) {
