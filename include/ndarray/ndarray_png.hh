@@ -5,6 +5,7 @@
 
 #if NDARRAY_HAVE_PNG
 
+#include <ndarray/error.hh>
 #include <png.h>
 #include <cstdio>
 #include <cstdlib>
