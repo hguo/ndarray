@@ -620,7 +620,7 @@ private:
   void exchange_ghosts_cpu();      // CPU path (current implementation)
   void exchange_ghosts_gpu_staged();  // GPU with host staging fallback
 #if NDARRAY_HAVE_CUDA
-  void exchange_ghosts_gpu_direct();  // GPU direct (requires GPU-aware MPI)
+  void exchange_ghosts_gpu_direct();  // GPU direct (requires GPU-aware MPI, nvcc compilation)
 #endif
 #endif
 
@@ -2775,6 +2775,8 @@ void ndarray<T, StoragePolicy>::exchange_ghosts()
     if (get_device_type() == NDARRAY_DEVICE_CUDA) {
       // Check environment variable to force host staging
       const char* force_staging = std::getenv("NDARRAY_FORCE_HOST_STAGING");
+#ifdef __CUDACC__
+      // GPU-direct path only available when compiled with nvcc
       if (force_staging && std::string(force_staging) == "1") {
         exchange_ghosts_gpu_staged();
       } else if (has_gpu_aware_mpi()) {
@@ -2782,6 +2784,10 @@ void ndarray<T, StoragePolicy>::exchange_ghosts()
       } else {
         exchange_ghosts_gpu_staged();
       }
+#else
+      // When not compiled with nvcc, always use staged approach
+      exchange_ghosts_gpu_staged();
+#endif
       return;
     }
 #endif
@@ -3009,6 +3015,15 @@ void ndarray<T, StoragePolicy>::exchange_ghosts_gpu_direct()
     CUDA_CHECK(cudaFree(d_send_buffers[i]));
     CUDA_CHECK(cudaFree(d_recv_buffers[i]));
   }
+}
+#elif NDARRAY_HAVE_CUDA
+// Stub implementation when CUDA is available but not compiling with nvcc
+template <typename T, typename StoragePolicy>
+void ndarray<T, StoragePolicy>::exchange_ghosts_gpu_direct()
+{
+  // This should never be called since the call site is guarded with __CUDACC__
+  // But we need a definition to satisfy the linker
+  nd::fatal("exchange_ghosts_gpu_direct requires compilation with nvcc");
 }
 #endif
 
