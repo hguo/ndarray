@@ -3287,6 +3287,8 @@ void ndarray<T, StoragePolicy>::read_hdf5_auto(
 {
   if (should_use_parallel_io()) {
     // Distributed mode: Parallel HDF5 read
+    // Note: Requires HDF5 built with parallel support (--enable-parallel)
+#ifdef H5_HAVE_PARALLEL
     const auto& core = dist_->local_core_;
 
     // Open file with MPI-IO
@@ -3334,6 +3336,9 @@ void ndarray<T, StoragePolicy>::read_hdf5_auto(
     H5Sclose(space_id);
     H5Dclose(dataset_id);
     H5Fclose(file_id);
+#else
+    nd::fatal("Parallel HDF5 I/O requested but HDF5 was not built with parallel support");
+#endif
 
   } else if (should_use_replicated_io()) {
     // Replicated mode: Rank 0 reads + broadcast
@@ -3362,6 +3367,8 @@ void ndarray<T, StoragePolicy>::write_hdf5_auto(
 {
   if (should_use_parallel_io()) {
     // Distributed mode: Parallel HDF5 write
+    // Note: Requires HDF5 built with parallel support (--enable-parallel)
+#ifdef H5_HAVE_PARALLEL
     const auto& core = dist_->local_core_;
 
     // Create file with MPI-IO (rank 0 creates, all wait)
@@ -3424,6 +3431,9 @@ void ndarray<T, StoragePolicy>::write_hdf5_auto(
     H5Sclose(space_id);
     H5Dclose(dataset_id);
     H5Fclose(file_id);
+#else
+    nd::fatal("Parallel HDF5 I/O requested but HDF5 was not built with parallel support");
+#endif
 
   } else if (should_use_replicated_io()) {
     // Replicated mode: Only rank 0 writes
