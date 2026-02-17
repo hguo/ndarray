@@ -2896,7 +2896,7 @@ void ndarray<T, StoragePolicy>::exchange_ghosts_gpu_staged()
   copy_to_device(device_type, device_id);
 }
 
-#if NDARRAY_HAVE_CUDA
+#if NDARRAY_HAVE_CUDA && defined(__CUDACC__)
 template <typename T, typename StoragePolicy>
 void ndarray<T, StoragePolicy>::exchange_ghosts_gpu_direct()
 {

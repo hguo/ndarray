@@ -499,47 +499,20 @@ inline std::shared_ptr<typename stream<StoragePolicy>::group_type> stream<Storag
     }
 
 #if NDARRAY_HAVE_MPI
-  // Configure MPI distribution for static arrays (same logic as read())
-  if (nprocs > 1) {
-    for (auto& kv : *g) {
-      const std::string& varname = kv.first;
-      auto& array = kv.second;
-
-      VariableDistType dist_type = VariableDistType::REPLICATED;  // Default
-      if (variable_dist_types.count(varname)) {
-        dist_type = variable_dist_types.at(varname);
-      }
-
-      if (dist_type == VariableDistType::DISTRIBUTED) {
-        variable_decomposition decomp;
-        bool has_custom = variable_decompositions.count(varname) > 0;
-
-        if (has_custom) {
-          decomp = variable_decompositions.at(varname);
-        }
-
-        std::vector<size_t> dims = has_custom && !decomp.dims.empty()
-                                    ? decomp.dims : default_global_dims;
-        std::vector<size_t> pattern = has_custom && !decomp.pattern.empty()
-                                       ? decomp.pattern : default_decomp_pattern;
-        std::vector<size_t> ghost = has_custom && !decomp.ghost.empty()
-                                     ? decomp.ghost : default_ghost_layers;
-        size_t np = default_nprocs;
-
-        if (dims.empty()) {
-          dims.resize(array->nd());
-          for (size_t d = 0; d < array->nd(); d++) {
-            dims[d] = array->dim(d);
-          }
-        }
-
-        array->decompose(comm, dims, np, pattern, ghost);
-
-      } else if (dist_type == VariableDistType::REPLICATED) {
-        array->set_replicated(comm);
-      }
-    }
-  }
+  // TODO: Configure MPI distribution for static arrays
+  // Currently disabled because ndarray_base doesn't have decompose()/set_replicated()
+  // These methods are only in the templated ndarray class.
+  // To enable this, either:
+  // 1. Add virtual decompose/set_replicated to ndarray_base, or
+  // 2. Use dynamic_cast to concrete ndarray<T, StoragePolicy> types
+  //
+  // if (nprocs > 1) {
+  //   for (auto& kv : *g) {
+  //     const std::string& varname = kv.first;
+  //     auto& array = kv.second;
+  //     // ... configuration code ...
+  //   }
+  // }
 #endif // NDARRAY_HAVE_MPI
 
   return g;
@@ -565,56 +538,20 @@ inline std::shared_ptr<typename stream<StoragePolicy>::group_type> stream<Storag
       sub->read(i, g);
 
 #if NDARRAY_HAVE_MPI
-  // Configure MPI distribution for each array based on variable settings
-  if (nprocs > 1) {
-    for (auto& kv : *g) {
-      const std::string& varname = kv.first;
-      auto& array = kv.second;
-
-      // Determine distribution type for this variable
-      VariableDistType dist_type = VariableDistType::REPLICATED;  // Default
-      if (variable_dist_types.count(varname)) {
-        dist_type = variable_dist_types.at(varname);
-      }
-
-      // Configure array based on distribution type
-      if (dist_type == VariableDistType::DISTRIBUTED) {
-        // Get decomposition parameters for this variable
-        variable_decomposition decomp;
-        bool has_custom = variable_decompositions.count(varname) > 0;
-
-        if (has_custom) {
-          decomp = variable_decompositions.at(varname);
-        }
-
-        // Use custom or default decomposition
-        std::vector<size_t> dims = has_custom && !decomp.dims.empty()
-                                    ? decomp.dims : default_global_dims;
-        std::vector<size_t> pattern = has_custom && !decomp.pattern.empty()
-                                       ? decomp.pattern : default_decomp_pattern;
-        std::vector<size_t> ghost = has_custom && !decomp.ghost.empty()
-                                     ? decomp.ghost : default_ghost_layers;
-        size_t np = default_nprocs;
-
-        // If dimensions not specified, infer from array shape
-        if (dims.empty()) {
-          dims.resize(array->nd());
-          for (size_t d = 0; d < array->nd(); d++) {
-            dims[d] = array->dim(d);
-          }
-        }
-
-        // Configure as distributed
-        array->decompose(comm, dims, np, pattern, ghost);
-
-      } else if (dist_type == VariableDistType::REPLICATED) {
-        // Configure as replicated
-        array->set_replicated(comm);
-
-      }
-      // AUTO: leave as serial for now (could implement heuristics later)
-    }
-  }
+  // TODO: Configure MPI distribution for each array based on variable settings
+  // Currently disabled because ndarray_base doesn't have decompose()/set_replicated()
+  // These methods are only in the templated ndarray class.
+  // To enable this, either:
+  // 1. Add virtual decompose/set_replicated to ndarray_base, or
+  // 2. Use dynamic_cast to concrete ndarray<T, StoragePolicy> types
+  //
+  // if (nprocs > 1) {
+  //   for (auto& kv : *g) {
+  //     const std::string& varname = kv.first;
+  //     auto& array = kv.second;
+  //     // ... configuration code ...
+  //   }
+  // }
 #endif // NDARRAY_HAVE_MPI
 
   return g;
