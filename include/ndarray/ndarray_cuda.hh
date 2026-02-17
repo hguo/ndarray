@@ -25,8 +25,8 @@ namespace nd {
   do { \
     cudaError_t err = call; \
     if (err != cudaSuccess) { \
-      throw ftk::nd::device_error( \
-          ftk::nd::ERR_NOT_BUILT_WITH_CUDA, \
+      throw ::ftk::nd::device_error( \
+          ::ftk::nd::ERR_NOT_BUILT_WITH_CUDA, \
           std::string("CUDA error: ") + cudaGetErrorString(err) + \
           " at " + __FILE__ + ":" + std::to_string(__LINE__)); \
     } \

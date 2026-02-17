@@ -12,6 +12,7 @@
 #if NDARRAY_HAVE_CUDA
 #include <cuda.h>
 #include <cuda_runtime.h>
+#include <ndarray/ndarray_cuda.hh>
 #endif
 
 #if NDARRAY_HAVE_SYCL
@@ -2924,7 +2925,7 @@ void ndarray<T, StoragePolicy>::exchange_ghosts_gpu_direct()
 
     if (dims.size() == 2 && dim < 2) {
       // 2D case
-      ftk::nd::launch_pack_boundary_2d(
+      ::ftk::nd::launch_pack_boundary_2d(
           d_send_buffers[i],
           d_array,
           static_cast<int>(dims[0]),
@@ -2984,7 +2985,7 @@ void ndarray<T, StoragePolicy>::exchange_ghosts_gpu_direct()
 
     if (dims.size() == 2 && dim < 2) {
       // 2D case
-      ftk::nd::launch_unpack_ghost_2d(
+      ::ftk::nd::launch_unpack_ghost_2d(
           d_array,
           d_recv_buffers[i],
           static_cast<int>(dims[0]),
