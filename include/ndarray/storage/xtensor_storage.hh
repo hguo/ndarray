@@ -4,7 +4,7 @@
 #include "storage_policy.hh"
 
 #if NDARRAY_HAVE_XTENSOR
-#include <xtensor/containers/xarray.hpp>
+#include <xtensor/xarray.hpp>
 #include <vector>
 
 namespace ftk {

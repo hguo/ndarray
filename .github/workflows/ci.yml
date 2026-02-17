@@ -199,6 +199,7 @@ jobs:
     - name: Install xtensor (header-only library)
       run: |
         # Install xtl 0.7.x (compatible with C++17)
+        echo "Installing xtl 0.7.5..."
         git clone --depth 1 --branch 0.7.5 https://github.com/xtensor-stack/xtl.git
         cd xtl
         mkdir build && cd build
@@ -206,7 +207,17 @@ jobs:
         sudo make install
         cd ../..
 
+        # Verify xtl installation
+        if [ -d "/usr/local/include/xtl" ]; then
+          echo "✓ xtl installed successfully to /usr/local/include/xtl"
+          ls /usr/local/include/xtl/*.hpp | head -5
+        else
+          echo "✗ xtl installation failed!"
+          exit 1
+        fi
+
         # Install xtensor 0.24.x (compatible with C++17)
+        echo "Installing xtensor 0.24.7..."
         git clone --depth 1 --branch 0.24.7 https://github.com/xtensor-stack/xtensor.git
         cd xtensor
         mkdir build && cd build
@@ -214,11 +225,15 @@ jobs:
         sudo make install
         cd ../..
 
-        # Verify installation
-        echo "Checking xtl installation:"
-        ls -la /usr/local/include/xtl/ || ls -la /usr/include/xtl/
-        echo "Checking xtensor installation:"
-        ls -la /usr/local/include/xtensor/ || ls -la /usr/include/xtensor/
+        # Verify xtensor installation
+        if [ -d "/usr/local/include/xtensor" ]; then
+          echo "✓ xtensor installed successfully to /usr/local/include/xtensor"
+          ls /usr/local/include/xtensor/*.hpp | head -5
+          ls /usr/local/include/xtensor/xarray.hpp || echo "✗ xarray.hpp not found!"
+        else
+          echo "✗ xtensor installation failed!"
+          exit 1
+        fi
 
     - name: Configure CMake (Storage backends)
       run: |
