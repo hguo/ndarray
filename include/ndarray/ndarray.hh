@@ -5,8 +5,15 @@
 #include <ndarray/ndarray_base.hh>
 #include <ndarray/storage/storage_policy.hh>
 #include <ndarray/storage/native_storage.hh>
+
+#if NDARRAY_HAVE_XTENSOR
 #include <ndarray/storage/xtensor_storage.hh>
+#endif
+
+#if NDARRAY_HAVE_EIGEN
 #include <ndarray/storage/eigen_storage.hh>
+#endif
+
 #include <ndarray/lattice_partitioner.hh>
 
 #if NDARRAY_HAVE_CUDA
