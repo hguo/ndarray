@@ -199,25 +199,32 @@ jobs:
     - name: Install xtensor (header-only library)
       run: |
         # Install xtl 0.7.x (compatible with C++17)
-        git clone --depth 1 --branch 0.7.5 https://github.com/xtensor-stack/xtl.git /tmp/xtl
-        cd /tmp/xtl
-        cmake -B build -DCMAKE_INSTALL_PREFIX=/usr
-        sudo cmake --build build --target install
+        git clone --depth 1 --branch 0.7.5 https://github.com/xtensor-stack/xtl.git
+        cd xtl
+        mkdir build && cd build
+        cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local
+        sudo make install
+        cd ../..
 
         # Install xtensor 0.24.x (compatible with C++17)
-        git clone --depth 1 --branch 0.24.7 https://github.com/xtensor-stack/xtensor.git /tmp/xtensor
-        cd /tmp/xtensor
-        cmake -B build -DCMAKE_INSTALL_PREFIX=/usr
-        sudo cmake --build build --target install
+        git clone --depth 1 --branch 0.24.7 https://github.com/xtensor-stack/xtensor.git
+        cd xtensor
+        mkdir build && cd build
+        cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local
+        sudo make install
+        cd ../..
 
         # Verify installation
-        ls -la /usr/include/xtl/ || echo "xtl headers not found"
-        ls -la /usr/include/xtensor/ || echo "xtensor headers not found"
+        echo "Checking xtl installation:"
+        ls -la /usr/local/include/xtl/ || ls -la /usr/include/xtl/
+        echo "Checking xtensor installation:"
+        ls -la /usr/local/include/xtensor/ || ls -la /usr/include/xtensor/
 
     - name: Configure CMake (Storage backends)
       run: |
         cmake -B build \
           -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_PREFIX_PATH=/usr/local \
           -DNDARRAY_BUILD_TESTS=ON \
           -DNDARRAY_BUILD_EXAMPLES=OFF \
           -DNDARRAY_USE_EIGEN=AUTO \
