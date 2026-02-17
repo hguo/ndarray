@@ -8,7 +8,7 @@ on:
 
 jobs:
   build-and-test:
-    name: ${{ matrix.os }} - ${{ matrix.compiler }}
+    name: ${{ matrix.os }} - ${{ matrix.compiler }} - ${{ matrix.build_type }}
     runs-on: ${{ matrix.os }}
 
     strategy:
@@ -16,10 +16,17 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest]
         compiler: [gcc, clang]
+        build_type: [Release, Debug]
         exclude:
           # macOS uses clang by default
           - os: macos-latest
             compiler: gcc
+          # Only test Debug on Linux with GCC to save CI time
+          - os: macos-latest
+            build_type: Debug
+          - os: ubuntu-latest
+            compiler: clang
+            build_type: Debug
 
     steps:
     - name: Checkout code
@@ -59,7 +66,7 @@ jobs:
     - name: Configure CMake (Basic)
       run: |
         cmake -B build \
-          -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
           -DNDARRAY_BUILD_TESTS=ON \
           -DNDARRAY_BUILD_EXAMPLES=OFF \
           -DNDARRAY_USE_NETCDF=AUTO \
@@ -299,6 +306,198 @@ jobs:
     - name: Run tests with AddressSanitizer
       working-directory: build
       run: ASAN_OPTIONS=detect_leaks=1 ctest --output-on-failure
+
+  build-pnetcdf:
+    name: PNetCDF (Parallel NetCDF)
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          cmake \
+          mpich \
+          libmpich-dev \
+          m4 \
+          automake \
+          autoconf \
+          libtool
+
+    - name: Build and install PNetCDF
+      run: |
+        # Download PNetCDF
+        wget https://parallel-netcdf.github.io/Release/pnetcdf-1.12.3.tar.gz
+        tar -xzf pnetcdf-1.12.3.tar.gz
+        cd pnetcdf-1.12.3
+
+        # Configure and build
+        ./configure --prefix=/usr/local --enable-shared
+        make -j$(nproc)
+        sudo make install
+        cd ..
+
+    - name: Configure CMake (PNetCDF)
+      run: |
+        cmake -B build \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DNDARRAY_BUILD_TESTS=ON \
+          -DNDARRAY_BUILD_EXAMPLES=OFF \
+          -DNDARRAY_USE_MPI=ON \
+          -DNDARRAY_USE_PNETCDF=ON
+
+    - name: Build
+      run: cmake --build build -j$(nproc)
+
+    - name: Run tests
+      working-directory: build
+      run: ctest --output-on-failure -E "distributed|ghost"
+
+  build-png:
+    name: PNG support (libpng)
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          cmake \
+          libpng-dev
+
+    - name: Configure CMake (PNG)
+      run: |
+        cmake -B build \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DNDARRAY_BUILD_TESTS=ON \
+          -DNDARRAY_BUILD_EXAMPLES=OFF \
+          -DNDARRAY_USE_PNG=ON
+
+    - name: Build
+      run: cmake --build build -j$(nproc)
+
+    - name: Run tests
+      working-directory: build
+      run: ctest --output-on-failure
+
+  build-all-formats:
+    name: All I/O formats (NetCDF+HDF5+YAML+PNG)
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          cmake \
+          libyaml-cpp-dev \
+          libnetcdf-dev \
+          libhdf5-dev \
+          libpng-dev
+
+    - name: Configure CMake (All formats)
+      run: |
+        cmake -B build \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DNDARRAY_BUILD_TESTS=ON \
+          -DNDARRAY_BUILD_EXAMPLES=OFF \
+          -DNDARRAY_USE_NETCDF=ON \
+          -DNDARRAY_USE_HDF5=ON \
+          -DNDARRAY_USE_YAML=ON \
+          -DNDARRAY_USE_PNG=ON
+
+    - name: Build
+      run: cmake --build build -j$(nproc)
+
+    - name: Run tests
+      working-directory: build
+      run: ctest --output-on-failure
+
+  build-vtk:
+    name: VTK support
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          cmake \
+          libvtk9-dev \
+          libvtk9.1
+
+    - name: Configure CMake (VTK)
+      run: |
+        cmake -B build \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DNDARRAY_BUILD_TESTS=ON \
+          -DNDARRAY_BUILD_EXAMPLES=OFF \
+          -DNDARRAY_USE_VTK=ON
+
+    - name: Build
+      run: cmake --build build -j$(nproc)
+
+    - name: Run tests
+      working-directory: build
+      run: ctest --output-on-failure
+
+  build-cpp-standards:
+    name: C++ Standard ${{ matrix.std }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        std: [17, 20]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          cmake \
+          g++-11 \
+          libyaml-cpp-dev \
+          libnetcdf-dev \
+          libhdf5-dev
+
+    - name: Set up compiler
+      run: |
+        echo "CC=gcc-11" >> $GITHUB_ENV
+        echo "CXX=g++-11" >> $GITHUB_ENV
+
+    - name: Configure CMake (C++${{ matrix.std }})
+      run: |
+        cmake -B build \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_CXX_STANDARD=${{ matrix.std }} \
+          -DNDARRAY_BUILD_TESTS=ON \
+          -DNDARRAY_BUILD_EXAMPLES=OFF \
+          -DNDARRAY_USE_NETCDF=AUTO \
+          -DNDARRAY_USE_HDF5=AUTO \
+          -DNDARRAY_USE_YAML=AUTO
+
+    - name: Build
+      run: cmake --build build -j$(nproc)
+
+    - name: Run tests
+      working-directory: build
+      run: ctest --output-on-failure
 
   documentation:
     name: Check documentation
