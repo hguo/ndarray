@@ -435,6 +435,8 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y \
           cmake \
+          mpich \
+          libmpich-dev \
           libvtk9-dev \
           libvtk9.1 \
           qtbase5-dev \
@@ -448,7 +450,8 @@ jobs:
           -DCMAKE_BUILD_TYPE=Release \
           -DNDARRAY_BUILD_TESTS=ON \
           -DNDARRAY_BUILD_EXAMPLES=OFF \
-          -DNDARRAY_USE_VTK=ON
+          -DNDARRAY_USE_VTK=ON \
+          -DNDARRAY_USE_MPI=AUTO
 
     - name: Build
       run: cmake --build build -j$(nproc)
