@@ -127,17 +127,17 @@
    - Memory efficiency: **Not profiled**
 
 7. **GPU-aware MPI**
-   - **Lines of code**: ~500 (ndarray_mpi_gpu.hh + ndarray.hh)
+   - **Lines of code**: ~950 (ndarray_mpi_gpu.hh + ndarray.hh)
    - **Test code**: Basically none
    - **Production usage**: ZERO
-   - **Performance validation**: NONE
-   - **Only works**: 2D arrays (1D, 3D: TODO)
-   - **HIP/ROCm**: Doesn't work (fallback only)
-   - **Confidence**: 25% (unchanged)
+   - **Works**: 1D, 2D, and 3D arrays (complete)
+   - **HIP/ROCm**: Fallback to CPU staging
+   - **Confidence**: 30% (improved)
 
-   **Critical weaknesses** (unchanged):
+   **Critical weaknesses**:
    - CUDA kernels: **Written, not validated at scale**
    - Multi-GPU testing: **ZERO**
+   - No automated GPU tests in CI
 
 8. **Parallel I/O (distributed)**
    - **PNetCDF**: Basic tests passing in CI
@@ -147,11 +147,10 @@
 
 ### ❌ What Definitely Doesn't Work
 
-9. **1D/3D GPU-aware MPI** - Marked TODO, not implemented
-10. **HIP/ROCm GPU support** - Fallback only, not real support
-11. **SYCL GPU support** - Incomplete
-12. **Automatic buffer reuse** - Not implemented
-13. **CUDA stream overlap** - Not implemented
+9. **HIP/ROCm GPU support** - Fallback to CPU staging, not GPU-direct
+10. **SYCL GPU support** - Incomplete
+11. **Automatic buffer reuse** - Not implemented (reallocates each exchange)
+12. **CUDA stream overlap** - Not implemented (sequential only)
 
 ---
 
@@ -240,12 +239,14 @@
 **Improvement**: Real and measurable
 **Still missing**: Large-scale, multi-node, production stress tests
 
-### 3. Incomplete Implementations (Unchanged)
+### 3. Incomplete Implementations (Improved)
 
 **GPU-aware MPI**:
-- Only 2D arrays (50% complete)
-- Only CUDA (HIP/ROCm non-functional)
-- 4 TODO markers remain
+- ✅ 1D, 2D, and 3D arrays (complete)
+- ✅ All TODO markers removed
+- ⚠️ Only CUDA (HIP/ROCm fallback only)
+- ⚠️ No buffer reuse (reallocates every exchange)
+- ⚠️ No stream overlap (sequential operations)
 
 ### 4. Complexity: Better Handled
 
@@ -287,7 +288,7 @@
 | Build system | C+ | B | Major improvement: 14 CI configs, all passing |
 | YAML streams | B- | B- | Unchanged |
 | Distributed memory | C | C+ | Modest improvement: ghost exchange fixed, CI testing |
-| GPU-aware MPI | D+ | D+ | Unchanged: incomplete, unvalidated |
+| GPU-aware MPI | D+ | C- | Improved: 1D/2D/3D complete, but unvalidated |
 | Parallel I/O | C- | C | Slight improvement: CI coverage |
 | Documentation | B- | B | Improved: removed performance claims, focuses on functionality |
 

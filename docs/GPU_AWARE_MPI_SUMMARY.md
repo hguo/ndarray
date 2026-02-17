@@ -171,18 +171,18 @@ if (temp.has_gpu_aware_mpi()) {
 ## Supported Configurations
 
 ### Working Now ✅
-- **2D arrays** with ghost exchange
+- **1D, 2D, and 3D arrays** with ghost exchange (complete)
 - **CUDA devices** (NVIDIA GPUs)
 - **GPU-aware MPI** (OpenMPI, MPICH/MVAPICH2, Cray MPI)
 - **Fallback** to host staging for any MPI
+- **CPU ghost exchange** for 1D, 2D, and 3D arrays
 
-### TODO (Future)
-- 1D arrays (marked in code)
-- 3D arrays (marked in code)
-- SYCL/HIP devices (currently falls back to staged)
+### TODO (Future Optimizations)
+- HIP/ROCm GPU-direct support (currently uses CPU staging fallback)
+- SYCL devices (currently falls back to staged)
 - Multi-component arrays (velocity, etc.)
-- Optimization: reduce buffer allocations (reuse across calls)
-- Optimization: CUDA streams for overlap
+- Buffer reuse across calls (currently reallocates)
+- CUDA streams for overlap (currently sequential)
 
 ## Examples
 
