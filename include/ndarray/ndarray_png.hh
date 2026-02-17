@@ -12,7 +12,7 @@
 #include <stdexcept>
 #include <vector>
 
-namespace ftk {
+// Note: This header is included from ndarray.hh which is already in namespace ftk
 namespace nd {
 
 /**
@@ -244,7 +244,6 @@ inline void write_png_file(const std::string& filename,
 }
 
 } // namespace nd
-} // namespace ftk
 
 #endif // NDARRAY_HAVE_PNG
 
