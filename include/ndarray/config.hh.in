@@ -55,7 +55,7 @@
     if (retval != 0) { \
       std::string error_msg = std::string(ncmpi_strerror(retval)) + \
                               " at " + __FILE__ + ":" + std::to_string(__LINE__); \
-      throw ftk::nd::netcdf_error(ftk::nd::ERR_PNETCDF_IO, error_msg); \
+      throw ::ftk::nd::netcdf_error(::ftk::nd::ERR_PNETCDF_IO, error_msg); \
     } \
   } while (0)
 
