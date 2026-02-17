@@ -55,13 +55,12 @@ int test_1d_ghost_exchange() {
                    {1, 0});  // 1-layer ghosts only in dim 0
 
   TEST_SECTION("Fill local core with rank-specific values");
-  auto& local = darray.local_array();
-
+  // Note: darray itself is the local array (core + ghosts)
   // Fill core with value = rank * 1000 + local_index
   for (size_t i = 0; i < darray.local_core().size(0); i++) {
     for (size_t j = 0; j < darray.local_core().size(1); j++) {
       float value = static_cast<float>(rank * 1000 + i);
-      local.at(i, j) = value;
+      darray.at(i, j) = value;
     }
   }
 
@@ -109,7 +108,7 @@ int test_2d_ghost_exchange() {
   darray.decompose(MPI_COMM_WORLD, {100, 80}, 0, {}, {1, 1});
 
   TEST_SECTION("Fill local core with unique values");
-  auto& local = darray.local_array();
+  // Note: darray itself is the local array
 
   // Fill with global index: value = global_i * 1000 + global_j
   for (size_t i = 0; i < darray.local_core().size(0); i++) {
@@ -117,7 +116,7 @@ int test_2d_ghost_exchange() {
       size_t global_i = darray.local_core().start(0) + i;
       size_t global_j = darray.local_core().start(1) + j;
       double value = static_cast<double>(global_i * 1000 + global_j);
-      local.at(i, j) = value;
+      darray.at(i, j) = value;
     }
   }
 
@@ -154,14 +153,14 @@ int test_stencil_with_ghosts() {
                         {1, 0});
 
   TEST_SECTION("Initialize with smooth function");
-  auto& local = temperature.local_array();
+  // Note: temperature itself is the local array
 
   // Initialize with f(i) = sin(i * pi / 100)
   for (size_t i = 0; i < temperature.local_core().size(0); i++) {
     for (size_t j = 0; j < temperature.local_core().size(1); j++) {
       size_t global_i = temperature.local_core().start(0) + i;
       float value = std::sin(static_cast<float>(global_i) * 3.14159f / 100.0f) * 100.0f;
-      local.at(i, j) = value;
+      temperature.at(i, j) = value;
     }
   }
 
@@ -176,16 +175,16 @@ int test_stencil_with_ghosts() {
                      {static_cast<size_t>(nprocs), 0},
                      {1, 0});
 
-  auto& smooth_local = smoothed.local_array();
+  // Note: smoothed itself is the local array
 
   // Apply 3-point averaging stencil in dimension 0
   // smooth[i] = (temp[i-1] + temp[i] + temp[i+1]) / 3
   for (size_t i = 1; i < temperature.local_core().size(0) - 1; i++) {
     for (size_t j = 0; j < temperature.local_core().size(1); j++) {
-      float left = local.at(i - 1, j);
-      float center = local.at(i, j);
-      float right = local.at(i + 1, j);
-      smooth_local.at(i, j) = (left + center + right) / 3.0f;
+      float left = temperature.at(i - 1, j);
+      float center = temperature.at(i, j);
+      float right = temperature.at(i + 1, j);
+      smoothed.at(i, j) = (left + center + right) / 3.0f;
     }
   }
 
