@@ -24,7 +24,9 @@ if ((NDARRAY_HAVE_NETCDF OR NDARRAY_HAVE_PNETCDF) AND NDARRAY_HAVE_MPI)
 endif()
 ```
 
-**Result**: VTK workflow no longer tries to build MPI-dependent tests.
+**Result**: Test only builds when MPI is actually available.
+
+**Update** (Commit a90c6e2): VTK workflow still failed because NetCDF is a transitive dependency of VTK, causing the test to be built but without MPI installed. Fixed by adding MPI (mpich, libmpich-dev) to VTK workflow dependencies.
 
 ---
 
@@ -66,6 +68,21 @@ endif()
 
 ---
 
+### 3. Protected Member Access in Test
+**Problem**: Compilation error in `test_distributed_ndarray.cpp`:
+```
+error: 'std::vector<long unsigned int> ftk::ndarray_base::dims' is protected within this context
+```
+
+**Root Cause**: Debug output was trying to access `darray.dims[0]` and `darray.dims[1]`, but `dims` is a protected member of `ndarray_base`.
+
+**Fix** (Commit 5986c4a):
+Changed from `darray.dims[i]` to `darray.dimf(i)` which is the public accessor for Fortran-order dimensions.
+
+**Result**: Test compiles successfully.
+
+---
+
 ## Changes Made
 
 ### Files Modified:
@@ -77,6 +94,9 @@ endif()
 1. `4628d99` - Fix exception handling test to require MPI
 2. `a06a564` - Add error checking to parallel binary read (MPI-IO)
 3. `7aefabf` - Add ghost offset handling and debug output for parallel binary I/O
+4. `497500b` - Add CI fix summary documentation
+5. `5986c4a` - Fix protected member access - use dimf() instead of dims[]
+6. `a90c6e2` - Add MPI to VTK workflow dependencies
 
 ---
 
