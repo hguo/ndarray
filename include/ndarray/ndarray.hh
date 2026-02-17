@@ -1209,19 +1209,40 @@ T ndarray<T, StoragePolicy>::resolution() const {
 }
 
 #if NDARRAY_HAVE_MPI
-template <> inline MPI_Datatype ndarray<double>::mpi_dtype() { return MPI_DOUBLE; }
-template <> inline MPI_Datatype ndarray<float>::mpi_dtype() { return MPI_FLOAT; }
-template <> inline MPI_Datatype ndarray<int>::mpi_dtype() { return MPI_INT; }
+template <typename T, typename StoragePolicy>
+inline MPI_Datatype ndarray<T, StoragePolicy>::mpi_dtype() {
+  if constexpr (std::is_same_v<T, double>) return MPI_DOUBLE;
+  else if constexpr (std::is_same_v<T, float>) return MPI_FLOAT;
+  else if constexpr (std::is_same_v<T, int>) return MPI_INT;
+  else if constexpr (std::is_same_v<T, unsigned int>) return MPI_UNSIGNED;
+  else if constexpr (std::is_same_v<T, long>) return MPI_LONG;
+  else if constexpr (std::is_same_v<T, unsigned long>) return MPI_UNSIGNED_LONG;
+  else if constexpr (std::is_same_v<T, short>) return MPI_SHORT;
+  else if constexpr (std::is_same_v<T, unsigned short>) return MPI_UNSIGNED_SHORT;
+  else if constexpr (std::is_same_v<T, char>) return MPI_CHAR;
+  else if constexpr (std::is_same_v<T, unsigned char>) return MPI_UNSIGNED_CHAR;
+  else if constexpr (std::is_same_v<T, long long>) return MPI_LONG_LONG;
+  else if constexpr (std::is_same_v<T, unsigned long long>) return MPI_UNSIGNED_LONG_LONG;
+  else return MPI_BYTE;  // Fallback for unknown types
+}
 #endif
 
 #if NDARRAY_HAVE_NETCDF
-template <> inline int ndarray<double>::nc_dtype() const { return NC_DOUBLE; }
-template <> inline int ndarray<float>::nc_dtype() const { return NC_FLOAT; }
-template <> inline int ndarray<int>::nc_dtype() const { return NC_INT; }
-template <> inline int ndarray<unsigned int>::nc_dtype() const { return NC_UINT; }
-template <> inline int ndarray<unsigned long>::nc_dtype() const { return NC_UINT; }
-template <> inline int ndarray<unsigned char>::nc_dtype() const { return NC_UBYTE; }
-template <> inline int ndarray<char>::nc_dtype() const { return NC_CHAR; }
+template <typename T, typename StoragePolicy>
+inline int ndarray<T, StoragePolicy>::nc_dtype() const {
+  if constexpr (std::is_same_v<T, double>) return NC_DOUBLE;
+  else if constexpr (std::is_same_v<T, float>) return NC_FLOAT;
+  else if constexpr (std::is_same_v<T, int>) return NC_INT;
+  else if constexpr (std::is_same_v<T, unsigned int>) return NC_UINT;
+  else if constexpr (std::is_same_v<T, unsigned long>) return NC_UINT;
+  else if constexpr (std::is_same_v<T, unsigned char>) return NC_UBYTE;
+  else if constexpr (std::is_same_v<T, char>) return NC_CHAR;
+  else if constexpr (std::is_same_v<T, short>) return NC_SHORT;
+  else if constexpr (std::is_same_v<T, unsigned short>) return NC_USHORT;
+  else if constexpr (std::is_same_v<T, long long>) return NC_INT64;
+  else if constexpr (std::is_same_v<T, unsigned long long>) return NC_UINT64;
+  else return -1;  // Unknown type
+}
 #else
 template <typename T, typename StoragePolicy>
 inline int ndarray<T, StoragePolicy>::nc_dtype() const { return -1; } // linking without netcdf
@@ -1648,13 +1669,25 @@ inline bool ndarray<T, StoragePolicy>::read_h5_did(hid_t did)
   return true;
 }
 
-template <> inline hid_t ndarray<double>::h5_mem_type_id() { return H5T_NATIVE_DOUBLE; }
-template <> inline hid_t ndarray<float>::h5_mem_type_id() { return H5T_NATIVE_FLOAT; }
-template <> inline hid_t ndarray<int>::h5_mem_type_id() { return H5T_NATIVE_INT; }
-template <> inline hid_t ndarray<unsigned long>::h5_mem_type_id() { return H5T_NATIVE_ULONG; }
-template <> inline hid_t ndarray<unsigned int>::h5_mem_type_id() { return H5T_NATIVE_UINT; }
-template <> inline hid_t ndarray<unsigned char>::h5_mem_type_id() { return H5T_NATIVE_UCHAR; }
-template <> inline hid_t ndarray<char>::h5_mem_type_id() { return H5T_NATIVE_CHAR; }
+template <typename T, typename StoragePolicy>
+inline hid_t ndarray<T, StoragePolicy>::h5_mem_type_id() {
+  if constexpr (std::is_same_v<T, double>) return H5T_NATIVE_DOUBLE;
+  else if constexpr (std::is_same_v<T, float>) return H5T_NATIVE_FLOAT;
+  else if constexpr (std::is_same_v<T, int>) return H5T_NATIVE_INT;
+  else if constexpr (std::is_same_v<T, unsigned long>) return H5T_NATIVE_ULONG;
+  else if constexpr (std::is_same_v<T, unsigned int>) return H5T_NATIVE_UINT;
+  else if constexpr (std::is_same_v<T, unsigned char>) return H5T_NATIVE_UCHAR;
+  else if constexpr (std::is_same_v<T, char>) return H5T_NATIVE_CHAR;
+  else if constexpr (std::is_same_v<T, short>) return H5T_NATIVE_SHORT;
+  else if constexpr (std::is_same_v<T, unsigned short>) return H5T_NATIVE_USHORT;
+  else if constexpr (std::is_same_v<T, long>) return H5T_NATIVE_LONG;
+  else if constexpr (std::is_same_v<T, long long>) return H5T_NATIVE_LLONG;
+  else if constexpr (std::is_same_v<T, unsigned long long>) return H5T_NATIVE_ULLONG;
+  else {
+    // Unsupported type - return an invalid type
+    return -1;
+  }
+}
 #endif
 
 template <typename T, typename StoragePolicy>
