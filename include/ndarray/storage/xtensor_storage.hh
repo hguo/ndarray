@@ -16,6 +16,11 @@ struct xtensor_storage {
   struct container_type {
     xt::xarray<T> data_;
 
+    // Default constructor - ensure empty state
+    container_type() : data_() {
+      data_.resize({0});
+    }
+
     size_t size() const { return data_.size(); }
 
     T* data() { return data_.data(); }

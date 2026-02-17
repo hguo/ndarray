@@ -169,16 +169,37 @@ jobs:
       working-directory: build
       run: ctest --output-on-failure -E "distributed|ghost_exchange|mpi"
 
-    - name: Run MPI tests
+    - name: Check if MPI tests exist
+      id: check_mpi_tests
       working-directory: build
       run: |
+        if [ -f bin/test_distributed_ndarray ]; then
+          echo "has_mpi_tests=true" >> $GITHUB_OUTPUT
+        else
+          echo "has_mpi_tests=false" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Run MPI tests
+      if: steps.check_mpi_tests.outputs.has_mpi_tests == 'true'
+      working-directory: build
+      run: |
+        # Configure OpenMPI for CI environment
+        export OMPI_MCA_btl_vader_single_copy_mechanism=none
+        export OMPI_MCA_rmaps_base_oversubscribe=1
+
+        echo "Running MPI tests..."
         # Run distributed tests with different rank counts
         for np in 2 4; do
           echo "Testing with $np ranks..."
-          if [ -f bin/test_distributed_ndarray ]; then
-            mpirun --oversubscribe -np $np bin/test_distributed_ndarray || exit 1
-          fi
+          mpirun --allow-run-as-root --oversubscribe \
+                 --mca btl_base_warn_component_unused 0 \
+                 --mca btl tcp,self \
+                 -np $np bin/test_distributed_ndarray || {
+            echo "MPI test with $np ranks failed"
+            exit 1
+          }
         done
+        echo "All MPI tests passed"
 
   build-storage-backends:
     name: Storage backends (Eigen + xtensor)
