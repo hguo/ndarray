@@ -3671,21 +3671,22 @@ void ndarray<T, StoragePolicy>::read_binary_auto(const std::string& filename)
     // Distributed mode: MPI-IO parallel read
     // Read only the local core region using column-major (Fortran) order
     const auto& core = dist_->local_core_;
+    const auto& extent = dist_->local_extent_;
     const size_t nd = core.nd();
+
+    // Check if we have ghost layers
+    bool has_ghosts = false;
+    for (size_t d = 0; d < nd; d++) {
+      if (core.size(d) != extent.size(d)) {
+        has_ghosts = true;
+        break;
+      }
+    }
 
     MPI_File fh;
     int err = MPI_File_open(dist_->comm, filename.c_str(), MPI_MODE_RDONLY, MPI_INFO_NULL, &fh);
     if (err != MPI_SUCCESS) {
       throw std::runtime_error("Failed to open file for parallel read: " + filename);
-    }
-
-    // Calculate offset for column-major order
-    MPI_Offset offset = 0;
-    MPI_Offset stride = sizeof(T);
-
-    for (size_t d = 0; d < nd; d++) {
-      offset += static_cast<MPI_Offset>(core.start(d)) * stride;
-      stride *= dist_->global_lattice_.size(d);
     }
 
     // For simplicity, read column-by-column for 2D
@@ -3694,12 +3695,17 @@ void ndarray<T, StoragePolicy>::read_binary_auto(const std::string& filename)
       size_t core_size1 = core.size(1);
       size_t global_size0 = dist_->global_lattice_.size(0);
 
+      // Calculate ghost offsets if needed
+      size_t ghost_offset_0 = has_ghosts ? (core.start(0) - extent.start(0)) : 0;
+      size_t ghost_offset_1 = has_ghosts ? (core.start(1) - extent.start(1)) : 0;
+
       for (size_t j = 0; j < core_size1; j++) {
         size_t global_j = core.start(1) + j;
         size_t global_i = core.start(0);
         MPI_Offset col_offset = (global_i + global_j * global_size0) * sizeof(T);
 
-        T* col_ptr = &this->f(0, j);
+        // Read into core region (accounting for ghosts if present)
+        T* col_ptr = &this->f(ghost_offset_0, ghost_offset_1 + j);
         MPI_Status status;
         err = MPI_File_read_at_all(fh, col_offset, col_ptr, static_cast<int>(core_size0),
                                    mpi_datatype(), &status);
@@ -3710,6 +3716,15 @@ void ndarray<T, StoragePolicy>::read_binary_auto(const std::string& filename)
       }
     } else {
       // 1D or higher-D: simple contiguous read
+      // Calculate offset for column-major order
+      MPI_Offset offset = 0;
+      MPI_Offset stride = sizeof(T);
+
+      for (size_t d = 0; d < nd; d++) {
+        offset += static_cast<MPI_Offset>(core.start(d)) * stride;
+        stride *= dist_->global_lattice_.size(d);
+      }
+
       MPI_Status status;
       err = MPI_File_read_at_all(fh, offset, this->data(), static_cast<int>(core.n()),
                                  mpi_datatype(), &status);

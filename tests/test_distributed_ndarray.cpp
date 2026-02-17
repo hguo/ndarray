@@ -443,6 +443,18 @@ int test_parallel_binary_read() {
 
   darray.decompose(MPI_COMM_WORLD, {global_nx, global_ny});
 
+  // Debug: print decomposition info
+  if (rank == 0 || rank == 1) {
+    std::cout << "[Rank " << rank << "] Core: start=["
+              << darray.local_core().start(0) << "," << darray.local_core().start(1)
+              << "], size=[" << darray.local_core().size(0) << "," << darray.local_core().size(1) << "]" << std::endl;
+    std::cout << "[Rank " << rank << "] Extent: start=["
+              << darray.local_extent().start(0) << "," << darray.local_extent().start(1)
+              << "], size=[" << darray.local_extent().size(0) << "," << darray.local_extent().size(1) << "]" << std::endl;
+    std::cout << "[Rank " << rank << "] Local array shape: ["
+              << darray.dims[0] << "," << darray.dims[1] << "]" << std::endl;
+  }
+
   // Parallel read (automatic in distributed mode)
   darray.read_binary_auto("test_distributed.bin");
 
@@ -450,6 +462,20 @@ int test_parallel_binary_read() {
   // Check that each rank got the correct portion
   auto& local = darray;
   bool data_correct = true;
+
+  // Debug: print first few values
+  if (rank == 0) {
+    for (size_t i = 0; i < std::min(size_t(3), darray.local_core().size(0)); i++) {
+      for (size_t j = 0; j < std::min(size_t(3), darray.local_core().size(1)); j++) {
+        size_t global_i = darray.local_core().start(0) + i;
+        size_t global_j = darray.local_core().start(1) + j;
+        double expected = static_cast<double>(global_i * 100 + global_j);
+        double actual = local.at(i, j);
+        std::cout << "[Rank " << rank << "] local[" << i << "," << j << "] = " << actual
+                  << ", expected = " << expected << " (global [" << global_i << "," << global_j << "])" << std::endl;
+      }
+    }
+  }
 
   for (size_t i = 0; i < darray.local_core().size(0); i++) {
     for (size_t j = 0; j < darray.local_core().size(1); j++) {
