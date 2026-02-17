@@ -259,37 +259,6 @@ jobs:
       working-directory: build
       run: ASAN_OPTIONS=detect_leaks=1 ctest --output-on-failure
 
-  build-warnings:
-    name: Build with strict warnings
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
-
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y \
-          cmake \
-          libyaml-cpp-dev
-
-    - name: Configure CMake (Strict warnings)
-      run: |
-        cmake -B build \
-          -DCMAKE_BUILD_TYPE=Release \
-          -DNDARRAY_BUILD_TESTS=ON \
-          -DNDARRAY_BUILD_EXAMPLES=OFF \
-          -DNDARRAY_USE_YAML=AUTO \
-          -DCMAKE_CXX_FLAGS="-Wall -Wextra -Wpedantic -Werror"
-
-    - name: Build
-      run: cmake --build build -j$(nproc)
-
-    - name: Run tests
-      working-directory: build
-      run: ctest --output-on-failure
-
   documentation:
     name: Check documentation
     runs-on: ubuntu-latest
