@@ -89,7 +89,7 @@ inline void substream_synthetic_woven<StoragePolicy>::read(int i, std::shared_pt
   for (const auto &var : this->variables) { // normally, there should be only one variable
     // Respect dtype from YAML configuration
     if (var.dtype == NDARRAY_DTYPE_FLOAT) {
-      const auto arr = synthetic_woven_2D<float>(
+      const auto arr = synthetic_woven_2D<float, StoragePolicy>(
           this->dimensions[0],
           this->dimensions[1],
           static_cast<float>(t0 + delta * i),
@@ -97,14 +97,14 @@ inline void substream_synthetic_woven<StoragePolicy>::read(int i, std::shared_pt
       g->set(var.name, arr);
     } else if (var.dtype == NDARRAY_DTYPE_DOUBLE || var.is_dtype_auto) {
       // Default to double if dtype is auto or explicitly double
-      const auto arr = synthetic_woven_2D<double>(
+      const auto arr = synthetic_woven_2D<double, StoragePolicy>(
           this->dimensions[0],
           this->dimensions[1],
           t0 + delta * i,
           scaling_factor);
       g->set(var.name, arr);
     } else if (var.dtype == NDARRAY_DTYPE_INT) {
-      const auto arr = synthetic_woven_2D<int>(
+      const auto arr = synthetic_woven_2D<int, StoragePolicy>(
           this->dimensions[0],
           this->dimensions[1],
           static_cast<int>(t0 + delta * i),
@@ -112,7 +112,7 @@ inline void substream_synthetic_woven<StoragePolicy>::read(int i, std::shared_pt
       g->set(var.name, arr);
     } else {
       // Fallback: use double for unsupported dtypes
-      const auto arr = synthetic_woven_2D<double>(
+      const auto arr = synthetic_woven_2D<double, StoragePolicy>(
           this->dimensions[0],
           this->dimensions[1],
           t0 + delta * i,

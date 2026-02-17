@@ -940,16 +940,20 @@ void ndarray<T, StoragePolicy>::read_binary_file_sequence(const std::string& pat
 }
 
 #ifdef NDARRAY_HAVE_VTK
-template<typename StoragePolicy> inline int ndarray<char, StoragePolicy>::vtk_data_type() const {return VTK_CHAR;}
-template<typename StoragePolicy> inline int ndarray<unsigned char, StoragePolicy>::vtk_data_type() const {return VTK_UNSIGNED_CHAR;}
-template<typename StoragePolicy> inline int ndarray<short, StoragePolicy>::vtk_data_type() const {return VTK_SHORT;}
-template<typename StoragePolicy> inline int ndarray<unsigned short, StoragePolicy>::vtk_data_type() const {return VTK_UNSIGNED_SHORT;}
-template<typename StoragePolicy> inline int ndarray<int, StoragePolicy>::vtk_data_type() const {return VTK_INT;}
-template<typename StoragePolicy> inline int ndarray<unsigned int, StoragePolicy>::vtk_data_type() const {return VTK_UNSIGNED_INT;}
-template<typename StoragePolicy> inline int ndarray<long, StoragePolicy>::vtk_data_type() const {return VTK_LONG;}
-template<typename StoragePolicy> inline int ndarray<unsigned long, StoragePolicy>::vtk_data_type() const {return VTK_UNSIGNED_LONG;}
-template<typename StoragePolicy> inline int ndarray<float, StoragePolicy>::vtk_data_type() const {return VTK_FLOAT;}
-template<typename StoragePolicy> inline int ndarray<double, StoragePolicy>::vtk_data_type() const {return VTK_DOUBLE;}
+template <typename T, typename StoragePolicy>
+inline int ndarray<T, StoragePolicy>::vtk_data_type() const {
+  if constexpr (std::is_same_v<T, char>) return VTK_CHAR;
+  else if constexpr (std::is_same_v<T, unsigned char>) return VTK_UNSIGNED_CHAR;
+  else if constexpr (std::is_same_v<T, short>) return VTK_SHORT;
+  else if constexpr (std::is_same_v<T, unsigned short>) return VTK_UNSIGNED_SHORT;
+  else if constexpr (std::is_same_v<T, int>) return VTK_INT;
+  else if constexpr (std::is_same_v<T, unsigned int>) return VTK_UNSIGNED_INT;
+  else if constexpr (std::is_same_v<T, long>) return VTK_LONG;
+  else if constexpr (std::is_same_v<T, unsigned long>) return VTK_UNSIGNED_LONG;
+  else if constexpr (std::is_same_v<T, float>) return VTK_FLOAT;
+  else if constexpr (std::is_same_v<T, double>) return VTK_DOUBLE;
+  else return VTK_VOID;  // Unknown type
+}
 
 template <typename T, typename StoragePolicy>
 inline void ndarray<T, StoragePolicy>::from_vtk_array(vtkSmartPointer<vtkAbstractArray> d)

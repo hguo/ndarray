@@ -27,10 +27,10 @@ T woven_grad_y_2Dt(T x, T y, T t)
 }
 
 // generate 2D woven data
-template <typename T>
-ndarray<T> synthetic_woven_2D(int DW, int DH, T t = T(1e-4), T scaling_factor = T(15))
+template <typename T, typename StoragePolicy = native_storage>
+ndarray<T, StoragePolicy> synthetic_woven_2D(int DW, int DH, T t = T(1e-4), T scaling_factor = T(15))
 {
-  ndarray<T> scalar;
+  ndarray<T, StoragePolicy> scalar;
   scalar.reshapef(DW, DH);
 
   // const T scaling_factor = 15; // the factor that controls the shape of the synthesize data
