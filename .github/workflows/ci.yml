@@ -465,7 +465,9 @@ jobs:
           -DNDARRAY_BUILD_TESTS=ON \
           -DNDARRAY_BUILD_EXAMPLES=OFF \
           -DNDARRAY_USE_VTK=ON \
-          -DNDARRAY_USE_MPI=AUTO
+          -DNDARRAY_USE_MPI=AUTO \
+          -DNDARRAY_USE_EIGEN=OFF \
+          -DNDARRAY_USE_XTENSOR=OFF
 
     - name: Build
       run: cmake --build build -j$(nproc)
