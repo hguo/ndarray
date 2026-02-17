@@ -292,8 +292,8 @@ This eliminates the need for manual conversion while maintaining the YAML stream
 - ✅ **Templated storage backend system** (Feb 2026)
   - Policy-based design for choosing storage implementation
   - Native storage (std::vector) - default, 100% backward compatible
-  - xtensor storage - SIMD vectorization, 2-4x faster element-wise ops
-  - Eigen storage - optimized linear algebra, 5-10x faster matrix ops
+  - xtensor storage - SIMD vectorization, NumPy-like semantics
+  - Eigen storage - optimized linear algebra, BLAS/LAPACK integration
   - Zero migration cost - existing code unchanged
   - See [Storage Backends Guide](docs/STORAGE_BACKENDS.md)
 

@@ -97,10 +97,10 @@ temp.exchange_ghosts();
    - Not set → Continue...
 
 4. Is GPU-aware MPI available?
-   - Yes → Use `exchange_ghosts_gpu_direct()` ⚡ (best!)
+   - Yes → Use `exchange_ghosts_gpu_direct()` ⚡
    - No → Use `exchange_ghosts_gpu_staged()` (fallback)
 
-### GPU Direct Path (Fastest)
+### GPU Direct Path
 
 ```
 Device Memory:    [Core + Ghosts]

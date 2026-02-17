@@ -52,10 +52,9 @@ arr.fill(0.0f);
 - Lazy evaluation and expression templates
 - NumPy-like API compatibility
 - Broadcasting support
-- 2-4x faster for element-wise operations
 
 **When to use:**
-- For high-performance numerical computations
+- For numerical computations
 - When you need broadcasting
 - For N-dimensional arrays (any dimension)
 - When you want NumPy-like semantics
@@ -81,10 +80,9 @@ for (size_t i = 0; i < a.size(); i++) {
 
 **Features:**
 - Optimized BLAS/LAPACK operations
-- 5-10x faster matrix multiplication
-- 10-20x faster for eigenvalue decomposition, SVD
 - Column-major (Fortran) memory layout
 - Best for 2D matrices
+- Native support for linear algebra operations
 
 **When to use:**
 - For linear algebra operations
@@ -191,19 +189,6 @@ ftk::ndarray_group_eigen
 ftk::stream_eigen
 ```
 
-## Performance Comparison
-
-Based on benchmarks (1000x1000 arrays):
-
-| Operation | Native | xtensor | Eigen |
-|-----------|--------|---------|-------|
-| Element-wise | 1.0x | 2-4x | 1.5x |
-| Broadcasting | 1.0x | 3-5x | N/A |
-| Matrix multiply | 1.0x | 1.2x | 5-10x |
-| Eigenvalues | N/A | N/A | 10-20x |
-| I/O (read) | 1.0x | 0.95x | 0.95x |
-| Memory | 1.0x | 1.0x | 1.0x |
-
 ## Choosing a Storage Backend
 
 **Use native storage when:**
@@ -212,16 +197,16 @@ Based on benchmarks (1000x1000 arrays):
 - xtensor/Eigen are not available
 
 **Use xtensor storage when:**
-- You need high-performance element-wise operations
 - You want SIMD vectorization
 - You're working with N-dimensional arrays
 - You want NumPy-like semantics
+- You need broadcasting
 
 **Use Eigen storage when:**
 - You need linear algebra operations
 - You're working primarily with 2D matrices
 - You need eigenvalue/SVD computations
-- You want optimized BLAS operations
+- You want BLAS/LAPACK integration
 
 ## Migration Guide
 
@@ -233,7 +218,7 @@ ftk::ndarray<double> arr;
 arr.read_netcdf("data.nc", "temperature");
 ```
 
-To opt into xtensor for better performance:
+To use xtensor storage:
 
 ```cpp
 // Change type declaration

@@ -18,7 +18,7 @@ NDArray is a **unified I/O abstraction library for time-varying scientific data*
 - **Unified API** for multiple scientific data formats - write once, support all formats
 - **Stream-based interface** for time-series data workflows
 - **Format interoperability** - read NetCDF, write HDF5 seamlessly
-- **Zero-copy optimization** for efficient memory usage with large datasets
+- **Zero-copy access** via reference accessors for large datasets
 
 ### HPC I/O Backends
 - **NetCDF** - Climate, ocean, atmosphere data (with parallel-netcdf support)
@@ -36,7 +36,7 @@ NDArray is a **unified I/O abstraction library for time-varying scientific data*
   - Global/local index conversion for distributed algorithms
   - See [Distributed Arrays Guide](docs/DISTRIBUTED_NDARRAY.md) for details
 - **MPI** - Message Passing Interface for parallel I/O (collective operations)
-- **Parallel-NetCDF (PNetCDF)** - High-performance parallel NetCDF
+- **Parallel-NetCDF (PNetCDF)** - Parallel NetCDF for distributed I/O
 - **OpenMP** - Shared-memory parallelism
 - **CUDA** - GPU acceleration (experimental)
 - **SYCL** - Cross-platform heterogeneous acceleration (experimental)
@@ -67,7 +67,7 @@ NDArray is a **unified I/O abstraction library for time-varying scientific data*
 All optional dependencies can be enabled with the `NDARRAY_USE_<NAME>` CMake options:
 
 **I/O Libraries**:
-- **ADIOS2** - High-performance I/O framework
+- **ADIOS2** - Extreme-scale parallel I/O framework
 - **HDF5** - Hierarchical data format
 - **NetCDF** - Network Common Data Form
 - **PNetCDF** - Parallel-NetCDF
@@ -81,8 +81,8 @@ All optional dependencies can be enabled with the `NDARRAY_USE_<NAME>` CMake opt
 - **SYCL** - Cross-platform heterogeneous acceleration (experimental)
 
 **Storage Backends** (for computation):
-- **Eigen** - Optimized linear algebra storage backend
-- **xtensor** - SIMD-accelerated storage backend with NumPy-like API
+- **Eigen** - Linear algebra storage backend with BLAS/LAPACK
+- **xtensor** - SIMD storage backend with NumPy-like API
 
 **Note**: The library is header-only when no optional dependencies are used. Basic array operations, binary I/O, and core functionality work without linking. When using optional dependencies, you must link against the corresponding external libraries.
 
