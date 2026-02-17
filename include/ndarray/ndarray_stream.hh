@@ -527,16 +527,16 @@ inline std::shared_ptr<typename stream<StoragePolicy>::group_type> stream<Storag
         size_t np = default_nprocs;
 
         if (dims.empty()) {
-          dims.resize(array.nd());
-          for (size_t d = 0; d < array.nd(); d++) {
-            dims[d] = array.dim(d);
+          dims.resize(array->nd());
+          for (size_t d = 0; d < array->nd(); d++) {
+            dims[d] = array->dim(d);
           }
         }
 
-        array.decompose(comm, dims, np, pattern, ghost);
+        array->decompose(comm, dims, np, pattern, ghost);
 
       } else if (dist_type == VariableDistType::REPLICATED) {
-        array.set_replicated(comm);
+        array->set_replicated(comm);
       }
     }
   }
@@ -598,18 +598,18 @@ inline std::shared_ptr<typename stream<StoragePolicy>::group_type> stream<Storag
 
         // If dimensions not specified, infer from array shape
         if (dims.empty()) {
-          dims.resize(array.nd());
-          for (size_t d = 0; d < array.nd(); d++) {
-            dims[d] = array.dim(d);
+          dims.resize(array->nd());
+          for (size_t d = 0; d < array->nd(); d++) {
+            dims[d] = array->dim(d);
           }
         }
 
         // Configure as distributed
-        array.decompose(comm, dims, np, pattern, ghost);
+        array->decompose(comm, dims, np, pattern, ghost);
 
       } else if (dist_type == VariableDistType::REPLICATED) {
         // Configure as replicated
-        array.set_replicated(comm);
+        array->set_replicated(comm);
 
       }
       // AUTO: leave as serial for now (could implement heuristics later)
