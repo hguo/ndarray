@@ -454,7 +454,7 @@ jobs:
       uses: actions/cache@v3
       with:
         path: ~/vtk
-        key: vtk-9.6.0-minimal-${{ runner.os }}
+        key: vtk-9.6.0-minimal-v2-${{ runner.os }}
 
     - name: Build and install VTK from source
       if: steps.cache-vtk.outputs.cache-hit != 'true'
@@ -477,6 +477,7 @@ jobs:
           -DVTK_MODULE_ENABLE_VTK_CommonDataModel=YES \
           -DVTK_MODULE_ENABLE_VTK_IOXML=YES \
           -DVTK_MODULE_ENABLE_VTK_IOLegacy=YES \
+          -DVTK_MODULE_ENABLE_VTK_FiltersCore=YES \
           -DVTK_WRAP_PYTHON=OFF \
           -DVTK_USE_MPI=OFF
 

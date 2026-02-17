@@ -22,7 +22,19 @@ if (NDARRAY_HAVE_ADIOS2)
 endif ()
 
 if (NDARRAY_HAVE_VTK)
-  target_link_libraries (ndarray PUBLIC VTK::CommonCore VTK::CommonDataModel VTK::IOLegacy VTK::IOXML VTK::IOParallelXML VTK::FiltersSources VTK::FiltersCore)
+  # Core modules (always required)
+  target_link_libraries (ndarray PUBLIC VTK::CommonCore VTK::CommonDataModel VTK::IOLegacy VTK::IOXML)
+
+  # Optional modules - only link if available
+  if (TARGET VTK::IOParallelXML)
+    target_link_libraries (ndarray PUBLIC VTK::IOParallelXML)
+  endif ()
+  if (TARGET VTK::FiltersSources)
+    target_link_libraries (ndarray PUBLIC VTK::FiltersSources)
+  endif ()
+  if (TARGET VTK::FiltersCore)
+    target_link_libraries (ndarray PUBLIC VTK::FiltersCore)
+  endif ()
 endif ()
 
 if (NDARRAY_HAVE_NETCDF)
