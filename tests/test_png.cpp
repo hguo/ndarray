@@ -14,6 +14,7 @@
 #include <cassert>
 #include <cmath>
 #include <cstdio>
+#include <chrono>
 
 #define TEST_ASSERT(condition, message) \
   do { \
