@@ -3674,7 +3674,10 @@ void ndarray<T, StoragePolicy>::read_binary_auto(const std::string& filename)
     const size_t nd = core.nd();
 
     MPI_File fh;
-    MPI_File_open(dist_->comm, filename.c_str(), MPI_MODE_RDONLY, MPI_INFO_NULL, &fh);
+    int err = MPI_File_open(dist_->comm, filename.c_str(), MPI_MODE_RDONLY, MPI_INFO_NULL, &fh);
+    if (err != MPI_SUCCESS) {
+      throw std::runtime_error("Failed to open file for parallel read: " + filename);
+    }
 
     // Calculate offset for column-major order
     MPI_Offset offset = 0;
@@ -3697,13 +3700,23 @@ void ndarray<T, StoragePolicy>::read_binary_auto(const std::string& filename)
         MPI_Offset col_offset = (global_i + global_j * global_size0) * sizeof(T);
 
         T* col_ptr = &this->f(0, j);
-        MPI_File_read_at_all(fh, col_offset, col_ptr, static_cast<int>(core_size0),
-                             mpi_datatype(), MPI_STATUS_IGNORE);
+        MPI_Status status;
+        err = MPI_File_read_at_all(fh, col_offset, col_ptr, static_cast<int>(core_size0),
+                                   mpi_datatype(), &status);
+        if (err != MPI_SUCCESS) {
+          MPI_File_close(&fh);
+          throw std::runtime_error("MPI_File_read_at_all failed for column " + std::to_string(j));
+        }
       }
     } else {
       // 1D or higher-D: simple contiguous read
-      MPI_File_read_at_all(fh, offset, this->data(), static_cast<int>(core.n()),
-                           mpi_datatype(), MPI_STATUS_IGNORE);
+      MPI_Status status;
+      err = MPI_File_read_at_all(fh, offset, this->data(), static_cast<int>(core.n()),
+                                 mpi_datatype(), &status);
+      if (err != MPI_SUCCESS) {
+        MPI_File_close(&fh);
+        throw std::runtime_error("MPI_File_read_at_all failed");
+      }
     }
 
     MPI_File_close(&fh);
