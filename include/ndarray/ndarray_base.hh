@@ -613,7 +613,8 @@ inline void ndarray_base::read_netcdf(int ncid, int varid, int ndims, const size
 inline void ndarray_base::to_netcdf(int ncid, int varid) const
 {
   std::vector<size_t> starts(dims.size(), 0), sizes(dims);
-  std::reverse(sizes.begin(), sizes.end());
+  // Note: sizes should match dims directly without reversal
+  // NetCDF dimensions are defined in the same order as ndarray Fortran dims
 
   to_netcdf(ncid, varid, &starts[0], &sizes[0]);
 }
@@ -621,8 +622,7 @@ inline void ndarray_base::to_netcdf(int ncid, int varid) const
 inline void ndarray_base::to_netcdf(int ncid, int varid, const size_t st[], const size_t sz[]) const
 {
 #ifdef NDARRAY_HAVE_NETCDF
-  fprintf(stderr, "st=%zu, %zu, %zu, %zu, sz=%zu, %zu, %zu, %zu\n",
-      st[0], st[1], st[2], st[3], sz[0], sz[1], sz[2], sz[3]);
+  // Debug output removed - was reading beyond array bounds for dims < 4
 
   if (nc_dtype() == NC_DOUBLE) {
     NC_SAFE_CALL( nc_put_vara_double(ncid, varid, st, sz, (double*)pdata()) );
