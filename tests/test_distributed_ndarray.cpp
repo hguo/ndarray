@@ -439,20 +439,27 @@ int test_parallel_binary_read() {
   MPI_Barrier(MPI_COMM_WORLD);
 
   TEST_SECTION("Decompose domain and read in parallel with MPI-IO");
+
+  // Debug: print MPI info
+  if (rank == 0) {
+    std::cout << "    MPI: " << nprocs << " processes" << std::endl;
+  }
+
   ftk::ndarray<double> darray;
 
   darray.decompose(MPI_COMM_WORLD, {global_nx, global_ny});
 
-  // Debug: print decomposition info
-  if (rank == 0 || rank == 1) {
-    std::cout << "[Rank " << rank << "] Core: start=["
-              << darray.local_core().start(0) << "," << darray.local_core().start(1)
-              << "], size=[" << darray.local_core().size(0) << "," << darray.local_core().size(1) << "]" << std::endl;
-    std::cout << "[Rank " << rank << "] Extent: start=["
-              << darray.local_extent().start(0) << "," << darray.local_extent().start(1)
-              << "], size=[" << darray.local_extent().size(0) << "," << darray.local_extent().size(1) << "]" << std::endl;
-    std::cout << "[Rank " << rank << "] Local array shape: ["
-              << darray.dimf(0) << "," << darray.dimf(1) << "]" << std::endl;
+  // Debug: print decomposition info for all ranks
+  for (int r = 0; r < nprocs; r++) {
+    if (rank == r) {
+      std::cout << "[Rank " << rank << "] Core: start=["
+                << darray.local_core().start(0) << "," << darray.local_core().start(1)
+                << "], size=[" << darray.local_core().size(0) << "," << darray.local_core().size(1) << "]" << std::endl;
+      std::cout << "[Rank " << rank << "] Extent: start=["
+                << darray.local_extent().start(0) << "," << darray.local_extent().start(1)
+                << "], size=[" << darray.local_extent().size(0) << "," << darray.local_extent().size(1) << "]" << std::endl;
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
   }
 
   // Parallel read (automatic in distributed mode)
