@@ -731,6 +731,9 @@ using substream_eigen = substream<eigen_storage>;
 
 } // namespace ftk
 
+// Include template implementations (must come after class definitions)
+#include <ndarray/ndarray_group_stream.hh>
+
 #endif // NDARRAY_HAVE_YAML
 
 #endif // _NDARRAY_STREAM_HH
