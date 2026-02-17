@@ -1,6 +1,11 @@
 #include <iostream>
-#include <ndarray/ndarray_group_stream.hh>
+#include <ndarray/config.hh>
+#include <ndarray/ndarray_stream.hh>
 #include "cxxopts.hpp"
+
+#if NDARRAY_HAVE_MPI
+#include <mpi.h>
+#endif
 
 std::string input_yaml_filename;
 std::string data_path_prefix;
