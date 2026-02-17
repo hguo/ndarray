@@ -337,8 +337,13 @@ inline stream<StoragePolicy>::stream(MPI_Comm comm_) :
   comm(comm_)
 {
 #if NDARRAY_HAVE_MPI
-  MPI_Comm_rank(comm, &rank);
-  MPI_Comm_size(comm, &nprocs);
+  // Only query MPI if it has been initialized
+  int mpi_initialized = 0;
+  MPI_Initialized(&mpi_initialized);
+  if (mpi_initialized) {
+    MPI_Comm_rank(comm, &rank);
+    MPI_Comm_size(comm, &nprocs);
+  }
 #endif
 }
 
