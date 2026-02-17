@@ -327,23 +327,37 @@ jobs:
           autoconf \
           libtool
 
+    - name: Cache PNetCDF
+      id: cache-pnetcdf
+      uses: actions/cache@v3
+      with:
+        path: ~/pnetcdf
+        key: pnetcdf-1.12.3-${{ runner.os }}
+
     - name: Build and install PNetCDF
+      if: steps.cache-pnetcdf.outputs.cache-hit != 'true'
       run: |
         # Download PNetCDF
         wget https://parallel-netcdf.github.io/Release/pnetcdf-1.12.3.tar.gz
         tar -xzf pnetcdf-1.12.3.tar.gz
         cd pnetcdf-1.12.3
 
-        # Configure and build
-        ./configure --prefix=/usr/local --enable-shared
+        # Configure and build (install to ~/pnetcdf for caching)
+        ./configure --prefix=$HOME/pnetcdf --enable-shared
         make -j$(nproc)
-        sudo make install
+        make install
         cd ..
+
+    - name: Set up PNetCDF environment
+      run: |
+        echo "$HOME/pnetcdf/bin" >> $GITHUB_PATH
+        echo "LD_LIBRARY_PATH=$HOME/pnetcdf/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
 
     - name: Configure CMake (PNetCDF)
       run: |
         cmake -B build \
           -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_PREFIX_PATH=$HOME/pnetcdf \
           -DNDARRAY_BUILD_TESTS=ON \
           -DNDARRAY_BUILD_EXAMPLES=OFF \
           -DNDARRAY_USE_MPI=ON \
