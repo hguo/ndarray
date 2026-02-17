@@ -190,28 +190,9 @@ inline void stream<StoragePolicy>::new_substream_from_yaml(YAML::Node y)
 // =============================================================================
 // Distributed Memory Support (when MPI is enabled)
 // =============================================================================
-
-#if NDARRAY_HAVE_MPI && NDARRAY_HAVE_YAML
-
-/**
- * Include distributed memory stream functionality when MPI is available.
- * This provides:
- * - distributed_ndarray: MPI-aware arrays with decomposition
- * - distributed_ndarray_group: Container for multiple distributed arrays
- * - distributed_stream: YAML-configured parallel I/O streams
- *
- * Usage is identical to regular streams, just use distributed_stream instead:
- * @code
- * ftk::distributed_stream<> stream(MPI_COMM_WORLD);
- * stream.parse_yaml("config.yaml");  // Add "decomposition" section to YAML
- * auto group = stream.read(timestep);
- * @endcode
- */
-
-#include <ndarray/distributed_ndarray.hh>
-#include <ndarray/distributed_ndarray_group.hh>
-#include <ndarray/distributed_ndarray_stream.hh>
-
-#endif // NDARRAY_HAVE_MPI && NDARRAY_HAVE_YAML
+//
+// Distributed memory functionality is implemented directly in ndarray.hh
+// through the ndarray::set_distributed() API. No separate distributed_ndarray
+// class is needed.
 
 #endif // _NDARRAY_NDARRAY_GROUP_STREAM_HH

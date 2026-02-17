@@ -1425,7 +1425,7 @@ inline void ndarray<T, StoragePolicy>::to_host()
       storage_.resize(nelem());
 
       cudaSetDevice(this->device_id);
-      cudaMemcpy(p.data(), devptr, sizeof(T) * p.size(),
+      cudaMemcpy(storage_.data(), devptr, sizeof(T) * storage_.size(),
           cudaMemcpyDeviceToHost);
       cudaFree(devptr);
 
