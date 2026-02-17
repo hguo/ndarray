@@ -3231,13 +3231,49 @@ void ndarray<T, StoragePolicy>::write_netcdf_auto(
   } else if (should_use_replicated_io()) {
     // Replicated mode: Only rank 0 writes
     if (dist_->rank == 0) {
-      this->to_netcdf(filename, varname);
+      int ncid;
+      NC_SAFE_CALL(nc_create(filename.c_str(), NC_NETCDF4, &ncid));
+
+      // Define dimensions
+      std::vector<int> dimids(this->nd());
+      for (size_t d = 0; d < this->nd(); d++) {
+        std::string dimname = "dim" + std::to_string(d);
+        NC_SAFE_CALL(nc_def_dim(ncid, dimname.c_str(), this->dim(d), &dimids[d]));
+      }
+
+      // Define variable
+      int varid;
+      NC_SAFE_CALL(nc_def_var(ncid, varname.c_str(), this->nc_dtype(), this->nd(), dimids.data(), &varid));
+      NC_SAFE_CALL(nc_enddef(ncid));
+
+      // Write data
+      this->to_netcdf(ncid, varid);
+
+      NC_SAFE_CALL(nc_close(ncid));
     }
     MPI_Barrier(dist_->comm);
 
   } else {
     // Serial mode: Regular write
-    this->to_netcdf(filename, varname);
+    int ncid;
+    NC_SAFE_CALL(nc_create(filename.c_str(), NC_NETCDF4, &ncid));
+
+    // Define dimensions
+    std::vector<int> dimids(this->nd());
+    for (size_t d = 0; d < this->nd(); d++) {
+      std::string dimname = "dim" + std::to_string(d);
+      NC_SAFE_CALL(nc_def_dim(ncid, dimname.c_str(), this->dim(d), &dimids[d]));
+    }
+
+    // Define variable
+    int varid;
+    NC_SAFE_CALL(nc_def_var(ncid, varname.c_str(), this->nc_dtype(), this->nd(), dimids.data(), &varid));
+    NC_SAFE_CALL(nc_enddef(ncid));
+
+    // Write data
+    this->to_netcdf(ncid, varid);
+
+    NC_SAFE_CALL(nc_close(ncid));
   }
 }
 
