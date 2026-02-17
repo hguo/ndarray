@@ -39,6 +39,9 @@ endif ()
 
 if (NDARRAY_HAVE_PNETCDF)
   target_link_libraries (ndarray PUBLIC ${PNETCDF_LIBRARIES})
+  if (PNETCDF_LIBRARY_DIRS)
+    target_link_directories (ndarray PUBLIC ${PNETCDF_LIBRARY_DIRS})
+  endif()
 endif ()
 
 if (NDARRAY_HAVE_HDF5)
