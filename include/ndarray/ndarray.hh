@@ -1451,7 +1451,7 @@ inline void ndarray<T, StoragePolicy>::to_host()
     }
 
     // Copy data from device
-    q->memcpy(p.data(), devptr, sizeof(T) * p.size()).wait();
+    q->memcpy(storage_.data(), devptr, sizeof(T) * storage_.size()).wait();
 
     // Free device memory
     sycl::free(devptr, *q);
@@ -1560,7 +1560,7 @@ inline void ndarray<T, StoragePolicy>::copy_from_device()
     }
 
     // Copy data from device
-    q->memcpy(p.data(), devptr, sizeof(T) * p.size()).wait();
+    q->memcpy(storage_.data(), devptr, sizeof(T) * storage_.size()).wait();
 
     // Clean up temporary queue if we created it
     if (own_queue) delete q;

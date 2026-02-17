@@ -9,5 +9,14 @@ dist/
 __pycache__
 .vscode
 CRITICAL_ANALYSIS.md
-CRITICAL_ANALYSIS.md
 .ci/
+
+# CMake build artifacts
+CMakeFiles/
+CMakeCache.txt
+CTestTestfile.cmake
+Makefile
+cmake_install.cmake
+compile_commands.json
+ndarrayConfig.cmake
+include/ndarray/config.hh
