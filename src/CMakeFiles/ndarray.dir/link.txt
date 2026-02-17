@@ -1,0 +1,1 @@
+/Users/guo.2154/local/mpich-5.0.0/bin/mpicxx  -arch arm64 -dynamiclib -Wl,-headerpad_max_install_names -o ../lib/libndarray.dylib -install_name @rpath/libndarray.dylib CMakeFiles/ndarray.dir/ndarray.cpp.o  /Users/guo.2154/local/mpich-5.0.0/lib/libmpicxx.dylib /Users/guo.2154/local/mpich-5.0.0/lib/libmpi.dylib /Users/guo.2154/local/mpich-5.0.0/lib/libpmpi.dylib
