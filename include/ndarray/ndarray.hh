@@ -940,16 +940,16 @@ void ndarray<T, StoragePolicy>::read_binary_file_sequence(const std::string& pat
 }
 
 #ifdef NDARRAY_HAVE_VTK
-template<> inline int ndarray<char>::vtk_data_type() const {return VTK_CHAR;}
-template<> inline int ndarray<unsigned char>::vtk_data_type() const {return VTK_UNSIGNED_CHAR;}
-template<> inline int ndarray<short>::vtk_data_type() const {return VTK_SHORT;}
-template<> inline int ndarray<unsigned short>::vtk_data_type() const {return VTK_UNSIGNED_SHORT;}
-template<> inline int ndarray<int>::vtk_data_type() const {return VTK_INT;}
-template<> inline int ndarray<unsigned int>::vtk_data_type() const {return VTK_UNSIGNED_INT;}
-template<> inline int ndarray<long>::vtk_data_type() const {return VTK_LONG;}
-template<> inline int ndarray<unsigned long>::vtk_data_type() const {return VTK_UNSIGNED_LONG;}
-template<> inline int ndarray<float>::vtk_data_type() const {return VTK_FLOAT;}
-template<> inline int ndarray<double>::vtk_data_type() const {return VTK_DOUBLE;}
+template<typename StoragePolicy> inline int ndarray<char, StoragePolicy>::vtk_data_type() const {return VTK_CHAR;}
+template<typename StoragePolicy> inline int ndarray<unsigned char, StoragePolicy>::vtk_data_type() const {return VTK_UNSIGNED_CHAR;}
+template<typename StoragePolicy> inline int ndarray<short, StoragePolicy>::vtk_data_type() const {return VTK_SHORT;}
+template<typename StoragePolicy> inline int ndarray<unsigned short, StoragePolicy>::vtk_data_type() const {return VTK_UNSIGNED_SHORT;}
+template<typename StoragePolicy> inline int ndarray<int, StoragePolicy>::vtk_data_type() const {return VTK_INT;}
+template<typename StoragePolicy> inline int ndarray<unsigned int, StoragePolicy>::vtk_data_type() const {return VTK_UNSIGNED_INT;}
+template<typename StoragePolicy> inline int ndarray<long, StoragePolicy>::vtk_data_type() const {return VTK_LONG;}
+template<typename StoragePolicy> inline int ndarray<unsigned long, StoragePolicy>::vtk_data_type() const {return VTK_UNSIGNED_LONG;}
+template<typename StoragePolicy> inline int ndarray<float, StoragePolicy>::vtk_data_type() const {return VTK_FLOAT;}
+template<typename StoragePolicy> inline int ndarray<double, StoragePolicy>::vtk_data_type() const {return VTK_DOUBLE;}
 
 template <typename T, typename StoragePolicy>
 inline void ndarray<T, StoragePolicy>::from_vtk_array(vtkSmartPointer<vtkAbstractArray> d)
