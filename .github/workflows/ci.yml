@@ -130,6 +130,155 @@ jobs:
   #
   #       echo "Code style checks passed"
 
+  build-mpi:
+    name: MPI build (Ubuntu)
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          cmake \
+          libyaml-cpp-dev \
+          libnetcdf-dev \
+          libhdf5-dev \
+          libhdf5-mpi-dev \
+          libhdf5-openmpi-dev \
+          libopenmpi-dev \
+          openmpi-bin
+
+    - name: Configure CMake (MPI)
+      run: |
+        cmake -B build \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DNDARRAY_BUILD_TESTS=ON \
+          -DNDARRAY_BUILD_EXAMPLES=OFF \
+          -DNDARRAY_USE_MPI=ON \
+          -DNDARRAY_USE_NETCDF=AUTO \
+          -DNDARRAY_USE_HDF5=AUTO \
+          -DNDARRAY_USE_YAML=AUTO
+
+    - name: Build
+      run: cmake --build build -j$(nproc)
+
+    - name: Run serial tests
+      working-directory: build
+      run: ctest --output-on-failure -E "distributed|ghost_exchange|mpi"
+
+    - name: Run MPI tests
+      working-directory: build
+      run: |
+        # Run distributed tests with different rank counts
+        for np in 2 4; do
+          echo "Testing with $np ranks..."
+          if [ -f bin/test_distributed_ndarray ]; then
+            mpirun --oversubscribe -np $np bin/test_distributed_ndarray || exit 1
+          fi
+        done
+
+  build-storage-backends:
+    name: Storage backends (Eigen + xtensor)
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          cmake \
+          libyaml-cpp-dev \
+          libeigen3-dev \
+          libxtensor-dev
+
+    - name: Configure CMake (Storage backends)
+      run: |
+        cmake -B build \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DNDARRAY_BUILD_TESTS=ON \
+          -DNDARRAY_BUILD_EXAMPLES=OFF \
+          -DNDARRAY_USE_EIGEN=AUTO \
+          -DNDARRAY_USE_XTENSOR=AUTO \
+          -DNDARRAY_USE_YAML=AUTO
+
+    - name: Build
+      run: cmake --build build -j$(nproc)
+
+    - name: Run tests
+      working-directory: build
+      run: ctest --output-on-failure
+
+  build-sanitizers:
+    name: Build with sanitizers (Ubuntu + Clang)
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          cmake \
+          clang \
+          libyaml-cpp-dev
+
+    - name: Configure CMake (AddressSanitizer)
+      run: |
+        export CC=clang
+        export CXX=clang++
+        cmake -B build \
+          -DCMAKE_BUILD_TYPE=Debug \
+          -DNDARRAY_BUILD_TESTS=ON \
+          -DNDARRAY_BUILD_EXAMPLES=OFF \
+          -DNDARRAY_USE_YAML=AUTO \
+          -DCMAKE_CXX_FLAGS="-fsanitize=address -fno-omit-frame-pointer -g"
+
+    - name: Build
+      run: cmake --build build -j$(nproc)
+
+    - name: Run tests with AddressSanitizer
+      working-directory: build
+      run: ASAN_OPTIONS=detect_leaks=1 ctest --output-on-failure
+
+  build-warnings:
+    name: Build with strict warnings
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          cmake \
+          libyaml-cpp-dev
+
+    - name: Configure CMake (Strict warnings)
+      run: |
+        cmake -B build \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DNDARRAY_BUILD_TESTS=ON \
+          -DNDARRAY_BUILD_EXAMPLES=OFF \
+          -DNDARRAY_USE_YAML=AUTO \
+          -DCMAKE_CXX_FLAGS="-Wall -Wextra -Wpedantic -Werror"
+
+    - name: Build
+      run: cmake --build build -j$(nproc)
+
+    - name: Run tests
+      working-directory: build
+      run: ctest --output-on-failure
+
   documentation:
     name: Check documentation
     runs-on: ubuntu-latest
