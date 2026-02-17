@@ -26,7 +26,9 @@ struct xtensor_storage {
     }
 
     void reshape(const std::vector<size_t>& shape) {
-      data_.reshape(shape);
+      // xtensor's reshape() requires same number of elements
+      // Use resize() instead to allow changing total size
+      data_.resize(shape);
     }
 
     T& operator[](size_t i) { return data_.data()[i]; }
