@@ -577,10 +577,16 @@ inline void ndarray_base::read_netcdf(int ncid, int varid, int ndims, const size
   std::reverse(mysizes.begin(), mysizes.end());
   reshapef(mysizes);
 
+  // Reverse starts and sizes for NetCDF C order
+  std::vector<size_t> nc_starts(starts, starts+ndims);
+  std::vector<size_t> nc_sizes(sizes, sizes+ndims);
+  std::reverse(nc_starts.begin(), nc_starts.end());
+  std::reverse(nc_sizes.begin(), nc_sizes.end());
+
   if (nc_dtype() == NC_INT) {
-    NC_SAFE_CALL( nc_get_vara_int(ncid, varid, starts, sizes, (int*)pdata()) );
+    NC_SAFE_CALL( nc_get_vara_int(ncid, varid, nc_starts.data(), nc_sizes.data(), (int*)pdata()) );
   } else if (nc_dtype() == NC_FLOAT) {
-    NC_SAFE_CALL( nc_get_vara_float(ncid, varid, starts, sizes, (float*)pdata()) );
+    NC_SAFE_CALL( nc_get_vara_float(ncid, varid, nc_starts.data(), nc_sizes.data(), (float*)pdata()) );
 
     // fill value
     nc_type vr_type;
@@ -597,11 +603,11 @@ inline void ndarray_base::read_netcdf(int ncid, int varid, int ndims, const size
     }
 
   } else if (nc_dtype() == NC_DOUBLE) {
-    NC_SAFE_CALL( nc_get_vara_double(ncid, varid, starts, sizes, (double*)pdata()) );
+    NC_SAFE_CALL( nc_get_vara_double(ncid, varid, nc_starts.data(), nc_sizes.data(), (double*)pdata()) );
   } else if (nc_dtype() == NC_UINT) {
-    NC_SAFE_CALL( nc_get_vara_uint(ncid, varid, starts, sizes, (unsigned int*)pdata()) );
+    NC_SAFE_CALL( nc_get_vara_uint(ncid, varid, nc_starts.data(), nc_sizes.data(), (unsigned int*)pdata()) );
   } else if (nc_dtype() == NC_CHAR) {
-    NC_SAFE_CALL( nc_get_vara_text(ncid, varid, starts, sizes, (char*)pdata()) );
+    NC_SAFE_CALL( nc_get_vara_text(ncid, varid, nc_starts.data(), nc_sizes.data(), (char*)pdata()) );
   } else
     nd::fatal(nd::ERR_NOT_IMPLEMENTED);
 
@@ -613,6 +619,7 @@ inline void ndarray_base::read_netcdf(int ncid, int varid, int ndims, const size
 inline void ndarray_base::to_netcdf(int ncid, int varid) const
 {
   std::vector<size_t> starts(dims.size(), 0), sizes(dims);
+  std::reverse(starts.begin(), starts.end());
   std::reverse(sizes.begin(), sizes.end());
 
   to_netcdf(ncid, varid, &starts[0], &sizes[0]);
