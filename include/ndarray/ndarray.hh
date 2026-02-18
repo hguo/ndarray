@@ -2887,11 +2887,16 @@ bool ndarray<T, StoragePolicy>::has_gpu_aware_mpi() const
 template <typename T, typename StoragePolicy>
 void ndarray<T, StoragePolicy>::exchange_ghosts_cpu()
 {
-  // Two-pass exchange to fill both faces and corners:
-  // Pass 1: Fill face ghosts using core boundaries
-  // Pass 2: Fill corner ghosts by exchanging extent (cores + filled face ghosts from pass 1)
+  // Multi-pass exchange to fill faces, edges, and corners:
+  // Pass 0: Fill face ghosts (1D neighbors)
+  // Pass 1: Fill edge ghosts (2D neighbors, using filled faces)
+  // Pass 2: Fill corner/vertex ghosts (3D neighbors, using filled edges)
+  // For N-D arrays, need N passes to reach diagonal corners
 
-  for (int pass = 0; pass < 2; pass++) {
+  int ndims = static_cast<int>(dims.size());
+  int num_passes = ndims;  // N dimensions needs N passes for full corner propagation
+
+  for (int pass = 0; pass < num_passes; pass++) {
     std::vector<MPI_Request> requests;
     std::vector<std::vector<T>> send_buffers(dist_->neighbors_.size());
     std::vector<std::vector<T>> recv_buffers(dist_->neighbors_.size());
