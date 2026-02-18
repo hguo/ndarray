@@ -3811,11 +3811,14 @@ void ndarray<T, StoragePolicy>::read_binary_auto(const std::string& filename)
         // Read into core region (accounting for ghosts if present)
         T* col_ptr = &this->f(ghost_offset_0, ghost_offset_1 + j);
         MPI_Status status;
-        err = MPI_File_read_at_all(fh, col_offset, col_ptr, static_cast<int>(core_size0),
-                                   mpi_datatype(), &status);
+        // Use non-collective read since different ranks have different core_size1
+        // (different number of loop iterations). Collective operations must be
+        // called the same number of times by all ranks.
+        err = MPI_File_read_at(fh, col_offset, col_ptr, static_cast<int>(core_size0),
+                               mpi_datatype(), &status);
         if (err != MPI_SUCCESS) {
           MPI_File_close(&fh);
-          throw std::runtime_error("MPI_File_read_at_all failed for column " + std::to_string(j));
+          throw std::runtime_error("MPI_File_read_at failed for column " + std::to_string(j));
         }
       }
     } else {

@@ -1677,6 +1677,9 @@ int main(int argc, char** argv) {
     std::cout << "\nRunning with " << nprocs << " MPI ranks\n" << std::endl;
   }
 
+  // Add barrier to ensure all ranks start together
+  MPI_Barrier(MPI_COMM_WORLD);
+
   int result = 0;
 
   // Core functionality tests
