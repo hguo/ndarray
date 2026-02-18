@@ -574,8 +574,7 @@ inline void ndarray_base::read_netcdf(int ncid, int varid, int ndims, const size
 {
 #if NDARRAY_HAVE_NETCDF
   std::vector<size_t> mysizes(sizes, sizes+ndims);
-  // Note: sizes should match ndarray Fortran dims directly without reversal
-  // NetCDF dimensions are defined in the same order as ndarray Fortran dims
+  std::reverse(mysizes.begin(), mysizes.end());
   reshapef(mysizes);
 
   if (nc_dtype() == NC_INT) {
@@ -614,8 +613,7 @@ inline void ndarray_base::read_netcdf(int ncid, int varid, int ndims, const size
 inline void ndarray_base::to_netcdf(int ncid, int varid) const
 {
   std::vector<size_t> starts(dims.size(), 0), sizes(dims);
-  // Note: sizes should match dims directly without reversal
-  // NetCDF dimensions are defined in the same order as ndarray Fortran dims
+  std::reverse(sizes.begin(), sizes.end());
 
   to_netcdf(ncid, varid, &starts[0], &sizes[0]);
 }
