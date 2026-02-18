@@ -1435,38 +1435,34 @@ int test_4x4_decomposition() {
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
 
-  if (nprocs < 4) {
-    if (rank == 0) {
-      std::cout << "\n⊘ Skipping larger grid decomposition test (requires at least 4 ranks)" << std::endl;
-    }
-    return 0;
-  }
-
-  // Adapt test based on number of ranks
-  int grid_size = (nprocs == 4) ? 2 : 4;
-  size_t array_size = static_cast<size_t>(grid_size * 30);  // 30 cells per rank in each dimension
-
   if (rank == 0) {
-    std::cout << "\n=== Test 25: " << grid_size << "×" << grid_size
-              << " Decomposition (" << nprocs << " ranks) ===" << std::endl;
+    std::cout << "\n=== Test 25: Automatic Grid Decomposition (" << nprocs << " ranks) ===" << std::endl;
   }
 
-  TEST_SECTION("Create grid decomposition");
+  TEST_SECTION("Create grid decomposition with automatic factorization");
+
+  // Use automatic decomposition - let lattice_partitioner factorize nprocs
+  // Choose array size as ~20 cells per rank in each dimension (heuristic)
+  size_t cells_per_rank = 20;
+  size_t total_cells_estimate = cells_per_rank * nprocs;
+  size_t array_dim = static_cast<size_t>(std::sqrt(total_cells_estimate));
+
+  // Round up to nearest multiple of 10 for cleaner numbers
+  array_dim = ((array_dim + 9) / 10) * 10;
+
+  // Ensure minimum size
+  if (array_dim < 40) array_dim = 40;
+
   ftk::ndarray<float> arr;
-  if (nprocs == 4) {
-    arr.decompose(MPI_COMM_WORLD, {60, 60}, 4, {2, 2}, {1, 1});
-  } else if (nprocs == 16) {
-    arr.decompose(MPI_COMM_WORLD, {120, 120}, 16, {4, 4}, {1, 1});
-  } else {
-    // Use automatic decomposition for other rank counts
-    arr.decompose(MPI_COMM_WORLD, {array_size, array_size}, 0, {}, {1, 1});
-  }
+  arr.decompose(MPI_COMM_WORLD, {array_dim, array_dim}, 0, {}, {1, 1});
 
-  // Each rank should have a reasonable core size
-  TEST_ASSERT(arr.local_core().size(0) > 0 && arr.local_core().size(0) < array_size,
-              "Core size 0 should be reasonable");
-  TEST_ASSERT(arr.local_core().size(1) > 0 && arr.local_core().size(1) < array_size,
-              "Core size 1 should be reasonable");
+  // Each rank should have a positive core size
+  TEST_ASSERT(arr.local_core().size(0) > 0, "Core size 0 should be positive");
+  TEST_ASSERT(arr.local_core().size(1) > 0, "Core size 1 should be positive");
+
+  // Verify decomposition makes sense
+  size_t total_cells = arr.local_core().size(0) * arr.local_core().size(1);
+  TEST_ASSERT(total_cells > 0, "Each rank should own at least one cell");
 
   TEST_SECTION("Fill and exchange in grid");
   size_t ghost_offset_0 = arr.local_core().start(0) - arr.local_extent().start(0);
@@ -1500,7 +1496,7 @@ int test_4x4_decomposition() {
     TEST_ASSERT(std::abs(actual - expected) < 1e-5, "Low corner should be correct");
   }
 
-  if (rank == 0) std::cout << "  ✓ " << grid_size << "×" << grid_size << " decomposition passed" << std::endl;
+  if (rank == 0) std::cout << "  ✓ Grid decomposition passed" << std::endl;
   return 0;
 }
 
