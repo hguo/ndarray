@@ -307,13 +307,13 @@ int test_parallel_netcdf_read() {
       // Create file
       nc_create("test_distributed.nc", NC_CLOBBER | NC_64BIT_OFFSET, &ncid);
 
-      // Define dimensions in reverse order to match NetCDF C convention
-      // ndarray Fortran: [nx=100, ny=80]
-      // NetCDF C convention: dimensions should be [ny=80, nx=100]
-      nc_def_dim(ncid, "y", global_ny, &dimids[0]);
-      nc_def_dim(ncid, "x", global_nx, &dimids[1]);
+      // Define dimensions to match ndarray Fortran order
+      // to_netcdf reverses sizes to [80, 100] when writing
+      // So NetCDF dims should be defined as [80, 100]
+      nc_def_dim(ncid, "dim0", global_ny, &dimids[0]);  // 80
+      nc_def_dim(ncid, "dim1", global_nx, &dimids[1]);  // 100
 
-      // Define variable with reversed dimension order
+      // Define variable with dimensions [80, 100]
       nc_def_var(ncid, "data", NC_FLOAT, 2, dimids, &varid);
 
       // End define mode
