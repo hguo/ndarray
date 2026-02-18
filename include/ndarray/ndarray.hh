@@ -618,8 +618,9 @@ private:
   bool should_use_parallel_io() const { return dist_ && dist_->type == DistType::DISTRIBUTED; }
   bool should_use_replicated_io() const { return dist_ && dist_->type == DistType::REPLICATED; }
   void setup_ghost_exchange();
-  void pack_boundary_data(int neighbor_idx, std::vector<T>& buffer);
-  void unpack_ghost_data(int neighbor_idx, const std::vector<T>& buffer);
+  size_t calculate_buffer_size(int neighbor_idx, int pass);
+  void pack_boundary_data(int neighbor_idx, std::vector<T>& buffer, int pass = 0);
+  void unpack_ghost_data(int neighbor_idx, const std::vector<T>& buffer, int pass = 0);
   MPI_Datatype mpi_datatype() const;
 
   // GPU-aware MPI support
@@ -2887,22 +2888,28 @@ template <typename T, typename StoragePolicy>
 void ndarray<T, StoragePolicy>::exchange_ghosts_cpu()
 {
   // Two-pass exchange to fill both faces and corners:
-  // Pass 1: Fill face ghosts
-  // Pass 2: Fill corner ghosts (which now exist in neighbors' face ghosts from pass 1)
+  // Pass 1: Fill face ghosts using core boundaries
+  // Pass 2: Fill corner ghosts by exchanging extent (cores + filled face ghosts from pass 1)
 
   for (int pass = 0; pass < 2; pass++) {
     std::vector<MPI_Request> requests;
     std::vector<std::vector<T>> send_buffers(dist_->neighbors_.size());
     std::vector<std::vector<T>> recv_buffers(dist_->neighbors_.size());
 
+    // Calculate buffer sizes for this pass
+    std::vector<size_t> buffer_sizes(dist_->neighbors_.size());
+    for (size_t i = 0; i < dist_->neighbors_.size(); i++) {
+      buffer_sizes[i] = calculate_buffer_size(i, pass);
+    }
+
     // Post receives for all neighbors
     for (size_t i = 0; i < dist_->neighbors_.size(); i++) {
-      recv_buffers[i].resize(dist_->neighbors_[i].recv_count);
+      recv_buffers[i].resize(buffer_sizes[i]);
 
       MPI_Request req;
       int tag = dist_->neighbors_[i].direction * 10 + pass;  // Different tag per pass
       MPI_Irecv(recv_buffers[i].data(),
-                static_cast<int>(dist_->neighbors_[i].recv_count),
+                static_cast<int>(buffer_sizes[i]),
                 mpi_datatype(),
                 dist_->neighbors_[i].rank,
                 tag,
@@ -2913,14 +2920,14 @@ void ndarray<T, StoragePolicy>::exchange_ghosts_cpu()
 
     // Pack and send boundary data to all neighbors
     for (size_t i = 0; i < dist_->neighbors_.size(); i++) {
-      send_buffers[i].resize(dist_->neighbors_[i].send_count);
-      pack_boundary_data(i, send_buffers[i]);
+      send_buffers[i].resize(buffer_sizes[i]);
+      pack_boundary_data(i, send_buffers[i], pass);
 
       // Reverse the direction for the tag (what we receive from left, they send from right)
       int tag = (dist_->neighbors_[i].direction ^ 1) * 10 + pass;  // Different tag per pass
 
       MPI_Send(send_buffers[i].data(),
-               static_cast<int>(dist_->neighbors_[i].send_count),
+               static_cast<int>(buffer_sizes[i]),
                mpi_datatype(),
                dist_->neighbors_[i].rank,
                tag,
@@ -2932,7 +2939,7 @@ void ndarray<T, StoragePolicy>::exchange_ghosts_cpu()
 
     // Unpack received ghost data
     for (size_t i = 0; i < dist_->neighbors_.size(); i++) {
-      unpack_ghost_data(i, recv_buffers[i]);
+      unpack_ghost_data(i, recv_buffers[i], pass);
     }
   }
 }
@@ -3127,7 +3134,32 @@ void ndarray<T, StoragePolicy>::exchange_ghosts_gpu_direct()
 #endif
 
 template <typename T, typename StoragePolicy>
-void ndarray<T, StoragePolicy>::pack_boundary_data(int neighbor_idx, std::vector<T>& buffer)
+size_t ndarray<T, StoragePolicy>::calculate_buffer_size(int neighbor_idx, int pass)
+{
+  const auto& neighbor = dist_->neighbors_[neighbor_idx];
+  int dim = neighbor.direction / 2;
+  const int ndims = static_cast<int>(dims.size());
+
+  size_t ghost_width = 1;  // Simplified: assume 1-layer ghosts
+
+  size_t buffer_size = ghost_width;
+  for (int d = 0; d < ndims; d++) {
+    if (d != dim) {
+      // In pass 0: use core size (faces only)
+      // In pass 1: use extent size (includes corners from filled ghosts)
+      if (pass == 0) {
+        buffer_size *= dist_->local_core_.size(d);
+      } else {
+        buffer_size *= dist_->local_extent_.size(d);
+      }
+    }
+  }
+
+  return buffer_size;
+}
+
+template <typename T, typename StoragePolicy>
+void ndarray<T, StoragePolicy>::pack_boundary_data(int neighbor_idx, std::vector<T>& buffer, int pass)
 {
   const auto& neighbor = dist_->neighbors_[neighbor_idx];
   int dim = neighbor.direction / 2;  // Which dimension: 0, 1, 2, ...
@@ -3150,11 +3182,15 @@ void ndarray<T, StoragePolicy>::pack_boundary_data(int neighbor_idx, std::vector
         buffer[buffer_idx++] = f(start_idx + i);
       }
     } else if (dims.size() >= 2) {
-      // 2D case
+      // 2D+ case
       size_t ghost_offset_1 = dist_->local_core_.start(1) - dist_->local_extent_.start(1);
+      // Pass 0: use core size (faces only), Pass 1: use extent size (includes corners)
+      size_t dim1_size = (pass == 0) ? dist_->local_core_.size(1) : dist_->local_extent_.size(1);
+      size_t dim1_start = (pass == 0) ? ghost_offset_1 : 0;
+
       for (size_t i = 0; i < ghost_width; i++) {
-        for (size_t j = 0; j < dist_->local_core_.size(1); j++) {
-          buffer[buffer_idx++] = f(start_idx + i, ghost_offset_1 + j);
+        for (size_t j = 0; j < dim1_size; j++) {
+          buffer[buffer_idx++] = f(start_idx + i, dim1_start + j);
         }
       }
     }
@@ -3166,20 +3202,27 @@ void ndarray<T, StoragePolicy>::pack_boundary_data(int neighbor_idx, std::vector
     start_idx += ghost_offset_1;  // Account for ghost offset!
     size_t buffer_idx = 0;
 
+    // Pass 0: use core size (faces only), Pass 1: use extent size (includes corners)
+    size_t dim0_size = (pass == 0) ? dist_->local_core_.size(0) : dist_->local_extent_.size(0);
+    size_t dim0_start = (pass == 0) ? ghost_offset_0 : 0;
+
     if (dims.size() == 2) {
       // 2D case
-      for (size_t i = 0; i < dist_->local_core_.size(0); i++) {
+      for (size_t i = 0; i < dim0_size; i++) {
         for (size_t j = 0; j < ghost_width; j++) {
-          buffer[buffer_idx++] = f(ghost_offset_0 + i, start_idx + j);
+          buffer[buffer_idx++] = f(dim0_start + i, start_idx + j);
         }
       }
     } else if (dims.size() >= 3) {
       // 3D case
       size_t ghost_offset_2 = dist_->local_core_.start(2) - dist_->local_extent_.start(2);
-      for (size_t i = 0; i < dist_->local_core_.size(0); i++) {
+      size_t dim2_size = (pass == 0) ? dist_->local_core_.size(2) : dist_->local_extent_.size(2);
+      size_t dim2_start = (pass == 0) ? ghost_offset_2 : 0;
+
+      for (size_t i = 0; i < dim0_size; i++) {
         for (size_t j = 0; j < ghost_width; j++) {
-          for (size_t k = 0; k < dist_->local_core_.size(2); k++) {
-            buffer[buffer_idx++] = f(ghost_offset_0 + i, start_idx + j, ghost_offset_2 + k);
+          for (size_t k = 0; k < dim2_size; k++) {
+            buffer[buffer_idx++] = f(dim0_start + i, start_idx + j, dim2_start + k);
           }
         }
       }
@@ -3193,10 +3236,16 @@ void ndarray<T, StoragePolicy>::pack_boundary_data(int neighbor_idx, std::vector
     start_idx += ghost_offset_2;  // Account for ghost offset!
     size_t buffer_idx = 0;
 
-    for (size_t i = 0; i < dist_->local_core_.size(0); i++) {
-      for (size_t j = 0; j < dist_->local_core_.size(1); j++) {
+    // Pass 0: use core size (faces only), Pass 1: use extent size (includes edges/corners)
+    size_t dim0_size = (pass == 0) ? dist_->local_core_.size(0) : dist_->local_extent_.size(0);
+    size_t dim0_start = (pass == 0) ? ghost_offset_0 : 0;
+    size_t dim1_size = (pass == 0) ? dist_->local_core_.size(1) : dist_->local_extent_.size(1);
+    size_t dim1_start = (pass == 0) ? ghost_offset_1 : 0;
+
+    for (size_t i = 0; i < dim0_size; i++) {
+      for (size_t j = 0; j < dim1_size; j++) {
         for (size_t k = 0; k < ghost_width; k++) {
-          buffer[buffer_idx++] = f(ghost_offset_0 + i, ghost_offset_1 + j, start_idx + k);
+          buffer[buffer_idx++] = f(dim0_start + i, dim1_start + j, start_idx + k);
         }
       }
     }
@@ -3204,7 +3253,7 @@ void ndarray<T, StoragePolicy>::pack_boundary_data(int neighbor_idx, std::vector
 }
 
 template <typename T, typename StoragePolicy>
-void ndarray<T, StoragePolicy>::unpack_ghost_data(int neighbor_idx, const std::vector<T>& buffer)
+void ndarray<T, StoragePolicy>::unpack_ghost_data(int neighbor_idx, const std::vector<T>& buffer, int pass)
 {
   const auto& neighbor = dist_->neighbors_[neighbor_idx];
   int dim = neighbor.direction / 2;
@@ -3229,18 +3278,27 @@ void ndarray<T, StoragePolicy>::unpack_ghost_data(int neighbor_idx, const std::v
         }
       } else if (dims.size() == 2) {
         size_t ghost_offset_1 = dist_->local_core_.start(1) - dist_->local_extent_.start(1);
+        // Pass 0: unpack core-sized face, Pass 1: unpack extent-sized face (with corners)
+        size_t dim1_size = (pass == 0) ? dist_->local_core_.size(1) : dist_->local_extent_.size(1);
+        size_t dim1_start = (pass == 0) ? ghost_offset_1 : 0;
+
         for (size_t i = 0; i < ghost_width && i < ghost_low; i++) {
-          for (size_t j = 0; j < dist_->local_core_.size(1); j++) {
-            f(start_idx + i, ghost_offset_1 + j) = buffer[buffer_idx++];
+          for (size_t j = 0; j < dim1_size; j++) {
+            f(start_idx + i, dim1_start + j) = buffer[buffer_idx++];
           }
         }
       } else if (dims.size() >= 3) {
         size_t ghost_offset_1 = dist_->local_core_.start(1) - dist_->local_extent_.start(1);
         size_t ghost_offset_2 = dist_->local_core_.start(2) - dist_->local_extent_.start(2);
+        size_t dim1_size = (pass == 0) ? dist_->local_core_.size(1) : dist_->local_extent_.size(1);
+        size_t dim1_start = (pass == 0) ? ghost_offset_1 : 0;
+        size_t dim2_size = (pass == 0) ? dist_->local_core_.size(2) : dist_->local_extent_.size(2);
+        size_t dim2_start = (pass == 0) ? ghost_offset_2 : 0;
+
         for (size_t i = 0; i < ghost_width && i < ghost_low; i++) {
-          for (size_t j = 0; j < dist_->local_core_.size(1); j++) {
-            for (size_t k = 0; k < dist_->local_core_.size(2); k++) {
-              f(start_idx + i, ghost_offset_1 + j, ghost_offset_2 + k) = buffer[buffer_idx++];
+          for (size_t j = 0; j < dim1_size; j++) {
+            for (size_t k = 0; k < dim2_size; k++) {
+              f(start_idx + i, dim1_start + j, dim2_start + k) = buffer[buffer_idx++];
             }
           }
         }
@@ -3253,18 +3311,27 @@ void ndarray<T, StoragePolicy>::unpack_ghost_data(int neighbor_idx, const std::v
         }
       } else if (dims.size() == 2) {
         size_t ghost_offset_1 = dist_->local_core_.start(1) - dist_->local_extent_.start(1);
+        // Pass 0: unpack core-sized face, Pass 1: unpack extent-sized face (with corners)
+        size_t dim1_size = (pass == 0) ? dist_->local_core_.size(1) : dist_->local_extent_.size(1);
+        size_t dim1_start = (pass == 0) ? ghost_offset_1 : 0;
+
         for (size_t i = 0; i < ghost_width && i < ghost_high; i++) {
-          for (size_t j = 0; j < dist_->local_core_.size(1); j++) {
-            f(start_idx + i, ghost_offset_1 + j) = buffer[buffer_idx++];
+          for (size_t j = 0; j < dim1_size; j++) {
+            f(start_idx + i, dim1_start + j) = buffer[buffer_idx++];
           }
         }
       } else if (dims.size() >= 3) {
         size_t ghost_offset_1 = dist_->local_core_.start(1) - dist_->local_extent_.start(1);
         size_t ghost_offset_2 = dist_->local_core_.start(2) - dist_->local_extent_.start(2);
+        size_t dim1_size = (pass == 0) ? dist_->local_core_.size(1) : dist_->local_extent_.size(1);
+        size_t dim1_start = (pass == 0) ? ghost_offset_1 : 0;
+        size_t dim2_size = (pass == 0) ? dist_->local_core_.size(2) : dist_->local_extent_.size(2);
+        size_t dim2_start = (pass == 0) ? ghost_offset_2 : 0;
+
         for (size_t i = 0; i < ghost_width && i < ghost_high; i++) {
-          for (size_t j = 0; j < dist_->local_core_.size(1); j++) {
-            for (size_t k = 0; k < dist_->local_core_.size(2); k++) {
-              f(start_idx + i, ghost_offset_1 + j, ghost_offset_2 + k) = buffer[buffer_idx++];
+          for (size_t j = 0; j < dim1_size; j++) {
+            for (size_t k = 0; k < dim2_size; k++) {
+              f(start_idx + i, dim1_start + j, dim2_start + k) = buffer[buffer_idx++];
             }
           }
         }
@@ -3275,36 +3342,46 @@ void ndarray<T, StoragePolicy>::unpack_ghost_data(int neighbor_idx, const std::v
     size_t start_idx = is_high ? (dist_->local_core_.size(1) + ghost_low) : 0;
     size_t buffer_idx = 0;
 
+    // Pass 0: use core size (faces only), Pass 1: use extent size (includes corners)
+    size_t dim0_size = (pass == 0) ? dist_->local_core_.size(0) : dist_->local_extent_.size(0);
+    size_t dim0_start = (pass == 0) ? ghost_offset_0 : 0;
+
     if (!is_high && ghost_low > 0) {
       if (dims.size() == 2) {
-        for (size_t i = 0; i < dist_->local_core_.size(0); i++) {
+        for (size_t i = 0; i < dim0_size; i++) {
           for (size_t j = 0; j < ghost_width && j < ghost_low; j++) {
-            f(ghost_offset_0 + i, start_idx + j) = buffer[buffer_idx++];
+            f(dim0_start + i, start_idx + j) = buffer[buffer_idx++];
           }
         }
       } else if (dims.size() >= 3) {
         size_t ghost_offset_2 = dist_->local_core_.start(2) - dist_->local_extent_.start(2);
-        for (size_t i = 0; i < dist_->local_core_.size(0); i++) {
+        size_t dim2_size = (pass == 0) ? dist_->local_core_.size(2) : dist_->local_extent_.size(2);
+        size_t dim2_start = (pass == 0) ? ghost_offset_2 : 0;
+
+        for (size_t i = 0; i < dim0_size; i++) {
           for (size_t j = 0; j < ghost_width && j < ghost_low; j++) {
-            for (size_t k = 0; k < dist_->local_core_.size(2); k++) {
-              f(ghost_offset_0 + i, start_idx + j, ghost_offset_2 + k) = buffer[buffer_idx++];
+            for (size_t k = 0; k < dim2_size; k++) {
+              f(dim0_start + i, start_idx + j, dim2_start + k) = buffer[buffer_idx++];
             }
           }
         }
       }
     } else if (is_high && ghost_high > 0) {
       if (dims.size() == 2) {
-        for (size_t i = 0; i < dist_->local_core_.size(0); i++) {
+        for (size_t i = 0; i < dim0_size; i++) {
           for (size_t j = 0; j < ghost_width && j < ghost_high; j++) {
-            f(ghost_offset_0 + i, start_idx + j) = buffer[buffer_idx++];
+            f(dim0_start + i, start_idx + j) = buffer[buffer_idx++];
           }
         }
       } else if (dims.size() >= 3) {
         size_t ghost_offset_2 = dist_->local_core_.start(2) - dist_->local_extent_.start(2);
-        for (size_t i = 0; i < dist_->local_core_.size(0); i++) {
+        size_t dim2_size = (pass == 0) ? dist_->local_core_.size(2) : dist_->local_extent_.size(2);
+        size_t dim2_start = (pass == 0) ? ghost_offset_2 : 0;
+
+        for (size_t i = 0; i < dim0_size; i++) {
           for (size_t j = 0; j < ghost_width && j < ghost_high; j++) {
-            for (size_t k = 0; k < dist_->local_core_.size(2); k++) {
-              f(ghost_offset_0 + i, start_idx + j, ghost_offset_2 + k) = buffer[buffer_idx++];
+            for (size_t k = 0; k < dim2_size; k++) {
+              f(dim0_start + i, start_idx + j, dim2_start + k) = buffer[buffer_idx++];
             }
           }
         }
@@ -3316,19 +3393,25 @@ void ndarray<T, StoragePolicy>::unpack_ghost_data(int neighbor_idx, const std::v
     size_t start_idx = is_high ? (dist_->local_core_.size(2) + ghost_low) : 0;
     size_t buffer_idx = 0;
 
+    // Pass 0: use core size (faces only), Pass 1: use extent size (includes edges/corners)
+    size_t dim0_size = (pass == 0) ? dist_->local_core_.size(0) : dist_->local_extent_.size(0);
+    size_t dim0_start = (pass == 0) ? ghost_offset_0 : 0;
+    size_t dim1_size = (pass == 0) ? dist_->local_core_.size(1) : dist_->local_extent_.size(1);
+    size_t dim1_start = (pass == 0) ? ghost_offset_1 : 0;
+
     if (!is_high && ghost_low > 0) {
-      for (size_t i = 0; i < dist_->local_core_.size(0); i++) {
-        for (size_t j = 0; j < dist_->local_core_.size(1); j++) {
+      for (size_t i = 0; i < dim0_size; i++) {
+        for (size_t j = 0; j < dim1_size; j++) {
           for (size_t k = 0; k < ghost_width && k < ghost_low; k++) {
-            f(ghost_offset_0 + i, ghost_offset_1 + j, start_idx + k) = buffer[buffer_idx++];
+            f(dim0_start + i, dim1_start + j, start_idx + k) = buffer[buffer_idx++];
           }
         }
       }
     } else if (is_high && ghost_high > 0) {
-      for (size_t i = 0; i < dist_->local_core_.size(0); i++) {
-        for (size_t j = 0; j < dist_->local_core_.size(1); j++) {
+      for (size_t i = 0; i < dim0_size; i++) {
+        for (size_t j = 0; j < dim1_size; j++) {
           for (size_t k = 0; k < ghost_width && k < ghost_high; k++) {
-            f(ghost_offset_0 + i, ghost_offset_1 + j, start_idx + k) = buffer[buffer_idx++];
+            f(dim0_start + i, dim1_start + j, start_idx + k) = buffer[buffer_idx++];
           }
         }
       }
