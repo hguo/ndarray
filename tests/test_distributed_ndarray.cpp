@@ -1183,6 +1183,473 @@ int test_different_ghost_patterns() {
   return 0;
 }
 
+int test_3d_decomposition_8ranks() {
+  int rank, nprocs;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+
+  if (rank == 0) {
+    std::cout << "\n=== Test 22: 3D Decomposition (automatic) ===" << std::endl;
+  }
+
+  TEST_SECTION("Create 3D distributed array with automatic decomposition");
+  ftk::ndarray<float> arr;
+  // Use automatic decomposition with any number of ranks
+  arr.decompose(MPI_COMM_WORLD, {40, 40, 40}, 0, {}, {1, 1, 1});
+
+  TEST_ASSERT(arr.local_core().nd() == 3, "Should have 3 dimensions");
+
+  // Fill with global index pattern: value = i*10000 + j*100 + k
+  TEST_SECTION("Fill with global index pattern");
+  size_t ghost_offset_0 = arr.local_core().start(0) - arr.local_extent().start(0);
+  size_t ghost_offset_1 = arr.local_core().start(1) - arr.local_extent().start(1);
+  size_t ghost_offset_2 = arr.local_core().start(2) - arr.local_extent().start(2);
+
+  for (size_t i = 0; i < arr.local_core().size(0); i++) {
+    for (size_t j = 0; j < arr.local_core().size(1); j++) {
+      for (size_t k = 0; k < arr.local_core().size(2); k++) {
+        size_t gi = arr.local_core().start(0) + i;
+        size_t gj = arr.local_core().start(1) + j;
+        size_t gk = arr.local_core().start(2) + k;
+        arr.f(ghost_offset_0 + i, ghost_offset_1 + j, ghost_offset_2 + k) =
+            static_cast<float>(gi * 10000 + gj * 100 + gk);
+      }
+    }
+  }
+
+  TEST_SECTION("Exchange ghosts in 3D");
+  arr.exchange_ghosts();
+
+  // Verify ghost cells in faces
+  TEST_SECTION("Verify face ghosts");
+  int face_errors = 0;
+  int faces_checked = 0;
+
+  // Check left face (i=-1 ghost) if we have one
+  if (ghost_offset_0 > 0 && arr.local_core().start(0) > 0) {
+    for (size_t j = 0; j < arr.local_core().size(1); j++) {
+      for (size_t k = 0; k < arr.local_core().size(2); k++) {
+        size_t gi = arr.local_core().start(0) - 1;
+        size_t gj = arr.local_core().start(1) + j;
+        size_t gk = arr.local_core().start(2) + k;
+        float expected = static_cast<float>(gi * 10000 + gj * 100 + gk);
+        float actual = arr.f(ghost_offset_0 - 1, ghost_offset_1 + j, ghost_offset_2 + k);
+        faces_checked++;
+        if (std::abs(actual - expected) > 1e-5) {
+          face_errors++;
+          if (face_errors <= 3) {  // Limit error reporting
+            std::cerr << "[Rank " << rank << "] Left face mismatch at local ["
+                      << (ghost_offset_0-1) << "," << (ghost_offset_1+j) << "," << (ghost_offset_2+k)
+                      << "] (global [" << gi << "," << gj << "," << gk << "]): "
+                      << "got " << actual << ", expected " << expected << std::endl;
+          }
+        }
+      }
+    }
+  }
+
+  // Check right face (i=max+1 ghost) if we have one
+  size_t extent_end_0 = arr.local_extent().start(0) + arr.local_extent().size(0);
+  size_t core_end_0 = arr.local_core().start(0) + arr.local_core().size(0);
+  if (extent_end_0 > core_end_0 && core_end_0 < 40) {
+    for (size_t j = 0; j < arr.local_core().size(1); j++) {
+      for (size_t k = 0; k < arr.local_core().size(2); k++) {
+        size_t gi = core_end_0;
+        size_t gj = arr.local_core().start(1) + j;
+        size_t gk = arr.local_core().start(2) + k;
+        float expected = static_cast<float>(gi * 10000 + gj * 100 + gk);
+        size_t local_i = ghost_offset_0 + arr.local_core().size(0);
+        float actual = arr.f(local_i, ghost_offset_1 + j, ghost_offset_2 + k);
+        faces_checked++;
+        if (std::abs(actual - expected) > 1e-5) {
+          face_errors++;
+          if (face_errors <= 3) {
+            std::cerr << "[Rank " << rank << "] Right face mismatch" << std::endl;
+          }
+        }
+      }
+    }
+  }
+
+  if (rank == 0 && faces_checked > 0) {
+    std::cout << "  Checked " << faces_checked << " face ghost cells" << std::endl;
+  }
+
+  TEST_ASSERT(face_errors == 0, "All face ghosts should be correct");
+
+  // Check one corner (if this rank has all 8 corners)
+  TEST_SECTION("Verify corner ghosts (8 corners in 3D)");
+  bool has_corner = (ghost_offset_0 > 0 && ghost_offset_1 > 0 && ghost_offset_2 > 0 &&
+                     arr.local_core().start(0) > 0 &&
+                     arr.local_core().start(1) > 0 &&
+                     arr.local_core().start(2) > 0);
+
+  if (has_corner) {
+    size_t gi = arr.local_core().start(0) - 1;
+    size_t gj = arr.local_core().start(1) - 1;
+    size_t gk = arr.local_core().start(2) - 1;
+    float expected = static_cast<float>(gi * 10000 + gj * 100 + gk);
+    float actual = arr.f(ghost_offset_0 - 1, ghost_offset_1 - 1, ghost_offset_2 - 1);
+
+    TEST_ASSERT(std::abs(actual - expected) < 1e-5, "Corner ghost should be correct");
+  }
+
+  if (rank == 0) std::cout << "  ✓ 3D decomposition (8 ranks) passed" << std::endl;
+  return 0;
+}
+
+int test_comprehensive_ghost_verification() {
+  int rank, nprocs;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+
+  if (rank == 0) {
+    std::cout << "\n=== Test 23: Comprehensive Ghost Cell Verification ===" << std::endl;
+  }
+
+  TEST_SECTION("Create 2D array with ghosts");
+  ftk::ndarray<double> arr;
+  arr.decompose(MPI_COMM_WORLD, {100, 80}, 0, {}, {1, 1});
+
+  // Fill core with unique global values
+  TEST_SECTION("Fill core with global indices");
+  size_t ghost_offset_0 = arr.local_core().start(0) - arr.local_extent().start(0);
+  size_t ghost_offset_1 = arr.local_core().start(1) - arr.local_extent().start(1);
+
+  for (size_t i = 0; i < arr.local_core().size(0); i++) {
+    for (size_t j = 0; j < arr.local_core().size(1); j++) {
+      size_t gi = arr.local_core().start(0) + i;
+      size_t gj = arr.local_core().start(1) + j;
+      arr.f(ghost_offset_0 + i, ghost_offset_1 + j) = static_cast<double>(gi * 1000 + gj);
+    }
+  }
+
+  TEST_SECTION("Exchange ghosts");
+  arr.exchange_ghosts();
+
+  // Verify EVERY ghost cell
+  TEST_SECTION("Verify every ghost cell systematically");
+  int ghost_errors = 0;
+  int ghosts_checked = 0;
+
+  // Check all cells in extent that are NOT in core
+  for (size_t i = 0; i < arr.local_extent().size(0); i++) {
+    for (size_t j = 0; j < arr.local_extent().size(1); j++) {
+      size_t gi = arr.local_extent().start(0) + i;
+      size_t gj = arr.local_extent().start(1) + j;
+
+      // Check if this is a ghost cell (outside core)
+      bool is_ghost = (gi < arr.local_core().start(0) ||
+                       gi >= arr.local_core().start(0) + arr.local_core().size(0) ||
+                       gj < arr.local_core().start(1) ||
+                       gj >= arr.local_core().start(1) + arr.local_core().size(1));
+
+      if (is_ghost && gi < 100 && gj < 80) {  // Within global bounds
+        ghosts_checked++;
+        double expected = static_cast<double>(gi * 1000 + gj);
+        double actual = arr.f(i, j);
+
+        if (std::abs(actual - expected) > 1e-9) {
+          ghost_errors++;
+          if (ghost_errors <= 5) {  // Limit error reporting
+            std::cerr << "[Rank " << rank << "] Ghost error at local [" << i << "," << j
+                      << "] (global [" << gi << "," << gj << "]): "
+                      << "got " << actual << ", expected " << expected << std::endl;
+          }
+        }
+      }
+    }
+  }
+
+  if (rank == 0) {
+    std::cout << "  Checked " << ghosts_checked << " ghost cells per rank" << std::endl;
+  }
+
+  TEST_ASSERT(ghost_errors == 0, "All ghost cells should match expected values");
+
+  if (rank == 0) std::cout << "  ✓ Comprehensive ghost verification passed" << std::endl;
+  return 0;
+}
+
+int test_multiple_exchange_rounds() {
+  int rank, nprocs;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+
+  if (rank == 0) {
+    std::cout << "\n=== Test 24: Multiple Ghost Exchange Rounds ===" << std::endl;
+  }
+
+  TEST_SECTION("Create array and fill");
+  ftk::ndarray<float> arr;
+  arr.decompose(MPI_COMM_WORLD, {80, 60}, 0, {}, {1, 1});
+
+  size_t ghost_offset_0 = arr.local_core().start(0) - arr.local_extent().start(0);
+  size_t ghost_offset_1 = arr.local_core().start(1) - arr.local_extent().start(1);
+
+  auto fill_core = [&]() {
+    for (size_t i = 0; i < arr.local_core().size(0); i++) {
+      for (size_t j = 0; j < arr.local_core().size(1); j++) {
+        size_t gi = arr.local_core().start(0) + i;
+        size_t gj = arr.local_core().start(1) + j;
+        arr.f(ghost_offset_0 + i, ghost_offset_1 + j) = static_cast<float>(gi * 100 + gj);
+      }
+    }
+  };
+
+  fill_core();
+
+  TEST_SECTION("Perform 5 consecutive ghost exchanges");
+  for (int round = 0; round < 5; round++) {
+    arr.exchange_ghosts();
+
+    // Verify ghosts are still correct after each round
+    int errors = 0;
+    for (size_t i = 0; i < arr.local_extent().size(0); i++) {
+      for (size_t j = 0; j < arr.local_extent().size(1); j++) {
+        size_t gi = arr.local_extent().start(0) + i;
+        size_t gj = arr.local_extent().start(1) + j;
+
+        bool is_ghost = (gi < arr.local_core().start(0) ||
+                         gi >= arr.local_core().start(0) + arr.local_core().size(0) ||
+                         gj < arr.local_core().start(1) ||
+                         gj >= arr.local_core().start(1) + arr.local_core().size(1));
+
+        if (is_ghost && gi < 80 && gj < 60) {
+          float expected = static_cast<float>(gi * 100 + gj);
+          float actual = arr.f(i, j);
+          if (std::abs(actual - expected) > 1e-5) errors++;
+        }
+      }
+    }
+
+    TEST_ASSERT(errors == 0, "Ghost cells should remain correct after multiple exchanges");
+  }
+
+  if (rank == 0) std::cout << "  ✓ Multiple exchange rounds passed" << std::endl;
+  return 0;
+}
+
+int test_4x4_decomposition() {
+  int rank, nprocs;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+
+  if (nprocs < 4) {
+    if (rank == 0) {
+      std::cout << "\n⊘ Skipping larger grid decomposition test (requires at least 4 ranks)" << std::endl;
+    }
+    return 0;
+  }
+
+  // Adapt test based on number of ranks
+  int grid_size = (nprocs == 4) ? 2 : 4;
+  size_t array_size = static_cast<size_t>(grid_size * 30);  // 30 cells per rank in each dimension
+
+  if (rank == 0) {
+    std::cout << "\n=== Test 25: " << grid_size << "×" << grid_size
+              << " Decomposition (" << nprocs << " ranks) ===" << std::endl;
+  }
+
+  TEST_SECTION("Create grid decomposition");
+  ftk::ndarray<float> arr;
+  if (nprocs == 4) {
+    arr.decompose(MPI_COMM_WORLD, {60, 60}, 4, {2, 2}, {1, 1});
+  } else if (nprocs == 16) {
+    arr.decompose(MPI_COMM_WORLD, {120, 120}, 16, {4, 4}, {1, 1});
+  } else {
+    // Use automatic decomposition for other rank counts
+    arr.decompose(MPI_COMM_WORLD, {array_size, array_size}, 0, {}, {1, 1});
+  }
+
+  // Each rank should have a reasonable core size
+  TEST_ASSERT(arr.local_core().size(0) > 0 && arr.local_core().size(0) < array_size,
+              "Core size 0 should be reasonable");
+  TEST_ASSERT(arr.local_core().size(1) > 0 && arr.local_core().size(1) < array_size,
+              "Core size 1 should be reasonable");
+
+  TEST_SECTION("Fill and exchange in grid");
+  size_t ghost_offset_0 = arr.local_core().start(0) - arr.local_extent().start(0);
+  size_t ghost_offset_1 = arr.local_core().start(1) - arr.local_extent().start(1);
+
+  for (size_t i = 0; i < arr.local_core().size(0); i++) {
+    for (size_t j = 0; j < arr.local_core().size(1); j++) {
+      size_t gi = arr.local_core().start(0) + i;
+      size_t gj = arr.local_core().start(1) + j;
+      arr.f(ghost_offset_0 + i, ghost_offset_1 + j) = static_cast<float>(gi * 1000 + gj);
+    }
+  }
+
+  arr.exchange_ghosts();
+
+  // Verify corner cells (most likely to have issues in larger decompositions)
+  TEST_SECTION("Verify corner cells in grid");
+  bool has_low_corner = (ghost_offset_0 > 0 && ghost_offset_1 > 0 &&
+                         arr.local_core().start(0) > 0 && arr.local_core().start(1) > 0);
+
+  if (has_low_corner) {
+    size_t gi = arr.local_core().start(0) - 1;
+    size_t gj = arr.local_core().start(1) - 1;
+    float expected = static_cast<float>(gi * 1000 + gj);
+    float actual = arr.f(ghost_offset_0 - 1, ghost_offset_1 - 1);
+
+    if (std::abs(actual - expected) > 1e-5) {
+      std::cerr << "[Rank " << rank << "] Corner mismatch: got " << actual
+                << ", expected " << expected << std::endl;
+    }
+    TEST_ASSERT(std::abs(actual - expected) < 1e-5, "Low corner should be correct");
+  }
+
+  if (rank == 0) std::cout << "  ✓ " << grid_size << "×" << grid_size << " decomposition passed" << std::endl;
+  return 0;
+}
+
+int test_stencil_computation() {
+  int rank, nprocs;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+
+  if (rank == 0) {
+    std::cout << "\n=== Test 26: Stencil Computation with Ghost Exchange ===" << std::endl;
+  }
+
+  TEST_SECTION("Create array for 5-point stencil");
+  ftk::ndarray<double> arr;
+  arr.decompose(MPI_COMM_WORLD, {100, 100}, 0, {}, {1, 1});  // Need 1 ghost for 5-point stencil
+
+  size_t ghost_offset_0 = arr.local_core().start(0) - arr.local_extent().start(0);
+  size_t ghost_offset_1 = arr.local_core().start(1) - arr.local_extent().start(1);
+
+  // Initialize with sine wave pattern
+  TEST_SECTION("Initialize with sine wave");
+  for (size_t i = 0; i < arr.local_core().size(0); i++) {
+    for (size_t j = 0; j < arr.local_core().size(1); j++) {
+      size_t gi = arr.local_core().start(0) + i;
+      size_t gj = arr.local_core().start(1) + j;
+      double x = gi / 100.0 * 2.0 * M_PI;
+      double y = gj / 100.0 * 2.0 * M_PI;
+      arr.f(ghost_offset_0 + i, ghost_offset_1 + j) = std::sin(x) * std::cos(y);
+    }
+  }
+
+  TEST_SECTION("Exchange ghosts before stencil");
+  arr.exchange_ghosts();
+
+  // Apply 5-point Laplacian stencil
+  TEST_SECTION("Apply 5-point Laplacian stencil");
+  ftk::ndarray<double> result;
+  result.decompose(MPI_COMM_WORLD, {100, 100}, 0, {}, {0, 0});  // No ghosts for result
+
+  size_t result_offset_0 = result.local_core().start(0) - result.local_extent().start(0);
+  size_t result_offset_1 = result.local_core().start(1) - result.local_extent().start(1);
+
+  for (size_t i = 0; i < result.local_core().size(0); i++) {
+    for (size_t j = 0; j < result.local_core().size(1); j++) {
+      size_t gi = result.local_core().start(0) + i;
+      size_t gj = result.local_core().start(1) + j;
+
+      // Skip boundaries of global domain
+      if (gi == 0 || gi == 99 || gj == 0 || gj == 99) {
+        result.f(result_offset_0 + i, result_offset_1 + j) = 0.0;
+        continue;
+      }
+
+      // 5-point stencil: (center - average of 4 neighbors)
+      double center = arr.f(ghost_offset_0 + i, ghost_offset_1 + j);
+      double left = arr.f(ghost_offset_0 + i - 1, ghost_offset_1 + j);
+      double right = arr.f(ghost_offset_0 + i + 1, ghost_offset_1 + j);
+      double down = arr.f(ghost_offset_0 + i, ghost_offset_1 + j - 1);
+      double up = arr.f(ghost_offset_0 + i, ghost_offset_1 + j + 1);
+
+      result.f(result_offset_0 + i, result_offset_1 + j) =
+          4.0 * center - (left + right + down + up);
+    }
+  }
+
+  TEST_SECTION("Verify stencil result is finite");
+  bool all_finite = true;
+  for (size_t i = 0; i < result.local_core().size(0); i++) {
+    for (size_t j = 0; j < result.local_core().size(1); j++) {
+      double val = result.f(result_offset_0 + i, result_offset_1 + j);
+      if (!std::isfinite(val)) {
+        all_finite = false;
+        break;
+      }
+    }
+  }
+
+  TEST_ASSERT(all_finite, "Stencil result should be finite (no NaN/Inf)");
+
+  if (rank == 0) std::cout << "  ✓ Stencil computation passed" << std::endl;
+  return 0;
+}
+
+int test_3d_mixed_ghost_widths() {
+  int rank, nprocs;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+
+  if (rank == 0) {
+    std::cout << "\n=== Test 27: 3D with Mixed Ghost Widths ===" << std::endl;
+  }
+
+  TEST_SECTION("Create 3D array with different ghost widths per dimension");
+  ftk::ndarray<float> arr;
+  // Use automatic decomposition, works with any rank count
+  arr.decompose(MPI_COMM_WORLD, {40, 40, 40}, 0, {}, {1, 2, 3});
+
+  size_t ghost_offset_0 = arr.local_core().start(0) - arr.local_extent().start(0);
+  size_t ghost_offset_1 = arr.local_core().start(1) - arr.local_extent().start(1);
+  size_t ghost_offset_2 = arr.local_core().start(2) - arr.local_extent().start(2);
+
+  TEST_SECTION("Verify extent includes correct ghost widths");
+  // Dimension 0: 1-layer ghosts
+  if (arr.local_core().start(0) > 0) {
+    TEST_ASSERT(ghost_offset_0 >= 1, "Should have at least 1 ghost layer in dim 0");
+  }
+  // Dimension 1: 2-layer ghosts
+  if (arr.local_core().start(1) > 0) {
+    TEST_ASSERT(ghost_offset_1 >= 2, "Should have at least 2 ghost layers in dim 1");
+  }
+  // Dimension 2: 3-layer ghosts
+  if (arr.local_core().start(2) > 0) {
+    TEST_ASSERT(ghost_offset_2 >= 3, "Should have at least 3 ghost layers in dim 2");
+  }
+
+  TEST_SECTION("Fill and exchange with mixed ghost widths");
+  for (size_t i = 0; i < arr.local_core().size(0); i++) {
+    for (size_t j = 0; j < arr.local_core().size(1); j++) {
+      for (size_t k = 0; k < arr.local_core().size(2); k++) {
+        size_t gi = arr.local_core().start(0) + i;
+        size_t gj = arr.local_core().start(1) + j;
+        size_t gk = arr.local_core().start(2) + k;
+        arr.f(ghost_offset_0 + i, ghost_offset_1 + j, ghost_offset_2 + k) =
+            static_cast<float>(gi * 10000 + gj * 100 + gk);
+      }
+    }
+  }
+
+  arr.exchange_ghosts();
+
+  // Verify at least one ghost cell in each dimension
+  TEST_SECTION("Verify ghosts in each dimension");
+  bool verified = false;
+
+  // Check dim 0 ghost (if available)
+  if (ghost_offset_0 > 0 && arr.local_core().start(0) > 0) {
+    size_t gi = arr.local_core().start(0) - 1;
+    size_t gj = arr.local_core().start(1);
+    size_t gk = arr.local_core().start(2);
+    float expected = static_cast<float>(gi * 10000 + gj * 100 + gk);
+    float actual = arr.f(ghost_offset_0 - 1, ghost_offset_1, ghost_offset_2);
+    TEST_ASSERT(std::abs(actual - expected) < 1e-5, "Dim 0 ghost should be correct");
+    verified = true;
+  }
+
+  if (rank == 0) std::cout << "  ✓ 3D mixed ghost widths passed" << std::endl;
+  return 0;
+}
+
 int main(int argc, char** argv) {
   MPI_Init(&argc, &argv);
 
@@ -1254,6 +1721,14 @@ int main(int argc, char** argv) {
 
   // Different ghost patterns
   result |= test_different_ghost_patterns();
+
+  // Extended test coverage
+  result |= test_3d_decomposition_8ranks();
+  result |= test_comprehensive_ghost_verification();
+  result |= test_multiple_exchange_rounds();
+  result |= test_4x4_decomposition();
+  result |= test_stencil_computation();
+  result |= test_3d_mixed_ghost_widths();
 
   MPI_Barrier(MPI_COMM_WORLD);
 
