@@ -47,7 +47,7 @@ int main(int argc, char** argv) {
   std::cout << "CUDA support: ENABLED" << std::endl;
 
   // Check for CUDA devices
-  int device_count = ftk::nd::get_cuda_device_count();
+  int device_count = ftk::get_cuda_device_count();
   std::cout << "CUDA devices found: " << device_count << std::endl;
 
   if (device_count == 0) {
@@ -57,7 +57,7 @@ int main(int argc, char** argv) {
 
   // Print device info
   for (int i = 0; i < device_count; i++) {
-    ftk::nd::print_cuda_device_info(i);
+    ftk::print_cuda_device_info(i);
   }
   std::cout << std::endl;
 #endif
@@ -333,7 +333,7 @@ int main(int argc, char** argv) {
 
 #if NDARRAY_HAVE_CUDA
   // Test 7: Multi-device support (CUDA only, requires 2+ devices)
-  if (ftk::nd::get_cuda_device_count() >= 2) {
+  if (ftk::get_cuda_device_count() >= 2) {
     TEST_SECTION("Multi-device support");
 
     ftk::ndarray<float> arr0, arr1;

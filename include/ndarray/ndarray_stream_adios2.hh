@@ -63,7 +63,7 @@ inline void substream_adios2<StoragePolicy>::read(int i, std::shared_ptr<group_t
       if (var.is_optional)
         continue;
       else {
-        nd::fatal("cannot find variable " + var.name);
+        fatal("cannot find variable " + var.name);
         return;
       }
     } else {

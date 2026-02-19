@@ -239,7 +239,7 @@ int rank, nprocs;
 MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
 
-int num_gpus = ftk::nd::get_cuda_device_count();
+int num_gpus = ftk::get_cuda_device_count();
 int gpu_id = rank % num_gpus;  // Round-robin GPU assignment
 
 ftk::ndarray<float> temp;

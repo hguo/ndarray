@@ -2,7 +2,6 @@
 #include <device_launch_parameters.h>
 
 namespace ftk {
-namespace nd {
 
 // Basic kernels
 template <typename T>
@@ -225,5 +224,4 @@ template void launch_pack_boundary_3d<double>(double*, const double*, int, int, 
 template void launch_unpack_ghost_3d<float>(float*, const float*, int, int, int, int, bool, int, int, int, int, int, int);
 template void launch_unpack_ghost_3d<double>(double*, const double*, int, int, int, int, bool, int, int, int, int, int, int);
 
-} // namespace nd
 } // namespace ftk

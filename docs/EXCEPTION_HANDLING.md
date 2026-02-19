@@ -8,21 +8,21 @@ As of version 2026.02, ndarray uses **C++ exceptions** for error handling instea
 
 ```
 std::exception
-    └── ftk::nd::exception (base class for all ndarray exceptions)
-        ├── ftk::nd::file_error
-        ├── ftk::nd::feature_not_available
-        ├── ftk::nd::invalid_operation
-        ├── ftk::nd::not_implemented
-        ├── ftk::nd::device_error
-        ├── ftk::nd::vtk_error
-        ├── ftk::nd::netcdf_error
-        ├── ftk::nd::adios2_error
-        └── ftk::nd::stream_error
+    └── ftk::exception (base class for all ndarray exceptions)
+        ├── ftk::file_error
+        ├── ftk::feature_not_available
+        ├── ftk::invalid_operation
+        ├── ftk::not_implemented
+        ├── ftk::device_error
+        ├── ftk::vtk_error
+        ├── ftk::netcdf_error
+        ├── ftk::adios2_error
+        └── ftk::stream_error
 ```
 
 ## Exception Classes
 
-### `ftk::nd::exception`
+### `ftk::exception`
 
 **Base class** for all ndarray exceptions.
 
@@ -35,14 +35,14 @@ std::exception
 ```cpp
 try {
   arr.read_netcdf("missing.nc", "temperature");
-} catch (const ftk::nd::exception& e) {
+} catch (const ftk::exception& e) {
   std::cerr << "Error: " << e.what() << std::endl;
   std::cerr << "Code: " << e.error_code() << std::endl;
   std::cerr << "Message: " << e.message() << std::endl;
 }
 ```
 
-### `ftk::nd::file_error`
+### `ftk::file_error`
 
 Thrown for **file I/O errors**:
 - File not found
@@ -64,13 +64,13 @@ Thrown for **file I/O errors**:
 ```cpp
 try {
   arr.read_h5("nonexistent.h5", "data");
-} catch (const ftk::nd::file_error& e) {
+} catch (const ftk::file_error& e) {
   std::cerr << "File error: " << e.what() << std::endl;
   // Retry with different file or exit gracefully
 }
 ```
 
-### `ftk::nd::feature_not_available`
+### `ftk::feature_not_available`
 
 Thrown when using a **feature not compiled in**.
 
@@ -86,7 +86,7 @@ Thrown when using a **feature not compiled in**.
 ```cpp
 try {
   arr.read_netcdf("data.nc", "temperature");
-} catch (const ftk::nd::feature_not_available& e) {
+} catch (const ftk::feature_not_available& e) {
   std::cerr << "Feature not available: " << e.what() << std::endl;
   std::cerr << "Please recompile with: -DNDARRAY_USE_NETCDF=ON" << std::endl;
 
@@ -95,7 +95,7 @@ try {
 }
 ```
 
-### `ftk::nd::invalid_operation`
+### `ftk::invalid_operation`
 
 Thrown for **invalid array operations**:
 - Reshaping empty array
@@ -115,12 +115,12 @@ Thrown for **invalid array operations**:
 try {
   ftk::ndarray<float> arr;
   arr.reshapef({});  // Empty dimensions!
-} catch (const ftk::nd::invalid_operation& e) {
+} catch (const ftk::invalid_operation& e) {
   std::cerr << "Invalid operation: " << e.what() << std::endl;
 }
 ```
 
-### `ftk::nd::not_implemented`
+### `ftk::not_implemented`
 
 Thrown for **declared but not-yet-implemented functions**.
 
@@ -130,13 +130,13 @@ Thrown for **declared but not-yet-implemented functions**.
 ```cpp
 try {
   arr.some_experimental_feature();
-} catch (const ftk::nd::not_implemented& e) {
+} catch (const ftk::not_implemented& e) {
   std::cerr << "Not implemented: " << e.what() << std::endl;
   // Use alternative approach
 }
 ```
 
-### `ftk::nd::device_error`
+### `ftk::device_error`
 
 Thrown for **GPU/accelerator errors**:
 - CUDA errors
@@ -154,13 +154,13 @@ Thrown for **GPU/accelerator errors**:
 ```cpp
 try {
   arr.to_device(NDARRAY_DEVICE_CUDA);
-} catch (const ftk::nd::device_error& e) {
+} catch (const ftk::device_error& e) {
   std::cerr << "Device error: " << e.what() << std::endl;
   // Fall back to CPU
 }
 ```
 
-### `ftk::nd::vtk_error`
+### `ftk::vtk_error`
 
 Thrown for **VTK-related errors**.
 
@@ -172,12 +172,12 @@ Thrown for **VTK-related errors**.
 ```cpp
 try {
   arr.read_vtk_image_data_file("data.vti", "missing_var");
-} catch (const ftk::nd::vtk_error& e) {
+} catch (const ftk::vtk_error& e) {
   std::cerr << "VTK error: " << e.what() << std::endl;
 }
 ```
 
-### `ftk::nd::netcdf_error`
+### `ftk::netcdf_error`
 
 Thrown for **NetCDF-related errors**.
 
@@ -189,12 +189,12 @@ Thrown for **NetCDF-related errors**.
 ```cpp
 try {
   arr.read_netcdf("data.nc", "missing_variable");
-} catch (const ftk::nd::netcdf_error& e) {
+} catch (const ftk::netcdf_error& e) {
   std::cerr << "NetCDF error: " << e.what() << std::endl;
 }
 ```
 
-### `ftk::nd::adios2_error`
+### `ftk::adios2_error`
 
 Thrown for **ADIOS2-related errors**.
 
@@ -206,12 +206,12 @@ Thrown for **ADIOS2-related errors**.
 ```cpp
 try {
   auto arr = ftk::ndarray<float>::from_bp("data.bp", "missing_var", 0);
-} catch (const ftk::nd::adios2_error& e) {
+} catch (const ftk::adios2_error& e) {
   std::cerr << "ADIOS2 error: " << e.what() << std::endl;
 }
 ```
 
-### `ftk::nd::stream_error`
+### `ftk::stream_error`
 
 Thrown for **stream-related errors**.
 
@@ -223,7 +223,7 @@ Thrown for **stream-related errors**.
 try {
   ftk::stream s;
   s.parse_yaml("invalid.yaml");
-} catch (const ftk::nd::stream_error& e) {
+} catch (const ftk::stream_error& e) {
   std::cerr << "Stream error: " << e.what() << std::endl;
 }
 ```
@@ -239,7 +239,7 @@ try {
   ftk::ndarray<float> arr;
   arr.read_netcdf("data.nc", "temperature");
   // ... process data ...
-} catch (const ftk::nd::exception& e) {
+} catch (const ftk::exception& e) {
   // Catches ALL ndarray exceptions
   std::cerr << "ndarray error: " << e.what() << std::endl;
   return EXIT_FAILURE;
@@ -253,17 +253,17 @@ try {
   ftk::ndarray<float> arr;
   arr.read_netcdf("data.nc", "temperature");
 
-} catch (const ftk::nd::file_error& e) {
+} catch (const ftk::file_error& e) {
   std::cerr << "File error: " << e.what() << std::endl;
   // Try alternative file
   arr.read_netcdf("backup.nc", "temperature");
 
-} catch (const ftk::nd::feature_not_available& e) {
+} catch (const ftk::feature_not_available& e) {
   std::cerr << "NetCDF not available" << std::endl;
   // Fall back to HDF5
   arr.read_h5("data.h5", "temperature");
 
-} catch (const ftk::nd::exception& e) {
+} catch (const ftk::exception& e) {
   // Other ndarray errors
   std::cerr << "Other error: " << e.what() << std::endl;
 }
@@ -276,15 +276,15 @@ try {
   ftk::ndarray<float> temp = load_temperature("file.nc");
   ftk::ndarray<float> press = load_pressure("file.nc");
 
-} catch (const ftk::nd::netcdf_error& e) {
+} catch (const ftk::netcdf_error& e) {
   // NetCDF-specific handling
   std::cerr << "NetCDF error: " << e.what() << std::endl;
 
-} catch (const ftk::nd::file_error& e) {
+} catch (const ftk::file_error& e) {
   // File I/O handling
   std::cerr << "File error: " << e.what() << std::endl;
 
-} catch (const ftk::nd::exception& e) {
+} catch (const ftk::exception& e) {
   // Generic ndarray error
   std::cerr << "ndarray error: " << e.what() << std::endl;
 
@@ -300,11 +300,11 @@ try {
 try {
   arr.read_netcdf("data.nc", "var");
 
-} catch (const ftk::nd::exception& e) {
-  if (e.error_code() == ftk::nd::ERR_FILE_NOT_FOUND) {
+} catch (const ftk::exception& e) {
+  if (e.error_code() == ftk::ERR_FILE_NOT_FOUND) {
     std::cerr << "File not found, using defaults" << std::endl;
     // Use default data
-  } else if (e.error_code() == ftk::nd::ERR_NETCDF_MISSING_VARIABLE) {
+  } else if (e.error_code() == ftk::ERR_NETCDF_MISSING_VARIABLE) {
     std::cerr << "Variable not found, trying alternative" << std::endl;
     // Try different variable name
   } else {
@@ -325,7 +325,7 @@ struct DataLoader {
     try {
       data.read_netcdf(file, "temperature");
       loaded = true;
-    } catch (const ftk::nd::exception& e) {
+    } catch (const ftk::exception& e) {
       std::cerr << "Failed to load: " << e.what() << std::endl;
       // Object still constructed, but loaded = false
     }
@@ -363,7 +363,7 @@ arr.read_netcdf("data.nc", "temperature");
 try {
   ftk::ndarray<float> arr;
   arr.read_netcdf("data.nc", "temperature");
-} catch (const ftk::nd::exception& e) {
+} catch (const ftk::exception& e) {
   std::cerr << "Error: " << e.what() << std::endl;
   // Handle error gracefully
   return EXIT_FAILURE;
@@ -376,12 +376,12 @@ The `fatal()` function now **throws exceptions** instead of calling `exit()`. Ho
 
 **Old behavior** (before 2026.02):
 ```cpp
-nd::fatal(nd::ERR_FILE_NOT_FOUND);  // Called exit(1)
+fatal(ERR_FILE_NOT_FOUND);  // Called exit(1)
 ```
 
 **New behavior** (2026.02+):
 ```cpp
-nd::fatal(nd::ERR_FILE_NOT_FOUND);  // Throws ftk::nd::file_error
+fatal(ERR_FILE_NOT_FOUND);  // Throws ftk::file_error
 ```
 
 **Migration**: No code changes required if you weren't catching errors before. But now you CAN catch them:
@@ -393,7 +393,7 @@ arr.read_netcdf("file.nc", "var");  // Exits on error
 // After: Can catch and handle
 try {
   arr.read_netcdf("file.nc", "var");
-} catch (const ftk::nd::exception& e) {
+} catch (const ftk::exception& e) {
   // Recover instead of exiting
 }
 ```
@@ -406,19 +406,19 @@ try {
 
 1. **Catch specific exceptions when possible**
    ```cpp
-   catch (const ftk::nd::file_error& e)  // Specific
-   catch (const ftk::nd::exception& e)   // Generic fallback
+   catch (const ftk::file_error& e)  // Specific
+   catch (const ftk::exception& e)   // Generic fallback
    ```
 
 2. **Use exception hierarchy**
    ```cpp
    try {
      // ...
-   } catch (const ftk::nd::netcdf_error& e) {
+   } catch (const ftk::netcdf_error& e) {
      // NetCDF-specific handling
-   } catch (const ftk::nd::file_error& e) {
+   } catch (const ftk::file_error& e) {
      // File-level handling
-   } catch (const ftk::nd::exception& e) {
+   } catch (const ftk::exception& e) {
      // Generic handling
    }
    ```
@@ -427,8 +427,8 @@ try {
    ```cpp
    try {
      arr.read_netcdf(file, var);
-   } catch (const ftk::nd::exception& e) {
-     throw ftk::nd::file_error(e.error_code(),
+   } catch (const ftk::exception& e) {
+     throw ftk::file_error(e.error_code(),
        "Failed to load " + file + ": " + e.message());
    }
    ```
@@ -450,10 +450,10 @@ try {
 1. **Don't catch by value** (loses derived type info)
    ```cpp
    // BAD
-   catch (ftk::nd::exception e)  // Slices exception!
+   catch (ftk::exception e)  // Slices exception!
 
    // GOOD
-   catch (const ftk::nd::exception& e)
+   catch (const ftk::exception& e)
    ```
 
 2. **Don't swallow exceptions silently**
@@ -468,7 +468,7 @@ try {
    // GOOD
    try {
      arr.read_netcdf(file, var);
-   } catch (const ftk::nd::exception& e) {
+   } catch (const ftk::exception& e) {
      std::cerr << "Error: " << e.what() << std::endl;
      // Handle or rethrow
    }
@@ -479,7 +479,7 @@ try {
    // BAD: Exception on rank 0, deadlock on others
    try {
      if (rank == 0) {
-       throw ftk::nd::exception("error");
+       throw ftk::exception("error");
      }
      MPI_Barrier(comm);  // Other ranks wait forever
    } catch (...) {}
@@ -488,7 +488,7 @@ try {
    int local_error = 0;
    try {
      // ... operation ...
-   } catch (const ftk::nd::exception& e) {
+   } catch (const ftk::exception& e) {
      std::cerr << "Rank " << rank << " error: " << e.what() << std::endl;
      local_error = 1;
    }
@@ -554,9 +554,9 @@ void test_file_not_found() {
   bool caught = false;
   try {
     arr.read_netcdf("nonexistent.nc", "var");
-  } catch (const ftk::nd::file_error& e) {
+  } catch (const ftk::file_error& e) {
     caught = true;
-    assert(e.error_code() == ftk::nd::ERR_FILE_NOT_FOUND);
+    assert(e.error_code() == ftk::ERR_FILE_NOT_FOUND);
   }
 
   assert(caught && "Should have thrown file_error");

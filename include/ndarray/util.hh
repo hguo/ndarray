@@ -254,6 +254,6 @@ static inline int file_extension(const std::string& filename, const std::string&
     return file_extension(format);
 }
 
-} // namespace ndarray
+} // namespace ftk
 
 #endif

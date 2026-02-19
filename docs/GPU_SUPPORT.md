@@ -145,7 +145,7 @@ Distribute work across multiple GPUs:
 #include <ndarray/ndarray_cuda.hh>
 
 int main() {
-  int num_gpus = ftk::nd::get_cuda_device_count();
+  int num_gpus = ftk::get_cuda_device_count();
   std::vector<ftk::ndarray<float>> arrays(num_gpus);
 
   // Load and distribute data
@@ -182,19 +182,19 @@ int main() {
 #include <ndarray/ndarray_cuda.hh>
 
 // Check device availability
-bool has_cuda = ftk::nd::cuda_device_available(0);
+bool has_cuda = ftk::cuda_device_available(0);
 
 // Get device count
-int num_devices = ftk::nd::get_cuda_device_count();
+int num_devices = ftk::get_cuda_device_count();
 
 // Get device properties
-cudaDeviceProp prop = ftk::nd::get_cuda_device_properties(0);
+cudaDeviceProp prop = ftk::get_cuda_device_properties(0);
 std::cout << "Device: " << prop.name << std::endl;
 std::cout << "Compute capability: " << prop.major << "." << prop.minor << std::endl;
 std::cout << "Total memory: " << (prop.totalGlobalMem / (1024*1024)) << " MB" << std::endl;
 
 // Print device info
-ftk::nd::print_cuda_device_info(0);
+ftk::print_cuda_device_info(0);
 ```
 
 ### Error Handling
@@ -203,12 +203,12 @@ CUDA API calls are wrapped with `CUDA_CHECK` macro:
 
 ```cpp
 // Automatic error checking
-arr.to_device(ftk::NDARRAY_DEVICE_CUDA, 0);  // Throws ftk::nd::device_error on failure
+arr.to_device(ftk::NDARRAY_DEVICE_CUDA, 0);  // Throws ftk::device_error on failure
 
 // Manual error checking
 try {
   arr.to_device(ftk::NDARRAY_DEVICE_CUDA, 99);  // Invalid device
-} catch (const ftk::nd::device_error& e) {
+} catch (const ftk::device_error& e) {
   std::cerr << "Device error: " << e.what() << std::endl;
   // Handle error gracefully
 }
@@ -329,7 +329,7 @@ def ndarray_to_cupy(devptr, shape, dtype=cp.float32):
 
 ```cpp
 // Check availability first
-if (ftk::nd::cuda_device_available(0)) {
+if (ftk::cuda_device_available(0)) {
   arr.to_device(ftk::NDARRAY_DEVICE_CUDA, 0);
   // GPU code
   arr.to_host();

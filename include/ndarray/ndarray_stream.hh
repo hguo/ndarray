@@ -486,7 +486,7 @@ inline void stream<StoragePolicy>::parse_yaml(const std::string filename)
 #endif
         }
       } else
-        fatal(nd::ERR_STREAM_FORMAT);
+        fatal(ERR_STREAM_FORMAT);
 
       new_substream_from_yaml(ysubstream);
     }
@@ -618,7 +618,7 @@ inline void variable::parse_yaml(YAML::Node y)
       for (auto i = 0; i < ydims.size(); i ++)
         this->dimensions.push_back( ydims[i].as<int>() );
     } else
-      throw nd::ERR_STREAM_FORMAT;
+      throw ERR_STREAM_FORMAT;
   }
 
   if (auto yendian = y["endian"]) {

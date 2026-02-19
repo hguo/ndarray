@@ -19,12 +19,12 @@ void test_exception_not_exit() {
     // Manually trigger the error handling to test exception
     if (result != NC_NOERR) {
       std::string error_msg = std::string(ncmpi_strerror(result)) + " at test_exception_handling.cpp";
-      throw ftk::nd::netcdf_error(ftk::nd::ERR_PNETCDF_IO, error_msg);
+      throw ftk::netcdf_error(ftk::ERR_PNETCDF_IO, error_msg);
     }
 
     std::cerr << "FAILED: Expected exception but none was thrown" << std::endl;
     return;
-  } catch (const ftk::nd::netcdf_error& e) {
+  } catch (const ftk::netcdf_error& e) {
     std::cout << "  - Caught exception (expected): " << e.what() << std::endl;
     std::cout << "  - Error code: " << e.error_code() << std::endl;
     std::cout << "  PASSED" << std::endl;
@@ -46,12 +46,12 @@ void test_exception_not_exit() {
     // Manually trigger the error handling to test exception
     if (result != NC_NOERR) {
       std::string error_msg = std::string(nc_strerror(result)) + " at test_exception_handling.cpp";
-      throw ftk::nd::netcdf_error(ftk::nd::ERR_NETCDF_IO, error_msg);
+      throw ftk::netcdf_error(ftk::ERR_NETCDF_IO, error_msg);
     }
 
     std::cerr << "FAILED: Expected exception but none was thrown" << std::endl;
     return;
-  } catch (const ftk::nd::netcdf_error& e) {
+  } catch (const ftk::netcdf_error& e) {
     std::cout << "  - Caught NetCDF exception (expected): " << e.what() << std::endl;
     std::cout << "  PASSED" << std::endl;
   } catch (const std::exception& e) {

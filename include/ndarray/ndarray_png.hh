@@ -13,7 +13,7 @@
 #include <vector>
 
 // Note: This header is included from ndarray.hh which is already in namespace ftk
-namespace nd {
+namespace ftk {
 
 /**
  * @brief Read PNG image file
@@ -243,7 +243,7 @@ inline void write_png_file(const std::string& filename,
   fclose(fp);
 }
 
-} // namespace nd
+} // namespace ftk
 
 #endif // NDARRAY_HAVE_PNG
 

@@ -167,7 +167,7 @@ inline void substream_netcdf<StoragePolicy>::read(int i, std::shared_ptr<group_t
 
         // For now, just warn instead of fatal error to maintain backward compatibility
         // In future versions, this should throw or fatal
-        // nd::fatal(nd::ERR_NETCDF);
+        // fatal(ERR_NETCDF);
       }
     }
   }

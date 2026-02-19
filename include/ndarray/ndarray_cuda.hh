@@ -9,7 +9,6 @@
 #include <ndarray/error.hh>
 
 namespace ftk {
-namespace nd {
 
 /**
  * @brief CUDA error checking macro
@@ -25,8 +24,8 @@ namespace nd {
   do { \
     cudaError_t err = call; \
     if (err != cudaSuccess) { \
-      throw ::ftk::nd::device_error( \
-          ::ftk::nd::ERR_NOT_BUILT_WITH_CUDA, \
+      throw ::ftk::device_error( \
+          ::ftk::ERR_NOT_BUILT_WITH_CUDA, \
           std::string("CUDA error: ") + cudaGetErrorString(err) + \
           " at " + __FILE__ + ":" + std::to_string(__LINE__)); \
     } \
@@ -117,7 +116,6 @@ void launch_pack_boundary_3d(T* buffer, const T* data, int n0, int n1, int n2, i
 template <typename T>
 void launch_unpack_ghost_3d(T* data, const T* buffer, int n0, int n1, int n2, int dim, bool is_high, int ghost_width, int ghost_low, int ghost_high, int c0, int c1, int c2);
 
-} // namespace nd
 } // namespace ftk
 
 #endif // NDARRAY_HAVE_CUDA

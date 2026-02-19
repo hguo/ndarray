@@ -8,7 +8,6 @@
 #include <cuda_runtime.h>
 
 namespace ftk {
-namespace nd {
 
 // Only include CUDA kernel implementations when compiling with nvcc
 // __CUDACC__ is defined by nvcc, not by regular C++ compilers
@@ -507,7 +506,6 @@ inline void launch_unpack_ghost_3d(
 
 #endif // __CUDACC__
 
-} // namespace nd
 } // namespace ftk
 
 #endif // NDARRAY_HAVE_CUDA && NDARRAY_HAVE_MPI

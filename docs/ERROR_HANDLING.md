@@ -6,20 +6,20 @@ ndarray uses C++ exceptions for error handling. **Library code never calls `exit
 
 ## Exception Hierarchy
 
-All ndarray exceptions derive from `ftk::nd::exception`, which inherits from `std::exception`:
+All ndarray exceptions derive from `ftk::exception`, which inherits from `std::exception`:
 
 ```cpp
 std::exception
-  └── ftk::nd::exception
-      ├── ftk::nd::file_error            // File I/O errors
-      ├── ftk::nd::feature_not_available // Missing compile-time feature
-      ├── ftk::nd::invalid_operation     // Invalid array operations
-      ├── ftk::nd::not_implemented       // Feature not yet implemented
-      ├── ftk::nd::device_error          // GPU/accelerator errors
-      ├── ftk::nd::vtk_error             // VTK-specific errors
-      ├── ftk::nd::netcdf_error          // NetCDF/PNetCDF errors
-      ├── ftk::nd::adios2_error          // ADIOS2 errors
-      └── ftk::nd::stream_error          // Stream configuration errors
+  └── ftk::exception
+      ├── ftk::file_error            // File I/O errors
+      ├── ftk::feature_not_available // Missing compile-time feature
+      ├── ftk::invalid_operation     // Invalid array operations
+      ├── ftk::not_implemented       // Feature not yet implemented
+      ├── ftk::device_error          // GPU/accelerator errors
+      ├── ftk::vtk_error             // VTK-specific errors
+      ├── ftk::netcdf_error          // NetCDF/PNetCDF errors
+      ├── ftk::adios2_error          // ADIOS2 errors
+      └── ftk::stream_error          // Stream configuration errors
 ```
 
 ## Basic Usage
@@ -30,7 +30,7 @@ std::exception
 try {
   ftk::ndarray<double> arr;
   arr.read_netcdf("data.nc", "temperature");
-} catch (const ftk::nd::exception& e) {
+} catch (const ftk::exception& e) {
   std::cerr << "Error: " << e.what() << std::endl;
   std::cerr << "Error code: " << e.error_code() << std::endl;
   // Handle error appropriately
@@ -42,13 +42,13 @@ try {
 ```cpp
 try {
   arr.read_netcdf("data.nc", "temperature");
-} catch (const ftk::nd::netcdf_error& e) {
+} catch (const ftk::netcdf_error& e) {
   std::cerr << "NetCDF error: " << e.what() << std::endl;
   // Handle NetCDF-specific error
-} catch (const ftk::nd::file_error& e) {
+} catch (const ftk::file_error& e) {
   std::cerr << "File error: " << e.what() << std::endl;
   // Handle file I/O error
-} catch (const ftk::nd::exception& e) {
+} catch (const ftk::exception& e) {
   std::cerr << "Other ndarray error: " << e.what() << std::endl;
   // Handle other errors
 }
@@ -87,11 +87,11 @@ ERR_PNETCDF_IO
 ```cpp
 try {
   arr.read_netcdf("data.nc", "missing_var");
-} catch (const ftk::nd::netcdf_error& e) {
-  if (e.error_code() == ftk::nd::ERR_NETCDF_MISSING_VARIABLE) {
+} catch (const ftk::netcdf_error& e) {
+  if (e.error_code() == ftk::ERR_NETCDF_MISSING_VARIABLE) {
     std::cerr << "Variable not found in file" << std::endl;
     // Try alternative variable name
-  } else if (e.error_code() == ftk::nd::ERR_NETCDF_IO) {
+  } else if (e.error_code() == ftk::ERR_NETCDF_IO) {
     std::cerr << "NetCDF I/O operation failed" << std::endl;
     // Check file accessibility
   }
@@ -108,10 +108,10 @@ These macros wrap NetCDF/PNetCDF API calls and throw exceptions on error:
 // Before: Would call exit() on error (DANGEROUS!)
 NC_SAFE_CALL( nc_open("file.nc", NC_NOWRITE, &ncid) );
 
-// Now: Throws ftk::nd::netcdf_error exception
+// Now: Throws ftk::netcdf_error exception
 try {
   NC_SAFE_CALL( nc_open("file.nc", NC_NOWRITE, &ncid) );
-} catch (const ftk::nd::netcdf_error& e) {
+} catch (const ftk::netcdf_error& e) {
   std::cerr << "Failed to open NetCDF file: " << e.what() << std::endl;
   // Application continues running - can try alternative file
 }
@@ -138,7 +138,7 @@ Example:
 try {
   arr.read_netcdf("data.nc", "temperature");
   process_data(arr);
-} catch (const ftk::nd::exception& e) {
+} catch (const ftk::exception& e) {
   std::cerr << "Error: " << e.what() << std::endl;
   return false;
 }
@@ -154,7 +154,7 @@ int ncid = -1;
 try {
   NC_SAFE_CALL( nc_open("file.nc", NC_NOWRITE, &ncid) );
   // ... operations ...
-} catch (const ftk::nd::netcdf_error& e) {
+} catch (const ftk::netcdf_error& e) {
   if (ncid >= 0) {
     nc_close(ncid);  // Clean up
   }
@@ -182,7 +182,7 @@ try {
   NetCDFFile file("data.nc");
   // ... operations ...
   // ncid automatically closed when file goes out of scope
-} catch (const ftk::nd::netcdf_error& e) {
+} catch (const ftk::netcdf_error& e) {
   std::cerr << "Error: " << e.what() << std::endl;
 }
 ```
@@ -192,7 +192,7 @@ try {
 ```cpp
 try {
   arr.read_netcdf(filename, varname);
-} catch (const ftk::nd::exception& e) {
+} catch (const ftk::exception& e) {
   std::cerr << "Failed to read variable '" << varname
             << "' from file '" << filename << "': "
             << e.what() << std::endl;
@@ -212,7 +212,7 @@ try {
 // Good: Let it propagate or handle properly
 try {
   arr.read_netcdf("data.nc", "temp");
-} catch (const ftk::nd::netcdf_error& e) {
+} catch (const ftk::netcdf_error& e) {
   std::cerr << "Error: " << e.what() << std::endl;
   throw;  // Re-throw for caller to handle
 }
@@ -226,7 +226,7 @@ When using MPI, ensure all ranks handle errors consistently:
 int local_error = 0;
 try {
   arr.read_pnetcdf("data.nc", "temperature");
-} catch (const ftk::nd::exception& e) {
+} catch (const ftk::exception& e) {
   std::cerr << "Rank " << rank << " error: " << e.what() << std::endl;
   local_error = 1;
 }
@@ -258,7 +258,7 @@ NC_SAFE_CALL( nc_open("file.nc", NC_NOWRITE, &ncid) );
 // New code throws exception - application can recover
 try {
   NC_SAFE_CALL( nc_open("file.nc", NC_NOWRITE, &ncid) );
-} catch (const ftk::nd::netcdf_error& e) {
+} catch (const ftk::netcdf_error& e) {
   // Application continues - can try alternative file
   std::cerr << "Warning: " << e.what() << std::endl;
   std::cerr << "Trying alternative file..." << std::endl;
@@ -272,19 +272,19 @@ try {
 
 ```cpp
 // With error code
-throw ftk::nd::netcdf_error(ftk::nd::ERR_NETCDF_IO, "Additional context");
+throw ftk::netcdf_error(ftk::ERR_NETCDF_IO, "Additional context");
 
 // With message only
-throw ftk::nd::netcdf_error("Custom error message");
+throw ftk::netcdf_error("Custom error message");
 
 // Using fatal() helper
-ftk::nd::fatal(ftk::nd::ERR_FILE_NOT_FOUND, "data.nc");
+ftk::fatal(ftk::ERR_FILE_NOT_FOUND, "data.nc");
 ```
 
 ### Exception Methods
 
 ```cpp
-catch (const ftk::nd::exception& e) {
+catch (const ftk::exception& e) {
   e.what();         // Full error message with [NDARRAY ERROR] prefix
   e.error_code();   // Numeric error code (or 0 if none)
   e.message();      // User-provided context message

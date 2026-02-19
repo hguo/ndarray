@@ -359,7 +359,7 @@ try {
   ftk::ndarray<unsigned char> img;
   img.read_png("input.png");
 
-} catch (const ftk::nd::file_error& e) {
+} catch (const ftk::file_error& e) {
   std::cerr << "Cannot read PNG: " << e.what() << std::endl;
   return 1;
 }
@@ -370,7 +370,7 @@ try {
   invalid.set_multicomponents();
   invalid.to_png("output.png");
 
-} catch (const ftk::nd::file_error& e) {
+} catch (const ftk::file_error& e) {
   std::cerr << "Cannot write PNG: " << e.what() << std::endl;
   // PNG requires 1, 3, or 4 channels
 }

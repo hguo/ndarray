@@ -347,7 +347,7 @@ int main(int argc, char** argv) {
       bool caught = false;
       try {
         arr.read_png(test_dir + "/nonexistent.png");
-      } catch (const ftk::nd::file_error& e) {
+      } catch (const ftk::file_error& e) {
         caught = true;
       }
       TEST_ASSERT(caught, "Should throw file_error for non-existent file");

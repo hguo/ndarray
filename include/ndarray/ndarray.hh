@@ -759,7 +759,7 @@ void ndarray<T, StoragePolicy>::fill(T v)
 {
 #if NDARRAY_HAVE_CUDA
   if (device_type == NDARRAY_DEVICE_CUDA) {
-    nd::launch_fill<T>(static_cast<T*>(devptr), nelem(), v);
+    launch_fill<T>(static_cast<T*>(devptr), nelem(), v);
     cudaDeviceSynchronize();
     return;
   }
@@ -896,7 +896,7 @@ void ndarray<T, StoragePolicy>::bil_add_block_raw(const std::string& filename,
 
   // BIL_Add_block_raw(nd(), domain.data(), st.data(), sz.data(), filename.c_str(), mpi_dtype(), (void**)&storage_[0]);
 #else
-  nd::fatal(nd::ERR_NOT_BUILT_WITH_MPI);
+  fatal(ERR_NOT_BUILT_WITH_MPI);
 #endif
 }
 
@@ -935,7 +935,7 @@ void ndarray<T, StoragePolicy>::read_binary_file(FILE *fp, int endian)
 #endif
 
   if (s != nelem())
-    nd::warn(nd::ERR_FILE_CANNOT_READ_EXPECTED_BYTES);
+    warn(ERR_FILE_CANNOT_READ_EXPECTED_BYTES);
 }
 
 template <typename T, typename StoragePolicy>
@@ -1133,13 +1133,13 @@ inline void ndarray<T, StoragePolicy>::read_vtk_image_data_file_sequence(const s
 template<typename T, typename StoragePolicy>
 inline void ndarray<T, StoragePolicy>::read_vtk_image_data_file_sequence(const std::string& pattern)
 {
-  nd::fatal(nd::ERR_NOT_BUILT_WITH_VTK);
+  fatal(ERR_NOT_BUILT_WITH_VTK);
 }
 
 template<typename T, typename StoragePolicy>
 inline void ndarray<T, StoragePolicy>::to_vtk_image_data_file(const std::string& filename, const std::string) const
 {
-  nd::fatal(nd::ERR_NOT_BUILT_WITH_VTK);
+  fatal(ERR_NOT_BUILT_WITH_VTK);
 }
 #endif
 
@@ -1187,7 +1187,7 @@ void ndarray<T, StoragePolicy>::reshapef(const std::vector<size_t> &dims_)
     s.resize(dims.size());
 
     if (dims.size() == 0)
-      nd::fatal(nd::ERR_NDARRAY_RESHAPE_EMPTY);
+      fatal(ERR_NDARRAY_RESHAPE_EMPTY);
 
     for (size_t i = 0; i < this->nd(); i ++)
       if (i == 0) this->s[i] = 1;
@@ -1202,7 +1202,7 @@ void ndarray<T, StoragePolicy>::reshapef(const std::vector<size_t> &dims_)
       storage_.resize(total_size);
     }
   } else
-    nd::fatal(nd::ERR_NDARRAY_RESHAPE_DEVICE);
+    fatal(ERR_NDARRAY_RESHAPE_DEVICE);
 }
 
 template <typename T, typename StoragePolicy>
@@ -1217,7 +1217,7 @@ ndarray<T, StoragePolicy>& ndarray<T, StoragePolicy>::scale(T factor)
 {
 #if NDARRAY_HAVE_CUDA
   if (device_type == NDARRAY_DEVICE_CUDA) {
-    nd::launch_scale<T>(static_cast<T*>(devptr), nelem(), factor);
+    launch_scale<T>(static_cast<T*>(devptr), nelem(), factor);
     cudaDeviceSynchronize();
     return *this;
   }
@@ -1229,10 +1229,10 @@ ndarray<T, StoragePolicy>& ndarray<T, StoragePolicy>::scale(T factor)
 template <typename T, typename StoragePolicy>
 ndarray<T, StoragePolicy>& ndarray<T, StoragePolicy>::add(const ndarray<T, StoragePolicy>& other)
 {
-  if (this->dims != other.dims) nd::fatal("ndarray::add: dimension mismatch");
+  if (this->dims != other.dims) fatal("ndarray::add: dimension mismatch");
 #if NDARRAY_HAVE_CUDA
   if (device_type == NDARRAY_DEVICE_CUDA && other.device_type == NDARRAY_DEVICE_CUDA) {
-    nd::launch_add<T>(static_cast<T*>(devptr), static_cast<const T*>(other.devptr), nelem());
+    launch_add<T>(static_cast<T*>(devptr), static_cast<const T*>(other.devptr), nelem());
     cudaDeviceSynchronize();
     return *this;
   }
@@ -1381,8 +1381,8 @@ inline void ndarray<T, StoragePolicy>::read_bp(adios2::IO &io, adios2::Engine &r
       }
     }
   } else {
-    throw nd::ERR_ADIOS2_VARIABLE_NOT_FOUND;
-    // nd::fatal(nd::ERR_ADIOS2_VARIABLE_NOT_FOUND);
+    throw ERR_ADIOS2_VARIABLE_NOT_FOUND;
+    // fatal(ERR_ADIOS2_VARIABLE_NOT_FOUND);
   }
 }
 
@@ -1398,10 +1398,10 @@ inline void ndarray<T, StoragePolicy>::read_bp(adios2::IO &io, adios2::Engine &r
 template <typename T, typename StoragePolicy>
 bool ndarray<T, StoragePolicy>::read_bp_legacy(ADIOS_FILE *fp, const std::string& varname)
 {
-  nd::warn("reading bp file with legacy ADIOS1 API..");
+  warn("reading bp file with legacy ADIOS1 API..");
   ADIOS_VARINFO *avi = adios_inq_var(fp, varname.c_str());
   if (avi == NULL)
-    throw nd::ERR_ADIOS2_VARIABLE_NOT_FOUND;
+    throw ERR_ADIOS2_VARIABLE_NOT_FOUND;
 
   adios_inq_var_stat(fp, avi, 0, 0);
   adios_inq_var_blockinfo(fp, avi);
@@ -1465,7 +1465,7 @@ bool ndarray<T, StoragePolicy>::read_bp_legacy(const std::string& filename, cons
   adios_read_close(fp);
   return succ;
 #else
-  nd::fatal(nd::ERR_NOT_BUILT_WITH_ADIOS1);
+  fatal(ERR_NOT_BUILT_WITH_ADIOS1);
   return false;
 #endif
 }
@@ -1477,7 +1477,7 @@ inline void ndarray<T, StoragePolicy>::to_device(int dev, int id)
   if (dev == NDARRAY_DEVICE_CUDA) {
 #if NDARRAY_HAVE_CUDA
     if (this->device_type == NDARRAY_DEVICE_CUDA) { // already on gpu
-      nd::warn("array already on device");
+      warn("array already on device");
     } else {
       this->device_type = NDARRAY_DEVICE_CUDA;
       this->device_id = id;
@@ -1489,12 +1489,12 @@ inline void ndarray<T, StoragePolicy>::to_device(int dev, int id)
       storage_.resize(0);
     }
 #else
-    nd::fatal(nd::ERR_NOT_BUILT_WITH_CUDA);
+    fatal(ERR_NOT_BUILT_WITH_CUDA);
 #endif
   } else if (dev == NDARRAY_DEVICE_SYCL) {
 #if NDARRAY_HAVE_SYCL
     if (this->device_type == NDARRAY_DEVICE_SYCL) {
-      nd::warn("array already on SYCL device");
+      warn("array already on SYCL device");
     } else {
       this->device_type = NDARRAY_DEVICE_SYCL;
       this->device_id = id;
@@ -1519,17 +1519,17 @@ inline void ndarray<T, StoragePolicy>::to_device(int dev, int id)
       storage_.resize(0);
     }
 #else
-    nd::fatal(nd::ERR_NOT_BUILT_WITH_SYCL);
+    fatal(ERR_NOT_BUILT_WITH_SYCL);
 #endif
   } else
-    nd::fatal(nd::ERR_NDARRAY_UNKNOWN_DEVICE);
+    fatal(ERR_NDARRAY_UNKNOWN_DEVICE);
 }
 
 template <typename T, typename StoragePolicy>
 inline void ndarray<T, StoragePolicy>::to_host()
 {
   if (this->device_type == NDARRAY_DEVICE_HOST) {
-    nd::warn("array already on host");
+    warn("array already on host");
   } else if (this->device_type == NDARRAY_DEVICE_CUDA) {
 #if NDARRAY_HAVE_CUDA
     if (this->device_type == NDARRAY_DEVICE_CUDA) {
@@ -1544,9 +1544,9 @@ inline void ndarray<T, StoragePolicy>::to_host()
       this->device_id = 0;
       devptr = nullptr;
     } else
-      nd::fatal("array not on device");
+      fatal("array not on device");
 #else
-    nd::fatal(nd::ERR_NOT_BUILT_WITH_CUDA);
+    fatal(ERR_NOT_BUILT_WITH_CUDA);
 #endif
   } else if (this->device_type == NDARRAY_DEVICE_SYCL) {
 #if NDARRAY_HAVE_SYCL
@@ -1573,10 +1573,10 @@ inline void ndarray<T, StoragePolicy>::to_host()
     this->device_id = 0;
     devptr = nullptr;
 #else
-    nd::fatal(nd::ERR_NOT_BUILT_WITH_SYCL);
+    fatal(ERR_NOT_BUILT_WITH_SYCL);
 #endif
   } else
-    nd::fatal(nd::ERR_NDARRAY_UNKNOWN_DEVICE);
+    fatal(ERR_NDARRAY_UNKNOWN_DEVICE);
 }
 
 template <typename T, typename StoragePolicy>
@@ -1585,9 +1585,9 @@ inline void ndarray<T, StoragePolicy>::copy_to_device(int dev, int id)
   if (dev == NDARRAY_DEVICE_CUDA) {
 #if NDARRAY_HAVE_CUDA
     if (this->device_type == NDARRAY_DEVICE_CUDA) {
-      nd::warn("array already on CUDA device");
+      warn("array already on CUDA device");
     } else if (this->device_type != NDARRAY_DEVICE_HOST) {
-      nd::fatal("array is on a different device type");
+      fatal("array is on a different device type");
     } else {
       this->device_type = NDARRAY_DEVICE_CUDA;
       this->device_id = id;
@@ -1599,14 +1599,14 @@ inline void ndarray<T, StoragePolicy>::copy_to_device(int dev, int id)
       // Note: p is NOT cleared, keeping data on both host and device
     }
 #else
-    nd::fatal(nd::ERR_NOT_BUILT_WITH_CUDA);
+    fatal(ERR_NOT_BUILT_WITH_CUDA);
 #endif
   } else if (dev == NDARRAY_DEVICE_SYCL) {
 #if NDARRAY_HAVE_SYCL
     if (this->device_type == NDARRAY_DEVICE_SYCL) {
-      nd::warn("array already on SYCL device");
+      warn("array already on SYCL device");
     } else if (this->device_type != NDARRAY_DEVICE_HOST) {
-      nd::fatal("array is on a different device type");
+      fatal("array is on a different device type");
     } else {
       this->device_type = NDARRAY_DEVICE_SYCL;
       this->device_id = id;
@@ -1631,17 +1631,17 @@ inline void ndarray<T, StoragePolicy>::copy_to_device(int dev, int id)
       // Note: p is NOT cleared, keeping data on both host and device
     }
 #else
-    nd::fatal(nd::ERR_NOT_BUILT_WITH_SYCL);
+    fatal(ERR_NOT_BUILT_WITH_SYCL);
 #endif
   } else
-    nd::fatal(nd::ERR_NDARRAY_UNKNOWN_DEVICE);
+    fatal(ERR_NDARRAY_UNKNOWN_DEVICE);
 }
 
 template <typename T, typename StoragePolicy>
 inline void ndarray<T, StoragePolicy>::copy_from_device()
 {
   if (this->device_type == NDARRAY_DEVICE_HOST) {
-    nd::warn("array is on host, nothing to copy");
+    warn("array is on host, nothing to copy");
   } else if (this->device_type == NDARRAY_DEVICE_CUDA) {
 #if NDARRAY_HAVE_CUDA
     if (storage_.size() == 0) {
@@ -1653,7 +1653,7 @@ inline void ndarray<T, StoragePolicy>::copy_from_device()
         cudaMemcpyDeviceToHost);
     // Note: device memory is NOT freed
 #else
-    nd::fatal(nd::ERR_NOT_BUILT_WITH_CUDA);
+    fatal(ERR_NOT_BUILT_WITH_CUDA);
 #endif
   } else if (this->device_type == NDARRAY_DEVICE_SYCL) {
 #if NDARRAY_HAVE_SYCL
@@ -1677,10 +1677,10 @@ inline void ndarray<T, StoragePolicy>::copy_from_device()
 
     // Note: device memory is NOT freed
 #else
-    nd::fatal(nd::ERR_NOT_BUILT_WITH_SYCL);
+    fatal(ERR_NOT_BUILT_WITH_SYCL);
 #endif
   } else
-    nd::fatal(nd::ERR_NDARRAY_UNKNOWN_DEVICE);
+    fatal(ERR_NDARRAY_UNKNOWN_DEVICE);
 }
 
 template <typename T, typename StoragePolicy>
@@ -1695,7 +1695,7 @@ template <typename T, typename StoragePolicy>
 bool ndarray<T, StoragePolicy>::read_file(const std::string& filename, const std::string varname, MPI_Comm comm)
 {
   if (!file_exists(filename)) {
-    nd::warn(nd::ERR_FILE_NOT_FOUND);
+    warn(ERR_FILE_NOT_FOUND);
     return false;
   }
 
@@ -1704,7 +1704,7 @@ bool ndarray<T, StoragePolicy>::read_file(const std::string& filename, const std
   else if (ext == FILE_EXT_NETCDF) read_netcdf(filename, varname, comm);
   else if (ext == FILE_EXT_VTI) read_vtk_image_data_file(filename, varname);
   else if (ext == FILE_EXT_HDF5) read_h5(filename, varname);
-  else nd::fatal(nd::ERR_FILE_UNRECOGNIZED_EXTENSION);
+  else fatal(ERR_FILE_UNRECOGNIZED_EXTENSION);
 
   return true; // Note: read_* functions throw exceptions on error, so reaching here means success
 }
@@ -1749,7 +1749,7 @@ inline bool ndarray<T, StoragePolicy>::read_h5_did(hid_t did)
     reshapef(1);
     H5Dread(did, h5_mem_type_id(), H5S_ALL, H5S_ALL, H5P_DEFAULT, storage_.data());
   } else
-    nd::fatal("unsupported h5 extent type");
+    fatal("unsupported h5 extent type");
 
   return true;
 }
@@ -1759,7 +1759,7 @@ inline bool ndarray<T, StoragePolicy>::to_h5(const std::string& filename, const 
 {
   hid_t dtype = h5_mem_type_id();
   if (dtype < 0) {
-    nd::warn(nd::ERR_HDF5_UNSUPPORTED_TYPE);
+    warn(ERR_HDF5_UNSUPPORTED_TYPE);
     return false;
   }
 
@@ -1922,7 +1922,7 @@ ndarray<T, StoragePolicy> ndarray<T, StoragePolicy>::get_transpose() const
             a.f(l, k, j, i) = f(i, j, k, l);
     return a;
   } else {
-    nd::fatal(nd::ERR_NDARRAY_UNSUPPORTED_DIMENSIONALITY);
+    fatal(ERR_NDARRAY_UNSUPPORTED_DIMENSIONALITY);
     return a;
   }
 }
@@ -2005,7 +2005,7 @@ void ndarray<T, StoragePolicy>::read_png(const std::string& filename)
   std::vector<unsigned char> png_data;
   int width, height, channels;
 
-  nd::read_png_file(filename, png_data, width, height, channels);
+  read_png_file(filename, png_data, width, height, channels);
 
   if (channels == 1) {
     // Grayscale: shape is (height, width)
@@ -2041,10 +2041,10 @@ void ndarray<T, StoragePolicy>::to_png(const std::string& filename) const
     width = dimf(2);
 
     if (channels != 3 && channels != 4) {
-      nd::fatal("PNG write requires 1 (gray), 3 (RGB), or 4 (RGBA) channels");
+      fatal("PNG write requires 1 (gray), 3 (RGB), or 4 (RGBA) channels");
     }
   } else {
-    nd::fatal("Unable to save to PNG: array must be 2D (grayscale) or 3D multicomponent (RGB/RGBA)");
+    fatal("Unable to save to PNG: array must be 2D (grayscale) or 3D multicomponent (RGB/RGBA)");
   }
 
   // Convert data to unsigned char
@@ -2057,19 +2057,19 @@ void ndarray<T, StoragePolicy>::to_png(const std::string& filename) const
     png_data[i] = static_cast<unsigned char>(val);
   }
 
-  nd::write_png_file(filename, png_data.data(), width, height, channels);
+  write_png_file(filename, png_data.data(), width, height, channels);
 }
 #else
 template <typename T, typename StoragePolicy>
 void ndarray<T, StoragePolicy>::read_png(const std::string& filename)
 {
-  nd::fatal(nd::ERR_NOT_BUILT_WITH_PNG);
+  fatal(ERR_NOT_BUILT_WITH_PNG);
 }
 
 template <typename T, typename StoragePolicy>
 void ndarray<T, StoragePolicy>::to_png(const std::string& filename) const
 {
-  nd::fatal(nd::ERR_NOT_BUILT_WITH_PNG);
+  fatal(ERR_NOT_BUILT_WITH_PNG);
 }
 #endif
 
@@ -2085,7 +2085,7 @@ inline bool ndarray<float>::read_amira(const std::string& filename)
 
   FILE *fp = fopen(filename.c_str(), "rb");
   if (!fp) {
-    nd::warn(nd::ERR_FILE_CANNOT_OPEN, filename);
+    warn(ERR_FILE_CANNOT_OPEN, filename);
     return false;
   }
 
@@ -2094,7 +2094,7 @@ inline bool ndarray<float>::read_amira(const std::string& filename)
   buffer[2047] = '\0';
 
   if (!strstr(buffer, "# AmiraMesh BINARY-LITTLE-ENDIAN 2.1")) {
-    nd::warn(nd::ERR_FILE_FORMAT_AMIRA, filename);
+    warn(ERR_FILE_FORMAT_AMIRA, filename);
     fclose(fp);
     return false;
   }
@@ -2127,7 +2127,7 @@ inline bool ndarray<float>::read_amira(const std::string& filename)
       || xmin > xmax || ymin > ymax || zmin > zmax
       || !bIsUniform || NumComponents <= 0)
   {
-    nd::warn(nd::ERR_FILE_FORMAT_AMIRA);
+    warn(ERR_FILE_FORMAT_AMIRA);
     fclose(fp);
     return false;
   }
@@ -2185,7 +2185,7 @@ bool ndarray<T, StoragePolicy>::mlerp(const F x[], T v[]) const
     for (size_t i = 0; i < dims[0]; i ++)
       v[i] = 0;
   else
-    nd::fatal(nd::ERR_NOT_IMPLEMENTED);
+    fatal(ERR_NOT_IMPLEMENTED);
 
   // fprintf(stderr, "w=%f, %f\n", v[0], v[1]);
   // fprintf(stderr, "mu=%f, %f\n", mu[0], mu[1]);
@@ -2217,7 +2217,7 @@ bool ndarray<T, StoragePolicy>::mlerp(const F x[], T v[]) const
         // fprintf(stderr, "k=%d, verts=%zu, %zu, %zu, coef=%f, val=%f\n", k, verts[0], verts[1], verts[2], coef, val);
       }
     } else
-      nd::fatal(nd::ERR_NOT_IMPLEMENTED);
+      fatal(ERR_NOT_IMPLEMENTED);
   }
 
   // fprintf(stderr, "v=%f, %f\n", v[0], v[1]);
@@ -2301,7 +2301,7 @@ inline void ndarray<T, StoragePolicy>::read_pnetcdf_all(int ncid, int varid, con
   } else if (std::is_same<T, long long>::value) {
     PNC_SAFE_CALL(ncmpi_get_vara_longlong_all(ncid, varid, st, sz, reinterpret_cast<long long*>(storage_.data())));
   } else {
-    nd::fatal("Unsupported type for read_pnetcdf_all");
+    fatal("Unsupported type for read_pnetcdf_all");
   }
 }
 
@@ -2322,7 +2322,7 @@ inline void ndarray<T, StoragePolicy>::write_pnetcdf_all(int ncid, int varid, co
   } else if (std::is_same<T, long long>::value) {
     PNC_SAFE_CALL(ncmpi_put_vara_longlong_all(ncid, varid, st, sz, reinterpret_cast<const long long*>(storage_.data())));
   } else {
-    nd::fatal("Unsupported type for write_pnetcdf_all");
+    fatal("Unsupported type for write_pnetcdf_all");
   }
 }
 
@@ -3016,7 +3016,7 @@ void ndarray<T, StoragePolicy>::exchange_ghosts_gpu_direct()
 
     if (dims.size() == 1) {
       // 1D case
-      nd::launch_pack_boundary_1d(
+      launch_pack_boundary_1d(
           d_send_buffers[i],
           d_array,
           static_cast<int>(dims[0]),
@@ -3025,7 +3025,7 @@ void ndarray<T, StoragePolicy>::exchange_ghosts_gpu_direct()
           static_cast<int>(dist_->local_core_.size(0)));
     } else if (dims.size() == 2 && dim < 2) {
       // 2D case
-      nd::launch_pack_boundary_2d(
+      launch_pack_boundary_2d(
           d_send_buffers[i],
           d_array,
           static_cast<int>(dims[0]),
@@ -3037,7 +3037,7 @@ void ndarray<T, StoragePolicy>::exchange_ghosts_gpu_direct()
           static_cast<int>(dist_->local_core_.size(1)));
     } else if (dims.size() == 3 && dim < 3) {
       // 3D case
-      nd::launch_pack_boundary_3d(
+      launch_pack_boundary_3d(
           d_send_buffers[i],
           d_array,
           static_cast<int>(dims[0]),
@@ -3098,7 +3098,7 @@ void ndarray<T, StoragePolicy>::exchange_ghosts_gpu_direct()
 
     if (dims.size() == 1) {
       // 1D case
-      nd::launch_unpack_ghost_1d(
+      launch_unpack_ghost_1d(
           d_array,
           d_recv_buffers[i],
           static_cast<int>(dims[0]),
@@ -3109,7 +3109,7 @@ void ndarray<T, StoragePolicy>::exchange_ghosts_gpu_direct()
           static_cast<int>(dist_->local_core_.size(0)));
     } else if (dims.size() == 2 && dim < 2) {
       // 2D case
-      nd::launch_unpack_ghost_2d(
+      launch_unpack_ghost_2d(
           d_array,
           d_recv_buffers[i],
           static_cast<int>(dims[0]),
@@ -3123,7 +3123,7 @@ void ndarray<T, StoragePolicy>::exchange_ghosts_gpu_direct()
           static_cast<int>(dist_->local_core_.size(1)));
     } else if (dims.size() == 3 && dim < 3) {
       // 3D case
-      nd::launch_unpack_ghost_3d(
+      launch_unpack_ghost_3d(
           d_array,
           d_recv_buffers[i],
           static_cast<int>(dims[0]),
@@ -3156,7 +3156,7 @@ void ndarray<T, StoragePolicy>::exchange_ghosts_gpu_direct()
 {
   // This should never be called since the call site is guarded with __CUDACC__
   // But we need a definition to satisfy the linker
-  nd::fatal("exchange_ghosts_gpu_direct requires compilation with nvcc");
+  fatal("exchange_ghosts_gpu_direct requires compilation with nvcc");
 }
 #endif
 
@@ -3607,7 +3607,7 @@ void ndarray<T, StoragePolicy>::write_netcdf_auto(
 
     NC_SAFE_CALL(nc_close(ncid));
 #else
-    nd::fatal("Parallel NetCDF write requires NetCDF built with MPI support");
+    fatal("Parallel NetCDF write requires NetCDF built with MPI support");
 #endif
 
   } else if (should_use_replicated_io()) {
@@ -3739,7 +3739,7 @@ void ndarray<T, StoragePolicy>::read_pnetcdf_auto(
         }
       }
     } else {
-      nd::fatal("Parallel read only implemented for 1D, 2D, 3D");
+      fatal("Parallel read only implemented for 1D, 2D, 3D");
     }
 
     PNC_SAFE_CALL(ncmpi_close(ncid));
@@ -3874,7 +3874,7 @@ void ndarray<T, StoragePolicy>::write_pnetcdf_auto(
         }
       }
     } else {
-      nd::fatal("Parallel write only implemented for 1D, 2D, 3D");
+      fatal("Parallel write only implemented for 1D, 2D, 3D");
     }
 
     PNC_SAFE_CALL(ncmpi_close(ncid));
@@ -4009,7 +4009,7 @@ void ndarray<T, StoragePolicy>::read_hdf5_auto(
         }
       }
     } else {
-      nd::fatal("Parallel HDF5 read only implemented for 1D, 2D, 3D");
+      fatal("Parallel HDF5 read only implemented for 1D, 2D, 3D");
     }
 
     H5Pclose(xfer_plist);
@@ -4018,7 +4018,7 @@ void ndarray<T, StoragePolicy>::read_hdf5_auto(
     H5Dclose(dataset_id);
     H5Fclose(file_id);
 #else
-    nd::fatal(nd::ERR_HDF5_NOT_PARALLEL);
+    fatal(ERR_HDF5_NOT_PARALLEL);
 #endif
 
   } else if (should_use_replicated_io()) {
@@ -4115,7 +4115,7 @@ void ndarray<T, StoragePolicy>::write_hdf5_auto(
       }
       H5Sclose(mem_space);
     } else {
-      nd::fatal("Parallel HDF5 write only implemented for 1D, 2D, 3D");
+      fatal("Parallel HDF5 write only implemented for 1D, 2D, 3D");
     }
 
     H5Pclose(xfer_plist);
@@ -4123,7 +4123,7 @@ void ndarray<T, StoragePolicy>::write_hdf5_auto(
     H5Dclose(dataset_id);
     H5Fclose(file_id);
 #else
-    nd::fatal(nd::ERR_HDF5_NOT_PARALLEL);
+    fatal(ERR_HDF5_NOT_PARALLEL);
 #endif
 
   } else if (should_use_replicated_io()) {
@@ -4353,7 +4353,7 @@ inline std::shared_ptr<ndarray_base> ndarray_base::new_by_dtype(int type)
   else if (type == NDARRAY_DTYPE_CHAR)
     p.reset(new ndarray<char>);
   else
-    nd::fatal(nd::ERR_NOT_IMPLEMENTED);
+    fatal(ERR_NOT_IMPLEMENTED);
 
   return p;
 }
@@ -4374,9 +4374,9 @@ inline std::shared_ptr<ndarray_base> ndarray_base::new_by_vtk_dtype(int type)
   else if (type == VTK_UNSIGNED_CHAR)
     p.reset(new ndarray<unsigned char>);
   else
-    nd::fatal(nd::ERR_NOT_IMPLEMENTED);
+    fatal(ERR_NOT_IMPLEMENTED);
 #else
-  nd::fatal(nd::ERR_NOT_BUILT_WITH_VTK);
+  fatal(ERR_NOT_BUILT_WITH_VTK);
 #endif
 
   return p;
@@ -4398,9 +4398,9 @@ inline std::shared_ptr<ndarray_base> ndarray_base::new_by_nc_dtype(int typep)
   else if (typep == NC_CHAR)
     p.reset(new ndarray<char>);
   else
-    nd::fatal(nd::ERR_NOT_IMPLEMENTED);
+    fatal(ERR_NOT_IMPLEMENTED);
 #else
-  nd::fatal(nd::ERR_NOT_BUILT_WITH_NETCDF);
+  fatal(ERR_NOT_BUILT_WITH_NETCDF);
 #endif
 
   return p;
@@ -4425,9 +4425,9 @@ inline std::shared_ptr<ndarray_base> ndarray_base::new_by_adios2_dtype(const std
   else if (type == adios2::GetType<char>())
     p.reset(new ndarray<char>);
   else
-    nd::fatal(nd::ERR_NOT_IMPLEMENTED);
+    fatal(ERR_NOT_IMPLEMENTED);
 #else
-  nd::warn(nd::ERR_NOT_BUILT_WITH_ADIOS2);
+  warn(ERR_NOT_BUILT_WITH_ADIOS2);
 #endif
   return p;
 }
@@ -4452,7 +4452,7 @@ inline std::shared_ptr<ndarray_base> ndarray_base::new_by_h5_dtype(hid_t type)
   else if (H5Tequal(type, H5T_NATIVE_CHAR) > 0)
     p.reset(new ndarray<char>);
   else
-    nd::fatal(nd::ERR_NOT_IMPLEMENTED);
+    fatal(ERR_NOT_IMPLEMENTED);
 
   return p;
 }

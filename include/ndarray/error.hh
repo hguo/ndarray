@@ -9,8 +9,6 @@
 
 namespace ftk {
 
-namespace nd {
-
 enum {
   ERR_NOT_IMPLEMENTED = 1,
   ERR_FILE_NOT_FOUND = 1000,
@@ -144,7 +142,7 @@ inline std::string err2str(int e)
  * @code
  * try {
  *   arr.read_netcdf("file.nc", "var");
- * } catch (const ftk::nd::exception& e) {
+ * } catch (const ftk::exception& e) {
  *   std::cerr << "ndarray error: " << e.what() << std::endl;
  *   std::cerr << "Error code: " << e.error_code() << std::endl;
  * }
@@ -432,8 +430,6 @@ inline void warn(int err, const std::string& str = "")
  */
 inline void warn(const std::string& str) {
   std::cerr << "[NDARRAY WARN] " << str << std::endl;
-}
-
 }
 
 }

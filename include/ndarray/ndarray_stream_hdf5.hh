@@ -80,7 +80,7 @@ inline void substream_h5<StoragePolicy>::read(int i, std::shared_ptr<group_type>
     }
 
     if (did == H5I_INVALID_HID) {
-      if (!var.is_optional) nd::fatal("cannot read variable " + var.name);
+      if (!var.is_optional) fatal("cannot read variable " + var.name);
       continue;
     }
 

@@ -77,7 +77,7 @@ inline void stream<StoragePolicy>::new_substream_from_yaml(YAML::Node y)
       if (name == "woven")
         sub.reset(new substream_synthetic_woven<StoragePolicy>(*this));
       else
-        fatal(nd::ERR_STREAM_FORMAT);
+        fatal(ERR_STREAM_FORMAT);
     }
     else if (format == "binary")
       sub.reset(new substream_binary<StoragePolicy>(*this));
@@ -85,21 +85,21 @@ inline void stream<StoragePolicy>::new_substream_from_yaml(YAML::Node y)
 #if NDARRAY_HAVE_NETCDF
       sub.reset(new substream_netcdf<StoragePolicy>(*this));
 #else
-      nd::fatal(nd::ERR_NOT_BUILT_WITH_NETCDF);
+      fatal(ERR_NOT_BUILT_WITH_NETCDF);
 #endif
     }
     else if (format == "h5") {
 #if NDARRAY_HAVE_HDF5
       sub.reset(new substream_h5<StoragePolicy>(*this));
 #else
-      nd::fatal(nd::ERR_NOT_BUILT_WITH_HDF5);
+      fatal(ERR_NOT_BUILT_WITH_HDF5);
 #endif
     }
     else if (format == "adios2") {
 #if NDARRAY_HAVE_ADIOS2
       sub.reset(new substream_adios2<StoragePolicy>(*this));
 #else
-      nd::fatal(nd::ERR_NOT_BUILT_WITH_ADIOS2);
+      fatal(ERR_NOT_BUILT_WITH_ADIOS2);
 #endif
     }
     else if (format == "vti" || format == "vtu_resample" || format == "vti_output") {
@@ -111,11 +111,11 @@ inline void stream<StoragePolicy>::new_substream_from_yaml(YAML::Node y)
       else if (format == "vti_output")
         sub.reset(new substream_vti_o<StoragePolicy>(*this));
 #else
-      nd::fatal(nd::ERR_NOT_BUILT_WITH_VTK);
+      fatal(ERR_NOT_BUILT_WITH_VTK);
 #endif
     }
     else
-      nd::fatal(nd::ERR_STREAM_FORMAT);
+      fatal(ERR_STREAM_FORMAT);
   }
 
   sub->name = name;
@@ -180,10 +180,10 @@ inline void stream<StoragePolicy>::new_substream_from_yaml(YAML::Node y)
     const std::string msg = "cannot find any files associated with substream " + sub->name + ", pattern=" + sub->filename_pattern;
 
     if (sub->is_optional) {
-      nd::warn(msg);
+      warn(msg);
       sub->is_enabled = false;
     } else
-      nd::fatal(msg);
+      fatal(msg);
   }
 
   if (auto ydimensions = y["dimensions"]) {
@@ -195,7 +195,7 @@ inline void stream<StoragePolicy>::new_substream_from_yaml(YAML::Node y)
   }
 
   if (this->has_dimensions()) {
-    nd::warn("Overriding substream's dimensions with the stream's dimensions");
+    warn("Overriding substream's dimensions with the stream's dimensions");
     sub->dimensions = this->dimensions;
     for (auto &var : sub->variables)
       var.dimensions = this->dimensions; // overriding variables as well

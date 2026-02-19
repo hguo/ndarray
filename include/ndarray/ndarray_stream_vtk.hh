@@ -144,7 +144,7 @@ inline void substream_vtu_resample<StoragePolicy>::initialize(YAML::Node y)
   this->total_timesteps = this->filenames.size();
 
   if (!this->has_dimensions())
-    nd::fatal("missing dimensions for vtu_resample");
+    fatal("missing dimensions for vtu_resample");
 }
 
 template <typename StoragePolicy>

@@ -9,7 +9,6 @@
 #include <ndarray/error.hh>
 
 namespace ftk {
-namespace nd {
 
 /**
  * @brief HIP error checking macro
@@ -25,8 +24,8 @@ namespace nd {
   do { \
     hipError_t err = call; \
     if (err != hipSuccess) { \
-      throw ftk::nd::device_error( \
-          ftk::nd::ERR_ACCELERATOR_UNSUPPORTED, \
+      throw ftk::device_error( \
+          ftk::ERR_ACCELERATOR_UNSUPPORTED, \
           std::string("HIP error: ") + hipGetErrorString(err) + \
           " at " + __FILE__ + ":" + std::to_string(__LINE__)); \
     } \
@@ -96,7 +95,6 @@ inline void print_hip_device_info(int device_id = 0)
     (2.0 * prop.memoryClockRate * (prop.memoryBusWidth / 8) / 1.0e6) << " GB/s" << std::endl;
 }
 
-} // namespace nd
 } // namespace ftk
 
 #endif // NDARRAY_HAVE_HIP
