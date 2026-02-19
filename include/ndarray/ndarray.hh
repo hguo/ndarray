@@ -759,7 +759,8 @@ void ndarray<T, StoragePolicy>::fill(T v)
 {
 #if NDARRAY_HAVE_CUDA
   if (device_type == NDARRAY_DEVICE_CUDA) {
-    nd::launch_fill<T>(static_cast<T*>(devptr), storage_.size(), v);
+    nd::launch_fill<T>(static_cast<T*>(devptr), nelem(), v);
+    cudaDeviceSynchronize();
     return;
   }
 #endif
@@ -1211,7 +1212,8 @@ ndarray<T, StoragePolicy>& ndarray<T, StoragePolicy>::scale(T factor)
 {
 #if NDARRAY_HAVE_CUDA
   if (device_type == NDARRAY_DEVICE_CUDA) {
-    nd::launch_scale<T>(static_cast<T*>(devptr), storage_.size(), factor);
+    nd::launch_scale<T>(static_cast<T*>(devptr), nelem(), factor);
+    cudaDeviceSynchronize();
     return *this;
   }
 #endif
@@ -1225,7 +1227,8 @@ ndarray<T, StoragePolicy>& ndarray<T, StoragePolicy>::add(const ndarray<T, Stora
   if (this->dims != other.dims) nd::fatal("ndarray::add: dimension mismatch");
 #if NDARRAY_HAVE_CUDA
   if (device_type == NDARRAY_DEVICE_CUDA && other.device_type == NDARRAY_DEVICE_CUDA) {
-    nd::launch_add<T>(static_cast<T*>(devptr), static_cast<const T*>(other.devptr), storage_.size());
+    nd::launch_add<T>(static_cast<T*>(devptr), static_cast<const T*>(other.devptr), nelem());
+    cudaDeviceSynchronize();
     return *this;
   }
 #endif
