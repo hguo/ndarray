@@ -206,6 +206,11 @@ public: // binary i/o
   void to_binary_file(const std::string& filename);
   virtual void to_binary_file(FILE *fp) = 0;
 
+#if NDARRAY_HAVE_MPI
+  virtual void read_binary_auto(const std::string& filename) = 0;
+  virtual void write_binary_auto(const std::string& filename) = 0;
+#endif
+
 public: // netcdf
   void read_netcdf(const std::string& filename, const std::string& varname, const size_t starts[], const size_t sizes[], MPI_Comm comm=MPI_COMM_WORLD);
   void read_netcdf(int ncid, const std::string& varname, const size_t starts[], const size_t sizes[], MPI_Comm comm=MPI_COMM_WORLD);
@@ -236,13 +241,32 @@ public: // netcdf
   template <typename ContainerType=std::vector<std::string>> // std::vector<std::string>
   bool try_read_netcdf(int ncid, const ContainerType& possible_varnames, MPI_Comm comm = MPI_COMM_WORLD);
 
+#if NDARRAY_HAVE_MPI && NDARRAY_HAVE_NETCDF
+  virtual void read_netcdf_auto(const std::string& filename, const std::string& varname) = 0;
+  virtual void write_netcdf_auto(const std::string& filename, const std::string& varname) = 0;
+#endif
+
   virtual int nc_dtype() const = 0;
+
+public: // pnetcdf i/o
+#if NDARRAY_HAVE_PNETCDF
+  virtual void read_pnetcdf_all(int ncid, int varid, const MPI_Offset *st, const MPI_Offset *sz) = 0;
+  virtual void write_pnetcdf_all(int ncid, int varid, const MPI_Offset *st, const MPI_Offset *sz) const = 0;
+#if NDARRAY_HAVE_MPI
+  virtual void read_pnetcdf_auto(const std::string& filename, const std::string& varname) = 0;
+  virtual void write_pnetcdf_auto(const std::string& filename, const std::string& varname) = 0;
+#endif
+#endif
 
 public: // h5 i/o
   bool read_h5(const std::string& filename, const std::string& name);
 #if NDARRAY_HAVE_HDF5
   bool read_h5(hid_t fid, const std::string& name);
   virtual bool read_h5_did(hid_t did) = 0;
+#endif
+#if NDARRAY_HAVE_MPI && NDARRAY_HAVE_HDF5
+  virtual void read_hdf5_auto(const std::string& filename, const std::string& varname) = 0;
+  virtual void write_hdf5_auto(const std::string& filename, const std::string& varname) = 0;
 #endif
 
 public: // adios2 i/o

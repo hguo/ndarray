@@ -188,6 +188,18 @@ if (NDARRAY_HAVE_MPI)
   add_executable(test_arbitrary_ghosts test_arbitrary_ghosts.cpp)
   target_link_libraries(test_arbitrary_ghosts ndarray MPI::MPI_CXX ${CMAKE_THREAD_LIBS_INIT})
   message("  - test_arbitrary_ghosts: Ghost exchange with non-uniform widths (run with: mpirun -np 4 ./bin/test_arbitrary_ghosts)")
+
+  if (NDARRAY_HAVE_PNETCDF)
+    add_executable(test_pnetcdf_auto test_pnetcdf_auto.cpp)
+    target_link_libraries(test_pnetcdf_auto ndarray MPI::MPI_CXX ${CMAKE_THREAD_LIBS_INIT})
+    message("  - test_pnetcdf_auto: Distribution-aware PNetCDF I/O (run with: mpirun -np 4 ./bin/test_pnetcdf_auto)")
+  endif()
+
+  if (NDARRAY_HAVE_HDF5)
+    add_executable(test_hdf5_auto test_hdf5_auto.cpp)
+    target_link_libraries(test_hdf5_auto ndarray MPI::MPI_CXX ${CMAKE_THREAD_LIBS_INIT})
+    message("  - test_hdf5_auto: Distribution-aware HDF5 I/O (run with: mpirun -np 4 ./bin/test_hdf5_auto)")
+  endif()
 endif()
 
 message("")

@@ -375,11 +375,12 @@ public: // i/o for hdf5
 public: // i/o for parallel-netcdf
 #if NDARRAY_HAVE_PNETCDF
   void read_pnetcdf_all(int ncid, int varid, const MPI_Offset *st, const MPI_Offset *sz);
+  void write_pnetcdf_all(int ncid, int varid, const MPI_Offset *st, const MPI_Offset *sz) const;
 #endif
 
 public: // i/o for adios2
   static ndarray<T, StoragePolicy> from_bp(const std::string& filename, const std::string& name, int step = -1, MPI_Comm comm = MPI_COMM_WORLD);
-  void read_bp(const std::string& filename, const std::string& varname, int step = -1, MPI_Comm comm = MPI_COMM_WORLD) { ndarray_base::read_bp(filename, varname, step, comm); }
+  void read_bp(const std::string& filename, const std::string& varname, int step = -1, MPI_Comm comm = MPI_COMM_WORLD) { this->ndarray_base::read_bp(filename, varname, step, comm); }
 
 #if NDARRAY_HAVE_ADIOS2
   void read_bp(
@@ -453,6 +454,10 @@ public: // statistics & misc
   ndarray<T, StoragePolicy> &perturb(T sigma); // add gaussian noise to the array
   ndarray<T, StoragePolicy> &clamp(T min, T max); // clamp data with min and max
 
+#if NDARRAY_HAVE_PNETCDF
+  int pnc_dtype() const;
+#endif
+
 public: // Distribution-aware I/O (automatically chooses parallel/replicated/serial)
 #if NDARRAY_HAVE_MPI && NDARRAY_HAVE_NETCDF
   /**
@@ -465,6 +470,11 @@ public: // Distribution-aware I/O (automatically chooses parallel/replicated/ser
    */
   void read_netcdf_auto(const std::string& filename, const std::string& varname);
   void write_netcdf_auto(const std::string& filename, const std::string& varname);
+#endif
+
+#if NDARRAY_HAVE_MPI && NDARRAY_HAVE_PNETCDF
+  void read_pnetcdf_auto(const std::string& filename, const std::string& varname);
+  void write_pnetcdf_auto(const std::string& filename, const std::string& varname);
 #endif
 
 #if NDARRAY_HAVE_MPI && NDARRAY_HAVE_HDF5
@@ -891,7 +901,7 @@ void ndarray<T, StoragePolicy>::flip_byte_order(T &x)
 template <typename T, typename StoragePolicy>
 void ndarray<T, StoragePolicy>::flip_byte_order()
 {
-  for (auto i = 0; i < nelem(); i ++)
+  for (auto i = 0; i < this->nelem(); i ++)
     flip_byte_order(storage_[i]);
 }
 
@@ -1160,11 +1170,11 @@ void ndarray<T, StoragePolicy>::reshapef(const std::vector<size_t> &dims_)
     if (dims.size() == 0)
       nd::fatal(nd::ERR_NDARRAY_RESHAPE_EMPTY);
 
-    for (size_t i = 0; i < nd(); i ++)
-      if (i == 0) s[i] = 1;
-      else s[i] = s[i-1]*dims[i-1];
+    for (size_t i = 0; i < this->nd(); i ++)
+      if (i == 0) this->s[i] = 1;
+      else this->s[i] = this->s[i-1]*this->dims[i-1];
 
-    size_t total_size = s[nd()-1]*dims[nd()-1];
+    size_t total_size = this->s[this->nd()-1]*this->dims[this->nd()-1];
 
     // Use reshape() if the storage backend supports it (xtensor, eigen)
     if constexpr (has_reshape<storage_type>::value) {
@@ -1255,6 +1265,24 @@ inline int ndarray<T, StoragePolicy>::nc_dtype() const {
 #else
 template <typename T, typename StoragePolicy>
 inline int ndarray<T, StoragePolicy>::nc_dtype() const { return -1; } // linking without netcdf
+#endif
+
+#if NDARRAY_HAVE_PNETCDF
+template <typename T, typename StoragePolicy>
+inline int ndarray<T, StoragePolicy>::pnc_dtype() const {
+  if constexpr (std::is_same_v<T, double>) return NC_DOUBLE;
+  else if constexpr (std::is_same_v<T, float>) return NC_FLOAT;
+  else if constexpr (std::is_same_v<T, int>) return NC_INT;
+  else if constexpr (std::is_same_v<T, unsigned int>) return NC_UINT;
+  else if constexpr (std::is_same_v<T, unsigned long>) return NC_UINT64;
+  else if constexpr (std::is_same_v<T, unsigned char>) return NC_UBYTE;
+  else if constexpr (std::is_same_v<T, char>) return NC_CHAR;
+  else if constexpr (std::is_same_v<T, short>) return NC_SHORT;
+  else if constexpr (std::is_same_v<T, unsigned short>) return NC_USHORT;
+  else if constexpr (std::is_same_v<T, long long>) return NC_INT64;
+  else if constexpr (std::is_same_v<T, unsigned long long>) return NC_UINT64;
+  else return -1;  // Unknown type
+}
 #endif
 
 #if NDARRAY_HAVE_ADIOS2
@@ -2150,127 +2178,7 @@ T psnr(const ndarray<T>& x, const ndarray<T>& xp)
 }
 
 //////
-inline std::shared_ptr<ndarray_base> ndarray_base::new_by_dtype(int type)
-{
-  std::shared_ptr<ndarray_base> p;
-
-  if (type == NDARRAY_DTYPE_INT)
-    p.reset(new ndarray<int>);
-  else if (type == NDARRAY_DTYPE_FLOAT)
-    p.reset(new ndarray<float>);
-  else if (type == NDARRAY_DTYPE_DOUBLE)
-    p.reset(new ndarray<double>);
-  else if (type == NDARRAY_DTYPE_UNSIGNED_INT)
-    p.reset(new ndarray<unsigned int>);
-  else if (type == NDARRAY_DTYPE_UNSIGNED_CHAR)
-    p.reset(new ndarray<unsigned char>);
-  else if (type == NDARRAY_DTYPE_CHAR)
-    p.reset(new ndarray<char>);
-  else
-    nd::fatal(nd::ERR_NOT_IMPLEMENTED);
-
-  return p;
-}
-
-inline std::shared_ptr<ndarray_base> ndarray_base::new_by_vtk_dtype(int type)
-{
-  std::shared_ptr<ndarray_base> p;
-
-#if NDARRAY_HAVE_VTK
-  if (type == VTK_INT)
-    p.reset(new ndarray<int>);
-  else if (type == VTK_FLOAT)
-    p.reset(new ndarray<float>);
-  else if (type == VTK_DOUBLE)
-    p.reset(new ndarray<double>);
-  else if (type == VTK_UNSIGNED_INT)
-    p.reset(new ndarray<unsigned int>);
-  else if (type == VTK_UNSIGNED_CHAR)
-    p.reset(new ndarray<unsigned char>);
-  else
-    nd::fatal(nd::ERR_NOT_IMPLEMENTED);
-#else
-  nd::fatal(nd::ERR_NOT_BUILT_WITH_VTK);
-#endif
-
-  return p;
-}
-
-inline std::shared_ptr<ndarray_base> ndarray_base::new_by_nc_dtype(int typep)
-{
-  std::shared_ptr<ndarray_base> p;
-
-#if NDARRAY_HAVE_NETCDF
-  if (typep == NC_INT)
-    p.reset(new ndarray<int>);
-  else if (typep == NC_FLOAT)
-    p.reset(new ndarray<float>);
-  else if (typep == NC_DOUBLE)
-    p.reset(new ndarray<double>);
-  else if (typep == NC_UINT)
-    p.reset(new ndarray<unsigned int>);
-  else if (typep == NC_CHAR)
-    p.reset(new ndarray<char>);
-  else
-    nd::fatal(nd::ERR_NOT_IMPLEMENTED);
-#else
-  nd::fatal(nd::ERR_NOT_BUILT_WITH_NETCDF);
-#endif
-
-  return p;
-}
-
-inline std::shared_ptr<ndarray_base> ndarray_base::new_by_adios2_dtype(const std::string type)
-{
-  std::shared_ptr<ndarray_base> p;
-#if NDARRAY_HAVE_ADIOS2
-  if (type == adios2::GetType<int>())
-    p.reset(new ndarray<int>);
-  else if (type == adios2::GetType<float>())
-    p.reset(new ndarray<float>);
-  else if (type == adios2::GetType<double>())
-    p.reset(new ndarray<double>);
-  else if (type == adios2::GetType<unsigned int>())
-    p.reset(new ndarray<unsigned int>);
-  else if (type == adios2::GetType<unsigned long>())
-    p.reset(new ndarray<unsigned long>);
-  else if (type == adios2::GetType<unsigned char>())
-    p.reset(new ndarray<unsigned char>);
-  else if (type == adios2::GetType<char>())
-    p.reset(new ndarray<char>);
-  else
-    nd::fatal(nd::ERR_NOT_IMPLEMENTED);
-#else
-  nd::warn(nd::ERR_NOT_BUILT_WITH_ADIOS2);
-#endif
-  return p;
-}
-
-#if NDARRAY_HAVE_HDF5
-inline std::shared_ptr<ndarray_base> ndarray_base::new_by_h5_dtype(hid_t type)
-{
-  std::shared_ptr<ndarray_base> p;
-
-  if (H5Tequal(type, H5T_NATIVE_INT) > 0)
-    p.reset(new ndarray<int>);
-  else if (H5Tequal(type, H5T_NATIVE_FLOAT) > 0)
-    p.reset(new ndarray<float>);
-  else if (H5Tequal(type, H5T_NATIVE_DOUBLE) > 0)
-    p.reset(new ndarray<double>);
-  else if (H5Tequal(type, H5T_NATIVE_UINT) > 0)
-    p.reset(new ndarray<unsigned int>);
-  else if (H5Tequal(type, H5T_NATIVE_ULONG) > 0)
-    p.reset(new ndarray<unsigned long>);
-  else if (H5Tequal(type, H5T_NATIVE_UCHAR) > 0)
-    p.reset(new ndarray<unsigned char>);
-  else if (H5Tequal(type, H5T_NATIVE_CHAR) > 0)
-    p.reset(new ndarray<char>);
-  else
-    nd::fatal(nd::ERR_NOT_IMPLEMENTED);
-
-  return p;
-}
-#endif
+// Factory methods (moved to the end of file to ensure ndarray<T> is fully defined)
 
 ///////////
 // PNetCDF implementation
@@ -2313,6 +2221,27 @@ inline void ndarray<T, StoragePolicy>::read_pnetcdf_all(int ncid, int varid, con
     PNC_SAFE_CALL(ncmpi_get_vara_longlong_all(ncid, varid, st, sz, reinterpret_cast<long long*>(storage_.data())));
   } else {
     nd::fatal("Unsupported type for read_pnetcdf_all");
+  }
+}
+
+template <typename T, typename StoragePolicy>
+inline void ndarray<T, StoragePolicy>::write_pnetcdf_all(int ncid, int varid, const MPI_Offset *st, const MPI_Offset *sz) const
+{
+  // Collective write based on type
+  if (std::is_same<T, float>::value) {
+    PNC_SAFE_CALL(ncmpi_put_vara_float_all(ncid, varid, st, sz, reinterpret_cast<const float*>(storage_.data())));
+  } else if (std::is_same<T, double>::value) {
+    PNC_SAFE_CALL(ncmpi_put_vara_double_all(ncid, varid, st, sz, reinterpret_cast<const double*>(storage_.data())));
+  } else if (std::is_same<T, int>::value) {
+    PNC_SAFE_CALL(ncmpi_put_vara_int_all(ncid, varid, st, sz, reinterpret_cast<const int*>(storage_.data())));
+  } else if (std::is_same<T, unsigned int>::value) {
+    PNC_SAFE_CALL(ncmpi_put_vara_uint_all(ncid, varid, st, sz, reinterpret_cast<const unsigned int*>(storage_.data())));
+  } else if (std::is_same<T, short>::value) {
+    PNC_SAFE_CALL(ncmpi_put_vara_short_all(ncid, varid, st, sz, reinterpret_cast<const short*>(storage_.data())));
+  } else if (std::is_same<T, long long>::value) {
+    PNC_SAFE_CALL(ncmpi_put_vara_longlong_all(ncid, varid, st, sz, reinterpret_cast<const long long*>(storage_.data())));
+  } else {
+    nd::fatal("Unsupported type for write_pnetcdf_all");
   }
 }
 
@@ -2398,7 +2327,7 @@ void ndarray<T, StoragePolicy>::decompose(MPI_Comm comm,
   }
 
   // Reshape local storage to hold extent (core + ghosts)
-  reshapef(dist_->local_extent_.sizes());
+  this->reshapef(dist_->local_extent_.sizes());
 
   // Setup ghost exchange topology
   setup_ghost_exchange();
@@ -3596,6 +3525,228 @@ void ndarray<T, StoragePolicy>::write_netcdf_auto(
 
 #endif // NDARRAY_HAVE_MPI && NDARRAY_HAVE_NETCDF
 
+#if NDARRAY_HAVE_MPI && NDARRAY_HAVE_PNETCDF
+
+template <typename T, typename StoragePolicy>
+void ndarray<T, StoragePolicy>::read_pnetcdf_auto(
+  const std::string& filename, const std::string& varname)
+{
+  if (should_use_parallel_io()) {
+    // Distributed mode: Parallel PNetCDF read
+    const auto& core = dist_->local_core_;
+    const auto& extent = dist_->local_extent_;
+    const size_t nd = core.nd();
+    std::vector<MPI_Offset> starts(nd);
+    std::vector<MPI_Offset> sizes(nd);
+
+    // NetCDF uses C-order (last dim fastest), ndarray uses Fortran-order (first dim fastest)
+    // Reverse indices for PNetCDF calls
+    for (size_t d = 0; d < nd; d++) {
+      starts[nd - 1 - d] = static_cast<MPI_Offset>(core.start(d));
+      sizes[nd - 1 - d] = static_cast<MPI_Offset>(core.size(d));
+    }
+
+    int ncid, varid;
+    PNC_SAFE_CALL(ncmpi_open(dist_->comm, filename.c_str(), NC_NOWRITE, MPI_INFO_NULL, &ncid));
+    PNC_SAFE_CALL(ncmpi_inq_varid(ncid, varname.c_str(), &varid));
+
+    // Calculate offset in local storage (core relative to extent)
+    size_t off_i = core.start(0) - extent.start(0);
+    size_t off_j = (nd >= 2) ? (core.start(1) - extent.start(1)) : 0;
+    size_t off_k = (nd >= 3) ? (core.start(2) - extent.start(2)) : 0;
+
+    if (nd == 1) {
+      T* data_ptr = &this->f(off_i);
+      if constexpr (std::is_same_v<T, float>) PNC_SAFE_CALL(ncmpi_get_vara_float_all(ncid, varid, starts.data(), sizes.data(), data_ptr));
+      else if constexpr (std::is_same_v<T, double>) PNC_SAFE_CALL(ncmpi_get_vara_double_all(ncid, varid, starts.data(), sizes.data(), data_ptr));
+      else if constexpr (std::is_same_v<T, int>) PNC_SAFE_CALL(ncmpi_get_vara_int_all(ncid, varid, starts.data(), sizes.data(), (int*)data_ptr));
+    } else if (nd == 2) {
+      for (size_t j = 0; j < core.size(1); j++) {
+        // In NetCDF (y, x), we iterate over y (dim 1 of ndarray)
+        // starts[0] is y_start, starts[1] is x_start
+        MPI_Offset st[2] = {starts[0] + (MPI_Offset)j, starts[1]};
+        MPI_Offset sz[2] = {1, sizes[1]};
+        T* col_ptr = &this->f(off_i, off_j + j);
+        if constexpr (std::is_same_v<T, float>) PNC_SAFE_CALL(ncmpi_get_vara_float_all(ncid, varid, st, sz, col_ptr));
+        else if constexpr (std::is_same_v<T, double>) PNC_SAFE_CALL(ncmpi_get_vara_double_all(ncid, varid, st, sz, col_ptr));
+        else if constexpr (std::is_same_v<T, int>) PNC_SAFE_CALL(ncmpi_get_vara_int_all(ncid, varid, st, sz, (int*)col_ptr));
+      }
+    } else if (nd == 3) {
+      for (size_t k = 0; k < core.size(2); k++) {
+        for (size_t j = 0; j < core.size(1); j++) {
+          // NetCDF (z, y, x)
+          MPI_Offset st[3] = {starts[0] + (MPI_Offset)k, starts[1] + (MPI_Offset)j, starts[2]};
+          MPI_Offset sz[3] = {1, 1, sizes[2]};
+          T* ptr = &this->f(off_i, off_j + j, off_k + k);
+          if constexpr (std::is_same_v<T, float>) PNC_SAFE_CALL(ncmpi_get_vara_float_all(ncid, varid, st, sz, ptr));
+          else if constexpr (std::is_same_v<T, double>) PNC_SAFE_CALL(ncmpi_get_vara_double_all(ncid, varid, st, sz, ptr));
+          else if constexpr (std::is_same_v<T, int>) PNC_SAFE_CALL(ncmpi_get_vara_int_all(ncid, varid, st, sz, (int*)ptr));
+        }
+      }
+    } else {
+      nd::fatal("Parallel read only implemented for 1D, 2D, 3D");
+    }
+
+    PNC_SAFE_CALL(ncmpi_close(ncid));
+
+  } else if (should_use_replicated_io()) {
+    // Replicated mode: Rank 0 reads, broadcast
+    if (dist_->rank == 0) {
+      int ncid, varid;
+      PNC_SAFE_CALL(ncmpi_open(MPI_COMM_SELF, filename.c_str(), NC_NOWRITE, MPI_INFO_NULL, &ncid));
+      PNC_SAFE_CALL(ncmpi_inq_varid(ncid, varname.c_str(), &varid));
+
+      int ndims;
+      PNC_SAFE_CALL(ncmpi_inq_varndims(ncid, varid, &ndims));
+      std::vector<MPI_Offset> starts(ndims, 0);
+      std::vector<MPI_Offset> sizes(ndims);
+      std::vector<int> dimids(ndims);
+      PNC_SAFE_CALL(ncmpi_inq_vardimid(ncid, varid, dimids.data()));
+      for (int d = 0; d < ndims; d++) PNC_SAFE_CALL(ncmpi_inq_dimlen(ncid, dimids[d], &sizes[d]));
+
+      this->read_pnetcdf_all(ncid, varid, starts.data(), sizes.data());
+      PNC_SAFE_CALL(ncmpi_close(ncid));
+    }
+
+    size_t total_size = this->size();
+    MPI_Bcast(&total_size, 1, MPI_UNSIGNED_LONG, 0, dist_->comm);
+    if (dist_->rank != 0) this->reshapef(this->dims);
+    MPI_Bcast(this->data(), static_cast<int>(total_size), mpi_datatype(), 0, dist_->comm);
+
+  } else {
+    // Serial mode
+    int ncid, varid;
+    PNC_SAFE_CALL(ncmpi_open(MPI_COMM_SELF, filename.c_str(), NC_NOWRITE, MPI_INFO_NULL, &ncid));
+    PNC_SAFE_CALL(ncmpi_inq_varid(ncid, varname.c_str(), &varid));
+
+    int ndims;
+    PNC_SAFE_CALL(ncmpi_inq_varndims(ncid, varid, &ndims));
+    std::vector<MPI_Offset> starts(ndims, 0);
+    std::vector<MPI_Offset> sizes(ndims);
+    std::vector<int> dimids(ndims);
+    PNC_SAFE_CALL(ncmpi_inq_vardimid(ncid, varid, dimids.data()));
+    for (int d = 0; d < ndims; d++) PNC_SAFE_CALL(ncmpi_inq_dimlen(ncid, dimids[d], &sizes[d]));
+
+    this->read_pnetcdf_all(ncid, varid, starts.data(), sizes.data());
+    PNC_SAFE_CALL(ncmpi_close(ncid));
+  }
+}
+
+template <typename T, typename StoragePolicy>
+void ndarray<T, StoragePolicy>::write_pnetcdf_auto(
+  const std::string& filename, const std::string& varname)
+{
+  if (should_use_parallel_io()) {
+    // Distributed mode: Parallel PNetCDF write
+    const auto& core = dist_->local_core_;
+    const auto& extent = dist_->local_extent_;
+    const size_t nd = core.nd();
+    std::vector<MPI_Offset> starts(nd);
+    std::vector<MPI_Offset> sizes(nd);
+
+    for (size_t d = 0; d < nd; d++) {
+      starts[nd - 1 - d] = static_cast<MPI_Offset>(core.start(d));
+      sizes[nd - 1 - d] = static_cast<MPI_Offset>(core.size(d));
+    }
+
+    int ncid, varid;
+    PNC_SAFE_CALL(ncmpi_create(dist_->comm, filename.c_str(), NC_CLOBBER | NC_64BIT_DATA, MPI_INFO_NULL, &ncid));
+
+    std::vector<int> dimids(nd);
+    for (size_t d = 0; d < nd; d++) {
+      std::string dimname = "dim" + std::to_string(d);
+      // Define dims in C-order (reverse of ndarray dims)
+      PNC_SAFE_CALL(ncmpi_def_dim(ncid, dimname.c_str(), dist_->global_lattice_.size(nd - 1 - d), &dimids[d]));
+    }
+
+    PNC_SAFE_CALL(ncmpi_def_var(ncid, varname.c_str(), this->pnc_dtype(), nd, dimids.data(), &varid));
+    PNC_SAFE_CALL(ncmpi_enddef(ncid));
+
+    // Handle non-contiguous layout
+    size_t off_i = core.start(0) - extent.start(0);
+    size_t off_j = (nd >= 2) ? (core.start(1) - extent.start(1)) : 0;
+    size_t off_k = (nd >= 3) ? (core.start(2) - extent.start(2)) : 0;
+
+    if (nd == 1) {
+      const T* ptr = &this->f(off_i);
+      if constexpr (std::is_same_v<T, float>) PNC_SAFE_CALL(ncmpi_put_vara_float_all(ncid, varid, starts.data(), sizes.data(), ptr));
+      else if constexpr (std::is_same_v<T, double>) PNC_SAFE_CALL(ncmpi_put_vara_double_all(ncid, varid, starts.data(), sizes.data(), ptr));
+      else if constexpr (std::is_same_v<T, int>) PNC_SAFE_CALL(ncmpi_put_vara_int_all(ncid, varid, starts.data(), sizes.data(), (const int*)ptr));
+    } else if (nd == 2) {
+      for (size_t j = 0; j < core.size(1); j++) {
+        MPI_Offset st[2] = {starts[0] + (MPI_Offset)j, starts[1]};
+        MPI_Offset sz[2] = {1, sizes[1]};
+        const T* ptr = &this->f(off_i, off_j + j);
+        if constexpr (std::is_same_v<T, float>) PNC_SAFE_CALL(ncmpi_put_vara_float_all(ncid, varid, st, sz, ptr));
+        else if constexpr (std::is_same_v<T, double>) PNC_SAFE_CALL(ncmpi_put_vara_double_all(ncid, varid, st, sz, ptr));
+        else if constexpr (std::is_same_v<T, int>) PNC_SAFE_CALL(ncmpi_put_vara_int_all(ncid, varid, st, sz, (const int*)ptr));
+      }
+    } else if (nd == 3) {
+      for (size_t k = 0; k < core.size(2); k++) {
+        for (size_t j = 0; j < core.size(1); j++) {
+          MPI_Offset st[3] = {starts[0] + (MPI_Offset)k, starts[1] + (MPI_Offset)j, starts[2]};
+          MPI_Offset sz[3] = {1, 1, sizes[2]};
+          const T* ptr = &this->f(off_i, off_j + j, off_k + k);
+          if constexpr (std::is_same_v<T, float>) PNC_SAFE_CALL(ncmpi_put_vara_float_all(ncid, varid, st, sz, ptr));
+          else if constexpr (std::is_same_v<T, double>) PNC_SAFE_CALL(ncmpi_put_vara_double_all(ncid, varid, st, sz, ptr));
+          else if constexpr (std::is_same_v<T, int>) PNC_SAFE_CALL(ncmpi_put_vara_int_all(ncid, varid, st, sz, (const int*)ptr));
+        }
+      }
+    } else {
+      nd::fatal("Parallel write only implemented for 1D, 2D, 3D");
+    }
+
+    PNC_SAFE_CALL(ncmpi_close(ncid));
+
+  } else if (should_use_replicated_io()) {
+    // Replicated mode: Rank 0 writes
+    if (dist_->rank == 0) {
+      int ncid, varid;
+      PNC_SAFE_CALL(ncmpi_create(MPI_COMM_SELF, filename.c_str(), NC_CLOBBER | NC_64BIT_DATA, MPI_INFO_NULL, &ncid));
+
+      std::vector<int> dimids(this->nd());
+      for (size_t d = 0; d < this->nd(); d++) {
+        std::string dimname = "dim" + std::to_string(d);
+        PNC_SAFE_CALL(ncmpi_def_dim(ncid, dimname.c_str(), this->dim(this->nd() - 1 - d), &dimids[d]));
+      }
+
+      PNC_SAFE_CALL(ncmpi_def_var(ncid, varname.c_str(), this->pnc_dtype(), this->nd(), dimids.data(), &varid));
+      PNC_SAFE_CALL(ncmpi_enddef(ncid));
+
+      std::vector<MPI_Offset> starts(this->nd(), 0);
+      std::vector<MPI_Offset> sizes(this->nd());
+      for (size_t d = 0; d < this->nd(); d++) sizes[d] = this->dim(this->nd() - 1 - d);
+
+      this->write_pnetcdf_all(ncid, varid, starts.data(), sizes.data());
+      PNC_SAFE_CALL(ncmpi_close(ncid));
+    }
+    MPI_Barrier(dist_->comm);
+
+  } else {
+    // Serial mode
+    int ncid, varid;
+    PNC_SAFE_CALL(ncmpi_create(MPI_COMM_SELF, filename.c_str(), NC_CLOBBER | NC_64BIT_DATA, MPI_INFO_NULL, &ncid));
+
+    std::vector<int> dimids(this->nd());
+    for (size_t d = 0; d < this->nd(); d++) {
+      std::string dimname = "dim" + std::to_string(d);
+      PNC_SAFE_CALL(ncmpi_def_dim(ncid, dimname.c_str(), this->dim(this->nd() - 1 - d), &dimids[d]));
+    }
+
+    PNC_SAFE_CALL(ncmpi_def_var(ncid, varname.c_str(), this->pnc_dtype(), this->nd(), dimids.data(), &varid));
+    PNC_SAFE_CALL(ncmpi_enddef(ncid));
+
+    std::vector<MPI_Offset> starts(this->nd(), 0);
+    std::vector<MPI_Offset> sizes(this->nd());
+    for (size_t d = 0; d < this->nd(); d++) sizes[d] = this->dim(this->nd() - 1 - d);
+
+    this->write_pnetcdf_all(ncid, varid, starts.data(), sizes.data());
+    PNC_SAFE_CALL(ncmpi_close(ncid));
+  }
+}
+
+#endif // NDARRAY_HAVE_MPI && NDARRAY_HAVE_PNETCDF
+
 #if NDARRAY_HAVE_MPI && NDARRAY_HAVE_HDF5
 
 template <typename T, typename StoragePolicy>
@@ -3607,50 +3758,78 @@ void ndarray<T, StoragePolicy>::read_hdf5_auto(
     // Note: Requires HDF5 built with parallel support (--enable-parallel)
 #ifdef H5_HAVE_PARALLEL
     const auto& core = dist_->local_core_;
+    const auto& extent = dist_->local_extent_;
+    const size_t nd = core.nd();
 
     // Open file with MPI-IO
     hid_t plist_id = H5Pcreate(H5P_FILE_ACCESS);
     H5Pset_fapl_mpio(plist_id, dist_->comm, MPI_INFO_NULL);
-
     hid_t file_id = H5Fopen(filename.c_str(), H5F_ACC_RDONLY, plist_id);
     H5Pclose(plist_id);
 
-    if (file_id < 0) {
-      throw std::runtime_error("Failed to open HDF5 file: " + filename);
-    }
+    if (file_id < 0) throw std::runtime_error("Failed to open HDF5 file: " + filename);
 
-    // Open dataset
     hid_t dataset_id = H5Dopen(file_id, varname.c_str(), H5P_DEFAULT);
     if (dataset_id < 0) {
       H5Fclose(file_id);
       throw std::runtime_error("Failed to open HDF5 dataset: " + varname);
     }
 
-    // Get dataspace
-    hid_t space_id = H5Dget_space(dataset_id);
-
-    // Define hyperslab (local core region)
-    std::vector<hsize_t> starts(core.nd());
-    std::vector<hsize_t> counts(core.nd());
-    for (size_t d = 0; d < core.nd(); d++) {
-      starts[d] = core.start(d);
-      counts[d] = core.size(d);
+    // Set up hyperslab (C-order, so reverse ndarray dimensions)
+    std::vector<hsize_t> starts(nd);
+    std::vector<hsize_t> counts(nd);
+    for (size_t d = 0; d < nd; d++) {
+      starts[nd - 1 - d] = core.start(d);
+      counts[nd - 1 - d] = core.size(d);
     }
 
-    H5Sselect_hyperslab(space_id, H5S_SELECT_SET, starts.data(), NULL, counts.data(), NULL);
+    hid_t file_space = H5Dget_space(dataset_id);
+    H5Sselect_hyperslab(file_space, H5S_SELECT_SET, starts.data(), NULL, counts.data(), NULL);
 
-    // Memory space
-    hid_t memspace_id = H5Screate_simple(core.nd(), counts.data(), NULL);
-
-    // Collective read
+    // Memory space and transfer property
+    hid_t mem_space = H5Screate_simple(nd, counts.data(), NULL);
     hid_t xfer_plist = H5Pcreate(H5P_DATASET_XFER);
     H5Pset_dxpl_mpio(xfer_plist, H5FD_MPIO_COLLECTIVE);
 
-    H5Dread(dataset_id, H5T_NATIVE_FLOAT, memspace_id, space_id, xfer_plist, this->data());
+    // Handle non-contiguous local storage
+    size_t off_i = core.start(0) - extent.start(0);
+    size_t off_j = (nd >= 2) ? (core.start(1) - extent.start(1)) : 0;
+    size_t off_k = (nd >= 3) ? (core.start(2) - extent.start(2)) : 0;
+
+    if (nd == 1) {
+      H5Dread(dataset_id, h5_mem_type_id(), mem_space, file_space, xfer_plist, &this->f(off_i));
+    } else if (nd == 2) {
+      // Hyperslab for a single column in memory
+      hsize_t m_counts[2] = {1, counts[1]}; // One row in C-order (one column in Fortran)
+      H5Sclose(mem_space);
+      mem_space = H5Screate_simple(2, m_counts, NULL);
+      
+      for (size_t j = 0; j < core.size(1); j++) {
+        hsize_t st[2] = {starts[0] + j, starts[1]};
+        hsize_t sz[2] = {1, counts[1]};
+        H5Sselect_hyperslab(file_space, H5S_SELECT_SET, st, NULL, sz, NULL);
+        H5Dread(dataset_id, h5_mem_type_id(), mem_space, file_space, xfer_plist, &this->f(off_i, off_j + j));
+      }
+    } else if (nd == 3) {
+      hsize_t m_counts[3] = {1, 1, counts[2]};
+      H5Sclose(mem_space);
+      mem_space = H5Screate_simple(3, m_counts, NULL);
+
+      for (size_t k = 0; k < core.size(2); k++) {
+        for (size_t j = 0; j < core.size(1); j++) {
+          hsize_t st[3] = {starts[0] + k, starts[1] + j, starts[2]};
+          hsize_t sz[3] = {1, 1, counts[2]};
+          H5Sselect_hyperslab(file_space, H5S_SELECT_SET, st, NULL, sz, NULL);
+          H5Dread(dataset_id, h5_mem_type_id(), mem_space, file_space, xfer_plist, &this->f(off_i, off_j + j, off_k + k));
+        }
+      }
+    } else {
+      nd::fatal("Parallel HDF5 read only implemented for 1D, 2D, 3D");
+    }
 
     H5Pclose(xfer_plist);
-    H5Sclose(memspace_id);
-    H5Sclose(space_id);
+    H5Sclose(mem_space);
+    H5Sclose(file_space);
     H5Dclose(dataset_id);
     H5Fclose(file_id);
 #else
@@ -3659,19 +3838,11 @@ void ndarray<T, StoragePolicy>::read_hdf5_auto(
 
   } else if (should_use_replicated_io()) {
     // Replicated mode: Rank 0 reads + broadcast
-    if (dist_->rank == 0) {
-      this->read_hdf5(filename, varname);
-    }
-
+    if (dist_->rank == 0) this->read_hdf5(filename, varname);
     size_t total_size = this->size();
     MPI_Bcast(&total_size, 1, MPI_UNSIGNED_LONG, 0, dist_->comm);
-
-    if (dist_->rank != 0) {
-      this->reshapef(this->dims);
-    }
-
+    if (dist_->rank != 0) this->reshapef(this->dims);
     MPI_Bcast(this->data(), static_cast<int>(total_size), mpi_datatype(), 0, dist_->comm);
-
   } else {
     // Serial mode
     this->read_hdf5(filename, varname);
@@ -3684,68 +3855,71 @@ void ndarray<T, StoragePolicy>::write_hdf5_auto(
 {
   if (should_use_parallel_io()) {
     // Distributed mode: Parallel HDF5 write
-    // Note: Requires HDF5 built with parallel support (--enable-parallel)
 #ifdef H5_HAVE_PARALLEL
     const auto& core = dist_->local_core_;
+    const auto& extent = dist_->local_extent_;
+    const size_t nd = core.nd();
 
-    // Create file with MPI-IO (rank 0 creates, all wait)
-    hid_t file_id;
-    if (dist_->rank == 0) {
-      hid_t plist_id = H5Pcreate(H5P_FILE_ACCESS);
-      H5Pset_fapl_mpio(plist_id, dist_->comm, MPI_INFO_NULL);
-      file_id = H5Fcreate(filename.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, plist_id);
-      H5Pclose(plist_id);
-    }
+    hid_t plist_id = H5Pcreate(H5P_FILE_ACCESS);
+    H5Pset_fapl_mpio(plist_id, dist_->comm, MPI_INFO_NULL);
+    hid_t file_id = H5Fcreate(filename.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, plist_id);
+    H5Pclose(plist_id);
 
-    MPI_Barrier(dist_->comm);
+    // Create dataspace for global array (C-order)
+    std::vector<hsize_t> global_dims(nd);
+    for (size_t d = 0; d < nd; d++) global_dims[nd - 1 - d] = dist_->global_lattice_.size(d);
+    hid_t file_space = H5Screate_simple(nd, global_dims.data(), NULL);
 
-    if (dist_->rank != 0) {
-      hid_t plist_id = H5Pcreate(H5P_FILE_ACCESS);
-      H5Pset_fapl_mpio(plist_id, dist_->comm, MPI_INFO_NULL);
-      file_id = H5Fopen(filename.c_str(), H5F_ACC_RDWR, plist_id);
-      H5Pclose(plist_id);
-    }
-
-    // Create dataspace for global array
-    std::vector<hsize_t> global_dims(core.nd());
-    for (size_t d = 0; d < core.nd(); d++) {
-      global_dims[d] = dist_->global_lattice_.size(d);
-    }
-    hid_t space_id = H5Screate_simple(core.nd(), global_dims.data(), NULL);
-
-    // Create dataset (rank 0 only)
-    hid_t dataset_id;
-    if (dist_->rank == 0) {
-      dataset_id = H5Dcreate(file_id, varname.c_str(), H5T_NATIVE_FLOAT,
-                             space_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-    }
-    MPI_Barrier(dist_->comm);
-
-    if (dist_->rank != 0) {
-      dataset_id = H5Dopen(file_id, varname.c_str(), H5P_DEFAULT);
-    }
+    hid_t dataset_id = H5Dcreate(file_id, varname.c_str(), h5_mem_type_id(), file_space, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
     // Select hyperslab
-    std::vector<hsize_t> starts(core.nd());
-    std::vector<hsize_t> counts(core.nd());
-    for (size_t d = 0; d < core.nd(); d++) {
-      starts[d] = core.start(d);
-      counts[d] = core.size(d);
+    std::vector<hsize_t> starts(nd), counts(nd);
+    for (size_t d = 0; d < nd; d++) {
+      starts[nd - 1 - d] = core.start(d);
+      counts[nd - 1 - d] = core.size(d);
     }
-    H5Sselect_hyperslab(space_id, H5S_SELECT_SET, starts.data(), NULL, counts.data(), NULL);
 
-    // Memory space
-    hid_t memspace_id = H5Screate_simple(core.nd(), counts.data(), NULL);
-
-    // Collective write
+    // Memory space and transfer property
     hid_t xfer_plist = H5Pcreate(H5P_DATASET_XFER);
     H5Pset_dxpl_mpio(xfer_plist, H5FD_MPIO_COLLECTIVE);
 
-    H5Dwrite(dataset_id, H5T_NATIVE_FLOAT, memspace_id, space_id, xfer_plist, this->data());
+    size_t off_i = core.start(0) - extent.start(0);
+    size_t off_j = (nd >= 2) ? (core.start(1) - extent.start(1)) : 0;
+    size_t off_k = (nd >= 3) ? (core.start(2) - extent.start(2)) : 0;
+
+    if (nd == 1) {
+      hid_t mem_space = H5Screate_simple(1, &counts[0], NULL);
+      H5Sselect_hyperslab(file_space, H5S_SELECT_SET, starts.data(), NULL, counts.data(), NULL);
+      H5Dwrite(dataset_id, h5_mem_type_id(), mem_space, file_space, xfer_plist, &this->f(off_i));
+      H5Sclose(mem_space);
+    } else if (nd == 2) {
+      hsize_t m_counts[2] = {1, counts[1]};
+      hid_t mem_space = H5Screate_simple(2, m_counts, NULL);
+      for (size_t j = 0; j < core.size(1); j++) {
+        hsize_t st[2] = {starts[0] + j, starts[1]};
+        hsize_t sz[2] = {1, counts[1]};
+        H5Sselect_hyperslab(file_space, H5S_SELECT_SET, st, NULL, sz, NULL);
+        H5Dwrite(dataset_id, h5_mem_type_id(), mem_space, file_space, xfer_plist, &this->f(off_i, off_j + j));
+      }
+      H5Sclose(mem_space);
+    } else if (nd == 3) {
+      hsize_t m_counts[3] = {1, 1, counts[2]};
+      hid_t mem_space = H5Screate_simple(3, m_counts, NULL);
+      for (size_t k = 0; k < core.size(2); k++) {
+        for (size_t j = 0; j < core.size(1); j++) {
+          hsize_t st[3] = {starts[0] + k, starts[1] + j, starts[2]};
+          hsize_t sz[3] = {1, 1, counts[2]};
+          H5Sselect_hyperslab(file_space, H5S_SELECT_SET, st, NULL, sz, NULL);
+          H5Dwrite(dataset_id, h5_mem_type_id(), mem_space, file_space, xfer_plist, &this->f(off_i, off_j + j, off_k + k));
+        }
+      }
+      H5Sclose(mem_space);
+    } else {
+      nd::fatal("Parallel HDF5 write only implemented for 1D, 2D, 3D");
+    }
 
     H5Pclose(xfer_plist);
-    H5Sclose(memspace_id);
-    H5Sclose(space_id);
+    H5Sclose(file_space);
     H5Dclose(dataset_id);
     H5Fclose(file_id);
 #else
@@ -3754,11 +3928,8 @@ void ndarray<T, StoragePolicy>::write_hdf5_auto(
 
   } else if (should_use_replicated_io()) {
     // Replicated mode: Only rank 0 writes
-    if (dist_->rank == 0) {
-      this->to_hdf5(filename, varname);
-    }
+    if (dist_->rank == 0) this->to_hdf5(filename, varname);
     MPI_Barrier(dist_->comm);
-
   } else {
     // Serial mode
     this->to_hdf5(filename, varname);
@@ -3777,7 +3948,7 @@ void ndarray<T, StoragePolicy>::read_binary_auto(const std::string& filename)
     // Read only the local core region using column-major (Fortran) order
     const auto& core = dist_->local_core_;
     const auto& extent = dist_->local_extent_;
-    const size_t nd = core.nd();
+    const size_t nd = this->nd();
 
     // Check if we have ghost layers
     bool has_ghosts = false;
@@ -3871,7 +4042,7 @@ void ndarray<T, StoragePolicy>::write_binary_auto(const std::string& filename)
   if (should_use_parallel_io()) {
     // Distributed mode: MPI-IO parallel write
     const auto& core = dist_->local_core_;
-    const size_t nd = core.nd();
+    const size_t nd = this->nd();
 
     MPI_File fh;
     MPI_File_open(dist_->comm, filename.c_str(),
@@ -3937,6 +4108,132 @@ using ndarray_xtensor = ndarray<T, xtensor_storage>;
 #if NDARRAY_HAVE_EIGEN
 template <typename T>
 using ndarray_eigen = ndarray<T, eigen_storage>;
+#endif
+
+//////////////////////////////////
+// Factory methods (moved here to ensure ndarray<T> is fully defined)
+//////////////////////////////////
+
+inline std::shared_ptr<ndarray_base> ndarray_base::new_by_dtype(int type)
+{
+  std::shared_ptr<ndarray_base> p;
+
+  if (type == NDARRAY_DTYPE_INT)
+    p.reset(new ndarray<int>);
+  else if (type == NDARRAY_DTYPE_FLOAT)
+    p.reset(new ndarray<float>);
+  else if (type == NDARRAY_DTYPE_DOUBLE)
+    p.reset(new ndarray<double>);
+  else if (type == NDARRAY_DTYPE_UNSIGNED_INT)
+    p.reset(new ndarray<unsigned int>);
+  else if (type == NDARRAY_DTYPE_UNSIGNED_CHAR)
+    p.reset(new ndarray<unsigned char>);
+  else if (type == NDARRAY_DTYPE_CHAR)
+    p.reset(new ndarray<char>);
+  else
+    nd::fatal(nd::ERR_NOT_IMPLEMENTED);
+
+  return p;
+}
+
+inline std::shared_ptr<ndarray_base> ndarray_base::new_by_vtk_dtype(int type)
+{
+  std::shared_ptr<ndarray_base> p;
+
+#if NDARRAY_HAVE_VTK
+  if (type == VTK_INT)
+    p.reset(new ndarray<int>);
+  else if (type == VTK_FLOAT)
+    p.reset(new ndarray<float>);
+  else if (type == VTK_DOUBLE)
+    p.reset(new ndarray<double>);
+  else if (type == VTK_UNSIGNED_INT)
+    p.reset(new ndarray<unsigned int>);
+  else if (type == VTK_UNSIGNED_CHAR)
+    p.reset(new ndarray<unsigned char>);
+  else
+    nd::fatal(nd::ERR_NOT_IMPLEMENTED);
+#else
+  nd::fatal(nd::ERR_NOT_BUILT_WITH_VTK);
+#endif
+
+  return p;
+}
+
+inline std::shared_ptr<ndarray_base> ndarray_base::new_by_nc_dtype(int typep)
+{
+  std::shared_ptr<ndarray_base> p;
+
+#if NDARRAY_HAVE_NETCDF
+  if (typep == NC_INT)
+    p.reset(new ndarray<int>);
+  else if (typep == NC_FLOAT)
+    p.reset(new ndarray<float>);
+  else if (typep == NC_DOUBLE)
+    p.reset(new ndarray<double>);
+  else if (typep == NC_UINT)
+    p.reset(new ndarray<unsigned int>);
+  else if (typep == NC_CHAR)
+    p.reset(new ndarray<char>);
+  else
+    nd::fatal(nd::ERR_NOT_IMPLEMENTED);
+#else
+  nd::fatal(nd::ERR_NOT_BUILT_WITH_NETCDF);
+#endif
+
+  return p;
+}
+
+inline std::shared_ptr<ndarray_base> ndarray_base::new_by_adios2_dtype(const std::string type)
+{
+  std::shared_ptr<ndarray_base> p;
+#if NDARRAY_HAVE_ADIOS2
+  if (type == adios2::GetType<int>())
+    p.reset(new ndarray<int>);
+  else if (type == adios2::GetType<float>())
+    p.reset(new ndarray<float>);
+  else if (type == adios2::GetType<double>())
+    p.reset(new ndarray<double>);
+  else if (type == adios2::GetType<unsigned int>())
+    p.reset(new ndarray<unsigned int>);
+  else if (type == adios2::GetType<unsigned long>())
+    p.reset(new ndarray<unsigned long>);
+  else if (type == adios2::GetType<unsigned char>())
+    p.reset(new ndarray<unsigned char>);
+  else if (type == adios2::GetType<char>())
+    p.reset(new ndarray<char>);
+  else
+    nd::fatal(nd::ERR_NOT_IMPLEMENTED);
+#else
+  nd::warn(nd::ERR_NOT_BUILT_WITH_ADIOS2);
+#endif
+  return p;
+}
+
+#if NDARRAY_HAVE_HDF5
+inline std::shared_ptr<ndarray_base> ndarray_base::new_by_h5_dtype(hid_t type)
+{
+  std::shared_ptr<ndarray_base> p;
+
+  if (H5Tequal(type, H5T_NATIVE_INT) > 0)
+    p.reset(new ndarray<int>);
+  else if (H5Tequal(type, H5T_NATIVE_FLOAT) > 0)
+    p.reset(new ndarray<float>);
+  else if (H5Tequal(type, H5T_NATIVE_DOUBLE) > 0)
+    p.reset(new ndarray<double>);
+  else if (H5Tequal(type, H5T_NATIVE_UINT) > 0)
+    p.reset(new ndarray<unsigned int>);
+  else if (H5Tequal(type, H5T_NATIVE_ULONG) > 0)
+    p.reset(new ndarray<unsigned long>);
+  else if (H5Tequal(type, H5T_NATIVE_UCHAR) > 0)
+    p.reset(new ndarray<unsigned char>);
+  else if (H5Tequal(type, H5T_NATIVE_CHAR) > 0)
+    p.reset(new ndarray<char>);
+  else
+    nd::fatal(nd::ERR_NOT_IMPLEMENTED);
+
+  return p;
+}
 #endif
 
 } // namespace ftk
