@@ -156,7 +156,7 @@ jobs:
       if: steps.cache-cuda.outputs.cache-hit != 'true'
       run: |
         wget https://developer.download.nvidia.com/compute/cuda/12.0.0/local_installers/cuda_12.0.0_525.60.13_linux.run
-        sudo sh cuda_12.0.0_525.60.13_linux.run --silent --toolkit
+        sudo sh cuda_12.0.0_525.60.13_linux.run --silent --toolkit --override
         # The runfile installer by default installs to /usr/local/cuda-12.0
 
     - name: Set CUDA Path
