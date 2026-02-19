@@ -599,6 +599,7 @@ private:
     lattice local_extent_;
     std::unique_ptr<lattice_partitioner> partitioner_;
     std::vector<size_t> decomp_pattern_;  // Stores which dims are decomposed (0 = not decomposed)
+    std::vector<size_t> ghost_widths_;    // Number of ghost layers per dimension
 
     // Neighbor info for ghost exchange
     struct Neighbor {
@@ -2350,8 +2351,13 @@ void ndarray<T, StoragePolicy>::decompose(MPI_Comm comm,
   // Create global lattice
   dist_->global_lattice_ = lattice(global_dims);
 
-  // Store decomposition pattern
+  // Store decomposition pattern and ghost widths
   dist_->decomp_pattern_ = decomp;
+  if (ghost.empty()) {
+    dist_->ghost_widths_.assign(global_dims.size(), 0);
+  } else {
+    dist_->ghost_widths_ = ghost;
+  }
 
   // Use provided nprocs or communicator size
   size_t np = (nprocs == 0) ? dist_->nprocs : nprocs;
@@ -2694,6 +2700,10 @@ void ndarray<T, StoragePolicy>::setup_ghost_exchange()
 
   // Identify neighbors in each dimension
   for (int dim = 0; dim < ndims; dim++) {
+    // Skip if no ghost layers in this dimension
+    const size_t ghost_width = dist_->ghost_widths_[dim];
+    if (ghost_width == 0) continue;
+
     // Skip non-decomposed dimensions
     if (!dist_->decomp_pattern_.empty() &&
         static_cast<size_t>(dim) < dist_->decomp_pattern_.size() &&
@@ -2728,12 +2738,8 @@ void ndarray<T, StoragePolicy>::setup_ghost_exchange()
         neighbor.rank = neighbor_rank;
         neighbor.direction = dim * 2;  // 0=left in dim 0, 2=left in dim 1, etc.
 
-        // Calculate ghost width
-        size_t ghost_width = dist_->local_core_.start(dim) - dist_->local_extent_.start(dim);
-        if (ghost_width == 0) ghost_width = 1;
-
         // Calculate number of elements in the boundary face
-        // Use core size in perpendicular dimensions (corners handled separately)
+        // Use core size in perpendicular dimensions (corners handled separately in multi-pass)
         size_t face_size = 1;
         for (int d = 0; d < ndims; d++) {
           if (d == dim) {
@@ -2778,11 +2784,6 @@ void ndarray<T, StoragePolicy>::setup_ghost_exchange()
         typename distribution_info::Neighbor neighbor;
         neighbor.rank = neighbor_rank;
         neighbor.direction = dim * 2 + 1;  // 1=right in dim 0, 3=right in dim 1, etc.
-
-        // Calculate ghost width
-        size_t ghost_width = (dist_->local_extent_.start(dim) + dist_->local_extent_.size(dim)) -
-                             (dist_->local_core_.start(dim) + dist_->local_core_.size(dim));
-        if (ghost_width == 0) ghost_width = 1;
 
         // Use core size in perpendicular dimensions (corners handled separately)
         size_t face_size = 1;
@@ -2990,7 +2991,7 @@ void ndarray<T, StoragePolicy>::exchange_ghosts_gpu_direct()
     const auto& neighbor = dist_->neighbors_[i];
     int dim = neighbor.direction / 2;
     bool is_high = (neighbor.direction % 2) == 1;
-    size_t ghost_width = 1;  // TODO: Get from decomposition
+    size_t ghost_width = dist_->ghost_widths_[dim];
 
     if (dims.size() == 1) {
       // 1D case
@@ -3067,7 +3068,7 @@ void ndarray<T, StoragePolicy>::exchange_ghosts_gpu_direct()
     const auto& neighbor = dist_->neighbors_[i];
     int dim = neighbor.direction / 2;
     bool is_high = (neighbor.direction % 2) == 1;
-    size_t ghost_width = 1;
+    size_t ghost_width = dist_->ghost_widths_[dim];
 
     // Calculate ghost offsets
     size_t ghost_low = dist_->local_core_.start(dim) - dist_->local_extent_.start(dim);
@@ -3145,7 +3146,7 @@ size_t ndarray<T, StoragePolicy>::calculate_buffer_size(int neighbor_idx, int pa
   int dim = neighbor.direction / 2;
   const int ndims = static_cast<int>(dims.size());
 
-  size_t ghost_width = 1;  // Simplified: assume 1-layer ghosts
+  size_t ghost_width = dist_->ghost_widths_[dim];
 
   size_t buffer_size = ghost_width;
   for (int d = 0; d < ndims; d++) {
@@ -3170,7 +3171,7 @@ void ndarray<T, StoragePolicy>::pack_boundary_data(int neighbor_idx, std::vector
   int dim = neighbor.direction / 2;  // Which dimension: 0, 1, 2, ...
   bool is_high = (neighbor.direction % 2) == 1;  // true = right/up, false = left/down
 
-  size_t ghost_width = 1;  // Simplified: assume 1-layer ghosts for now
+  size_t ghost_width = dist_->ghost_widths_[dim];
 
   // Calculate ghost offset
   size_t ghost_offset_0 = dist_->local_core_.start(0) - dist_->local_extent_.start(0);
@@ -3280,7 +3281,7 @@ void ndarray<T, StoragePolicy>::unpack_ghost_data(int neighbor_idx, const std::v
   int dim = neighbor.direction / 2;
   bool is_high = (neighbor.direction % 2) == 1;
 
-  size_t ghost_width = 1;
+  size_t ghost_width = dist_->ghost_widths_[dim];
 
   // Calculate ghost offsets
   size_t ghost_low = dist_->local_core_.start(dim) - dist_->local_extent_.start(dim);

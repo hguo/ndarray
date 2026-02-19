@@ -183,6 +183,11 @@ if (NDARRAY_HAVE_MPI)
   add_executable(test_ghost_exchange test_ghost_exchange.cpp)
   target_link_libraries(test_ghost_exchange ndarray MPI::MPI_CXX ${CMAKE_THREAD_LIBS_INIT})
   message("  - test_ghost_exchange: Ghost layer exchange between MPI ranks (run with: mpirun -np 4 ./bin/test_ghost_exchange)")
+
+  # Arbitrary ghost widths tests (require MPI)
+  add_executable(test_arbitrary_ghosts test_arbitrary_ghosts.cpp)
+  target_link_libraries(test_arbitrary_ghosts ndarray MPI::MPI_CXX ${CMAKE_THREAD_LIBS_INIT})
+  message("  - test_arbitrary_ghosts: Ghost exchange with non-uniform widths (run with: mpirun -np 4 ./bin/test_arbitrary_ghosts)")
 endif()
 
 message("")
