@@ -69,6 +69,15 @@ inline void substream_binary<StoragePolicy>::read(int i, std::shared_ptr<group_t
 
     // Usevara auto-read
     p->read_binary_auto(f);
+
+    if (var.multicomponents) {
+      p->set_multicomponents(1);
+    }
+
+    if (!this->is_static) {
+      p->set_has_time(true);
+    }
+
     g->set(var.name, p);
   }
 }

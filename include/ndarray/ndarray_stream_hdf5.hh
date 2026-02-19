@@ -108,6 +108,11 @@ inline void substream_h5<StoragePolicy>::read(int i, std::shared_ptr<group_type>
     H5Dclose(did);
     // Use auto-read (it will re-open file internally or we could optimize by passing fid)
     p->read_hdf5_auto(filename, actual_varname);
+
+    if (var.multicomponents) {
+      p->set_multicomponents(1); // Default to 1 for backward compatibility
+    }
+
     g->set(var.name, p);
   }
   H5Fclose(fid);

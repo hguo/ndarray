@@ -145,13 +145,16 @@ inline void substream_netcdf<StoragePolicy>::read(int i, std::shared_ptr<group_t
       }
 #endif
 
-      if (time_varying)
+      if (time_varying) {
         p->read_netcdf_timestep(ncid, varid, i - this->first_timestep_per_file[fi], this->comm);
-      else
+        p->set_has_time(true);
+      } else
         p->read_netcdf(ncid, varid, this->comm);
 
-      if (var.multicomponents)
-        p->make_multicomponents();
+      if (var.multicomponents) {
+        p->set_multicomponents(1); // Default to 1 for backward compatibility
+        // If we have more info about component dims in YAML, we could set it here
+      }
 
       g->set(var.name, p);
 

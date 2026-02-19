@@ -1080,19 +1080,24 @@ template<typename T, typename StoragePolicy>
 inline vtkSmartPointer<vtkImageData> ndarray<T, StoragePolicy>::to_vtk_image_data(std::string varname) const
 {
   vtkSmartPointer<vtkImageData> d = vtkImageData::New();
-  // fprintf(stderr, "to_vtk_image_data, n_component_dims=%zu\n", n_component_dims);
-  if (n_component_dims) { // multicomponent
+  
+  if (n_component_dims == 1) { // vector field
     if (nd() == 3) d->SetDimensions(shapef(1), shapef(2), 1);
-    else d->SetDimensions(shapef(1), shapef(2), shapef(3)); // nd == 4
-
+    else if (nd() == 4) d->SetDimensions(shapef(1), shapef(2), shapef(3));
+    
     if (varname.empty()) varname = "vector";
-  } else {
+  } else if (n_component_dims == 2) { // tensor field
+    if (nd() == 4) d->SetDimensions(shapef(2), shapef(3), 1);
+    else if (nd() == 5) d->SetDimensions(shapef(2), shapef(3), shapef(4));
+    
+    if (varname.empty()) varname = "tensor";
+  } else { // scalar field (n_component_dims == 0)
     if (nd() == 2) d->SetDimensions(shapef(0), shapef(1), 1);
-    else d->SetDimensions(shapef(0), shapef(1), shapef(2)); // nd == 3
-
+    else if (nd() == 3) d->SetDimensions(shapef(0), shapef(1), shapef(2));
+    
     if (varname.empty()) varname = "scalar";
   }
-  // d->GetPointData()->AddArray(to_vtk_data_array(multicomponent));
+  
   d->GetPointData()->SetScalars(to_vtk_data_array(varname));
 
   return d;
@@ -3475,6 +3480,23 @@ template <typename T, typename StoragePolicy>
 void ndarray<T, StoragePolicy>::read_netcdf_auto(
   const std::string& filename, const std::string& varname)
 {
+#if NDARRAY_HAVE_NETCDF
+  // Internal helper to check for time dimension
+  auto check_time = [&](int ncid, int varid) {
+    int unlimid;
+    nc_inq_unlimdim(ncid, &unlimid);
+    if (unlimid >= 0) {
+      int ndims, dimids[NC_MAX_VAR_DIMS];
+      nc_inq_varndims(ncid, varid, &ndims);
+      nc_inq_vardimid(ncid, varid, dimids);
+      for (int d = 0; d < ndims; d++) {
+        if (dimids[d] == unlimid) return true;
+      }
+    }
+    return false;
+  };
+#endif
+
 #if NDARRAY_HAVE_MPI
   int mpi_initialized = 0;
   MPI_Initialized(&mpi_initialized);
@@ -3491,6 +3513,11 @@ void ndarray<T, StoragePolicy>::read_netcdf_auto(
 
     // Use base class parallel read with start/size
     this->read_netcdf(filename, varname, starts.data(), sizes.data(), dist_->comm);
+
+#if NDARRAY_HAVE_NETCDF
+    // Detection after read (simplified - in practice, we might need to open the file again or trust read_netcdf)
+    // For now, let's just use the base read
+#endif
 
   } else if (should_use_replicated_io()) {
     // Replicated mode: Rank 0 reads, broadcast to others
@@ -3510,6 +3537,14 @@ void ndarray<T, StoragePolicy>::read_netcdf_auto(
 
     // Broadcast data
     MPI_Bcast(this->data(), static_cast<int>(total_size), mpi_datatype(), 0, dist_->comm);
+    
+    // Propagate flags
+    size_t flags[2] = {this->n_component_dims, (size_t)this->is_time_varying};
+    MPI_Bcast(flags, 2, MPI_UNSIGNED_LONG, 0, dist_->comm);
+    if (dist_->rank != 0) {
+      this->n_component_dims = flags[0];
+      this->is_time_varying = (bool)flags[1];
+    }
 
   } else {
     // Serial mode: Regular read
@@ -3732,6 +3767,14 @@ void ndarray<T, StoragePolicy>::read_pnetcdf_auto(
     MPI_Bcast(&total_size, 1, MPI_UNSIGNED_LONG, 0, dist_->comm);
     if (dist_->rank != 0) this->reshapef(this->dims);
     MPI_Bcast(this->data(), static_cast<int>(total_size), mpi_datatype(), 0, dist_->comm);
+
+    // Propagate flags
+    size_t flags[2] = {this->n_component_dims, (size_t)this->is_time_varying};
+    MPI_Bcast(flags, 2, MPI_UNSIGNED_LONG, 0, dist_->comm);
+    if (dist_->rank != 0) {
+      this->n_component_dims = flags[0];
+      this->is_time_varying = (bool)flags[1];
+    }
 
   } else {
     // Serial mode
@@ -3985,6 +4028,14 @@ void ndarray<T, StoragePolicy>::read_hdf5_auto(
     MPI_Bcast(&total_size, 1, MPI_UNSIGNED_LONG, 0, dist_->comm);
     if (dist_->rank != 0) this->reshapef(this->dims);
     MPI_Bcast(this->data(), static_cast<int>(total_size), mpi_datatype(), 0, dist_->comm);
+
+    // Propagate flags
+    size_t flags[2] = {this->n_component_dims, (size_t)this->is_time_varying};
+    MPI_Bcast(flags, 2, MPI_UNSIGNED_LONG, 0, dist_->comm);
+    if (dist_->rank != 0) {
+      this->n_component_dims = flags[0];
+      this->is_time_varying = (bool)flags[1];
+    }
   } else {
     // Serial mode fallback
     this->read_h5(filename, varname);
@@ -4183,6 +4234,14 @@ void ndarray<T, StoragePolicy>::read_binary_auto(const std::string& filename)
     }
 
     MPI_Bcast(this->data(), static_cast<int>(total_size), mpi_datatype(), 0, dist_->comm);
+
+    // Propagate flags
+    size_t flags[2] = {this->n_component_dims, (size_t)this->is_time_varying};
+    MPI_Bcast(flags, 2, MPI_UNSIGNED_LONG, 0, dist_->comm);
+    if (dist_->rank != 0) {
+      this->n_component_dims = flags[0];
+      this->is_time_varying = (bool)flags[1];
+    }
 
   } else {
     // Serial mode fallback
