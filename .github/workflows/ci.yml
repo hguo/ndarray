@@ -149,22 +149,23 @@ jobs:
       id: cache-cuda
       uses: actions/cache@v3
       with:
-        path: /usr/local/cuda-12.0
-        key: cuda-12.0-ubuntu2204
+        path: ~/cuda-12.0
+        key: cuda-12.0-ubuntu2204-v1
 
     - name: Install CUDA Toolkit
       if: steps.cache-cuda.outputs.cache-hit != 'true'
       run: |
         wget https://developer.download.nvidia.com/compute/cuda/12.0.0/local_installers/cuda_12.0.0_525.60.13_linux.run
-        sudo sh cuda_12.0.0_525.60.13_linux.run --silent --toolkit --override
-        # The runfile installer by default installs to /usr/local/cuda-12.0
+        # Install to home directory to avoid sudo/permission issues with caching
+        mkdir -p ~/cuda-12.0
+        sh cuda_12.0.0_525.60.13_linux.run --silent --toolkit --override --toolkitpath=$HOME/cuda-12.0
 
     - name: Set CUDA Path
       run: |
-        echo "/usr/local/cuda-12.0/bin" >> $GITHUB_PATH
-        echo "LD_LIBRARY_PATH=/usr/local/cuda-12.0/lib64:$LD_LIBRARY_PATH" >> $GITHUB_ENV
-        echo "CUDA_PATH=/usr/local/cuda-12.0" >> $GITHUB_ENV
-        echo "CUDA_TOOLKIT_ROOT_DIR=/usr/local/cuda-12.0" >> $GITHUB_ENV
+        echo "$HOME/cuda-12.0/bin" >> $GITHUB_PATH
+        echo "LD_LIBRARY_PATH=$HOME/cuda-12.0/lib64:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+        echo "CUDA_PATH=$HOME/cuda-12.0" >> $GITHUB_ENV
+        echo "CUDA_TOOLKIT_ROOT_DIR=$HOME/cuda-12.0" >> $GITHUB_ENV
 
     - name: Configure CMake (CUDA)
       run: |
@@ -175,7 +176,7 @@ jobs:
           -DNDARRAY_USE_CUDA=ON \
           -DNDARRAY_USE_MPI=OFF \
           -DNDARRAY_USE_YAML=OFF \
-          -DCMAKE_CUDA_COMPILER=/usr/local/cuda-12.0/bin/nvcc \
+          -DCMAKE_CUDA_COMPILER=$HOME/cuda-12.0/bin/nvcc \
           -DCMAKE_CUDA_FLAGS="-allow-unsupported-compiler"
 
     - name: Build
