@@ -314,6 +314,16 @@ public: // device/host
   virtual void to_device(int device, int id=0) = 0;
   virtual void to_host() = 0;
 
+public: // decomposition
+#if NDARRAY_HAVE_MPI
+  virtual void decompose(MPI_Comm comm,
+                         const std::vector<size_t>& global_dims,
+                         size_t nprocs = 0,
+                         const std::vector<size_t>& decomp = {},
+                         const std::vector<size_t>& ghost = {}) = 0;
+  virtual void set_replicated(MPI_Comm comm) = 0;
+#endif
+
 protected:
   std::vector<size_t> dims, s;
 

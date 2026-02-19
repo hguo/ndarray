@@ -453,6 +453,9 @@ public: // statistics & misc
 
   ndarray<T, StoragePolicy> &perturb(T sigma); // add gaussian noise to the array
   ndarray<T, StoragePolicy> &clamp(T min, T max); // clamp data with min and max
+  
+  ndarray<T, StoragePolicy> &scale(T factor); // multiply all elements by factor
+  ndarray<T, StoragePolicy> &add(const ndarray<T, StoragePolicy>& other); // element-wise addition
 
 #if NDARRAY_HAVE_PNETCDF
   int pnc_dtype() const;
@@ -750,6 +753,12 @@ ndarray<T, StoragePolicy> operator/(const ndarray<T, StoragePolicy>& lhs, const 
 template <typename T, typename StoragePolicy>
 void ndarray<T, StoragePolicy>::fill(T v)
 {
+#if NDARRAY_HAVE_CUDA
+  if (device_type == NDARRAY_DEVICE_CUDA) {
+    nd::launch_fill<T>(static_cast<T*>(devptr), storage_.size(), v);
+    return;
+  }
+#endif
   storage_.fill(v);
 }
 
@@ -1190,7 +1199,34 @@ template <typename T, typename StoragePolicy>
 void ndarray<T, StoragePolicy>::reshapef(const std::vector<size_t> &dims, T val)
 {
   reshapef(dims);
-  storage_.fill(val);
+  this->fill(val);
+}
+
+template <typename T, typename StoragePolicy>
+ndarray<T, StoragePolicy>& ndarray<T, StoragePolicy>::scale(T factor)
+{
+#if NDARRAY_HAVE_CUDA
+  if (device_type == NDARRAY_DEVICE_CUDA) {
+    nd::launch_scale<T>(static_cast<T*>(devptr), storage_.size(), factor);
+    return *this;
+  }
+#endif
+  for (size_t i = 0; i < storage_.size(); i++) storage_[i] *= factor;
+  return *this;
+}
+
+template <typename T, typename StoragePolicy>
+ndarray<T, StoragePolicy>& ndarray<T, StoragePolicy>::add(const ndarray<T, StoragePolicy>& other)
+{
+  if (this->dims != other.dims) nd::fatal("ndarray::add: dimension mismatch");
+#if NDARRAY_HAVE_CUDA
+  if (device_type == NDARRAY_DEVICE_CUDA && other.device_type == NDARRAY_DEVICE_CUDA) {
+    nd::launch_add<T>(static_cast<T*>(devptr), static_cast<const T*>(other.devptr), storage_.size());
+    return *this;
+  }
+#endif
+  for (size_t i = 0; i < storage_.size(); i++) storage_[i] += other.storage_[i];
+  return *this;
 }
 
 template <typename T, typename StoragePolicy>

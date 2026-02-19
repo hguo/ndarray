@@ -125,6 +125,17 @@ inline void stream<StoragePolicy>::new_substream_from_yaml(YAML::Node y)
       variable var;
       var.parse_yaml(yvars[i]);
 
+#if NDARRAY_HAVE_MPI
+      // Inherit distribution from stream if not specified per-variable
+      if (this->variable_dist_types.count(var.name)) {
+        var.dist_type = this->variable_dist_types[var.name];
+      }
+      if (this->variable_decompositions.count(var.name)) {
+        var.has_custom_decomposition = true;
+        var.custom_decomp = this->variable_decompositions[var.name];
+      }
+#endif
+
       sub->variables.push_back(var);
     }
   }

@@ -142,6 +142,66 @@ int main(int argc, char** argv) {
     if (rank == 0) std::cout << "    PASSED" << std::endl;
   }
 
+  // Test 4: 3D Distributed Write/Read
+  {
+    TEST_SECTION("3D Distributed I/O");
+    const std::string filename3d = "test_auto_pnetcdf_3d.nc";
+    const size_t nx = 10, ny = 10, nz = 10;
+
+    ftk::ndarray<float> darray;
+    darray.decompose(MPI_COMM_WORLD, {nx, ny, nz});
+    
+    const auto& core = darray.local_core();
+    const auto& extent = darray.local_extent();
+    size_t off_i = core.start(0) - extent.start(0);
+    size_t off_j = core.start(1) - extent.start(1);
+    size_t off_k = core.start(2) - extent.start(2);
+
+    for (size_t i = 0; i < core.size(0); i++) {
+      for (size_t j = 0; j < core.size(1); j++) {
+        for (size_t k = 0; k < core.size(2); k++) {
+          size_t gi = core.start(0) + i;
+          size_t gj = core.start(1) + j;
+          size_t gk = core.start(2) + k;
+          darray.f(off_i + i, off_j + j, off_k + k) = static_cast<float>(gi * 10000 + gj * 100 + gk);
+        }
+      }
+    }
+
+    if (rank == 0) std::cout << "    - Writing 3D distributed array" << std::endl;
+    darray.write_pnetcdf_auto(filename3d, "var3d");
+    
+    MPI_Barrier(MPI_COMM_WORLD);
+
+    ftk::ndarray<float> darray2;
+    darray2.decompose(MPI_COMM_WORLD, {nx, ny, nz});
+    if (rank == 0) std::cout << "    - Reading 3D distributed array" << std::endl;
+    darray2.read_pnetcdf_auto(filename3d, "var3d");
+
+    bool correct = true;
+    for (size_t i = 0; i < core.size(0); i++) {
+      for (size_t j = 0; j < core.size(1); j++) {
+        for (size_t k = 0; k < core.size(2); k++) {
+          size_t gi = core.start(0) + i;
+          size_t gj = core.start(1) + j;
+          size_t gk = core.start(2) + k;
+          float expected = static_cast<float>(gi * 10000 + gj * 100 + gk);
+          if (std::abs(darray2.f(off_i + i, off_j + j, off_k + k) - expected) > 1e-5f) {
+            correct = false;
+          }
+        }
+      }
+    }
+
+    TEST_ASSERT(correct, "Data verification failed in 3D distributed read");
+    
+    MPI_Barrier(MPI_COMM_WORLD);
+    if (rank == 0) {
+      std::remove(filename3d.c_str());
+      std::cout << "    PASSED" << std::endl;
+    }
+  }
+
   // Cleanup
   MPI_Barrier(MPI_COMM_WORLD);
   if (rank == 0) {

@@ -93,6 +93,30 @@ inline void print_cuda_device_info(int device_id = 0)
   std::cout << "  Warp size: " << prop.warpSize << std::endl;
 }
 
+// Basic operation launchers
+template <typename T> void launch_fill(T* data, size_t n, T val);
+template <typename T> void launch_scale(T* data, size_t n, T factor);
+template <typename T> void launch_add(T* dst, const T* src, size_t n);
+
+// Ghost exchange launchers
+template <typename T>
+void launch_pack_boundary_1d(T* buffer, const T* data, int n, bool is_high, int ghost_width, int core_size);
+
+template <typename T>
+void launch_unpack_ghost_1d(T* data, const T* buffer, int n, bool is_high, int ghost_width, int ghost_low, int ghost_high, int core_size);
+
+template <typename T>
+void launch_pack_boundary_2d(T* buffer, const T* data, int n0, int n1, int dim, bool is_high, int ghost_width, int c0, int c1);
+
+template <typename T>
+void launch_unpack_ghost_2d(T* data, const T* buffer, int n0, int n1, int dim, bool is_high, int ghost_width, int ghost_low, int ghost_high, int c0, int c1);
+
+template <typename T>
+void launch_pack_boundary_3d(T* buffer, const T* data, int n0, int n1, int n2, int dim, bool is_high, int ghost_width, int c0, int c1, int c2);
+
+template <typename T>
+void launch_unpack_ghost_3d(T* data, const T* buffer, int n0, int n1, int n2, int dim, bool is_high, int ghost_width, int ghost_low, int ghost_high, int c0, int c1, int c2);
+
 } // namespace nd
 } // namespace ftk
 

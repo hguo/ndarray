@@ -117,6 +117,34 @@ inline void substream_netcdf<StoragePolicy>::read(int i, std::shared_ptr<group_t
           if (dimids[i] == unlimited_recid)
             time_varying = true;
 
+#if NDARRAY_HAVE_MPI
+      // Configure distribution
+      if (var.dist_type == VariableDistType::DISTRIBUTED) {
+        // Find global dimensions
+        std::vector<size_t> gdims(ndims);
+        for (int d = 0; d < ndims; d++) {
+          size_t len;
+          NC_SAFE_CALL(nc_inq_dimlen(ncid, dimids[d], &len));
+          gdims[d] = len;
+        }
+        
+        // Remove time dimension from global dims if present (I/O handles it)
+        if (time_varying) {
+          // Assuming time is dim 0 in NetCDF
+          gdims.erase(gdims.begin());
+        }
+
+        if (var.has_custom_decomposition) {
+          p->decompose(this->comm, gdims, 0, var.custom_decomp.dims, var.custom_decomp.ghost);
+        } else {
+          // Use stream's default decomposition if available
+          p->decompose(this->comm, gdims); 
+        }
+      } else {
+        p->set_replicated(this->comm);
+      }
+#endif
+
       if (time_varying)
         p->read_netcdf_timestep(ncid, varid, i - this->first_timestep_per_file[fi], this->comm);
       else

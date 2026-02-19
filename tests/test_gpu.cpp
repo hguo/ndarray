@@ -358,6 +358,37 @@ int main() {
   } else {
     std::cout << "  Testing: Multi-device support - SKIPPED (requires 2+ GPUs)" << std::endl;
   }
+
+  // Test 8: GPU kernel execution (CUDA only for now)
+  if (device_type == ftk::NDARRAY_DEVICE_CUDA) {
+    TEST_SECTION("GPU kernel execution (fill, scale, add)");
+
+    ftk::ndarray<float> arr1, arr2;
+    arr1.reshapef(100);
+    arr2.reshapef(100);
+
+    arr1.fill(1.0f);
+    arr2.fill(2.0f);
+
+    arr1.to_device(device_type, 0);
+    arr2.to_device(device_type, 0);
+
+    // Test GPU fill
+    arr1.fill(10.0f); 
+    
+    // Test GPU scale
+    arr2.scale(5.0f); // 2.0 * 5.0 = 10.0
+
+    // Test GPU add
+    arr1.add(arr2); // 10.0 + 10.0 = 20.0
+
+    arr1.to_host();
+    for (size_t i = 0; i < arr1.size(); i++) {
+      TEST_ASSERT(std::abs(arr1[i] - 20.0f) < 1e-5, "GPU kernel results incorrect");
+    }
+
+    std::cout << "    PASSED" << std::endl;
+  }
 #endif
 
   std::cout << std::endl;

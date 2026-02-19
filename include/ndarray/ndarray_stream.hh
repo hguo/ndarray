@@ -631,6 +631,31 @@ inline void variable::parse_yaml(YAML::Node y)
   if (auto yopt = y["optional"]) {
     this->is_optional = yopt.as<bool>();
   }
+
+#if NDARRAY_HAVE_MPI
+  if (auto ydist = y["distribution"]) {
+    std::string dist_str = ydist.as<std::string>();
+    if (dist_str == "distributed") this->dist_type = VariableDistType::DISTRIBUTED;
+    else if (dist_str == "replicated") this->dist_type = VariableDistType::REPLICATED;
+    else if (dist_str == "auto") this->dist_type = VariableDistType::AUTO;
+  }
+
+  if (auto ydecomp = y["decomposition"]) {
+    this->has_custom_decomposition = true;
+    if (auto ydims = ydecomp["dims"]) {
+      for (size_t i = 0; i < ydims.size(); i++)
+        this->custom_decomp.dims.push_back(ydims[i].as<size_t>());
+    }
+    if (auto ypattern = ydecomp["pattern"]) {
+      for (size_t i = 0; i < ypattern.size(); i++)
+        this->custom_decomp.pattern.push_back(ypattern[i].as<size_t>());
+    }
+    if (auto yghost = ydecomp["ghost"]) {
+      for (size_t i = 0; i < yghost.size(); i++)
+        this->custom_decomp.ghost.push_back(yghost[i].as<size_t>());
+    }
+  }
+#endif
 }
 
 template <typename StoragePolicy>
