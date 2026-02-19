@@ -1,6 +1,9 @@
 #include <ndarray/ndarray.hh>
 #include <iostream>
 #include <iomanip>
+#if NDARRAY_HAVE_MPI
+#include <mpi.h>
+#endif
 
 using namespace ftk;
 
@@ -142,7 +145,10 @@ void test_fortran_vs_c() {
   std::cout << std::endl;
 }
 
-int main() {
+int main(int argc, char** argv) {
+#if NDARRAY_HAVE_MPI
+  MPI_Init(&argc, &argv);
+#endif
   test_2d_column_major();
   test_2d_row_major();
   test_3d_ordering();
@@ -153,6 +159,10 @@ int main() {
   std::cout << "c(): Row-major (C) - last index varies fastest" << std::endl;
   std::cout << "Both access the same memory with different indexing" << std::endl;
   std::cout << "\nDemonstration completed successfully!" << std::endl;
+
+#if NDARRAY_HAVE_MPI
+  MPI_Finalize();
+#endif
 
   return 0;
 }

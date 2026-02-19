@@ -12,6 +12,9 @@
 #include <iostream>
 #include <chrono>
 #include <iomanip>
+#if NDARRAY_HAVE_MPI
+#include <mpi.h>
+#endif
 
 using namespace std::chrono;
 
@@ -31,7 +34,10 @@ struct CopyCounter {
 size_t CopyCounter::copies = 0;
 size_t CopyCounter::moves = 0;
 
-int main() {
+int main(int argc, char** argv) {
+#if NDARRAY_HAVE_MPI
+  MPI_Init(&argc, &argv);
+#endif
   std::cout << "=== Zero-Copy Optimization Test ===" << std::endl << std::endl;
 
   const size_t N = 10'000'000;  // 10M elements = ~76MB for double
@@ -245,6 +251,10 @@ int main() {
   std::cout << "  Use get_ref() instead of get_arr() for read access" << std::endl;
   std::cout << "  Use std::move() when inserting arrays" << std::endl;
   std::cout << std::endl;
+
+#if NDARRAY_HAVE_MPI
+  MPI_Finalize();
+#endif
 
   return 0;
 }

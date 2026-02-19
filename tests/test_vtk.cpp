@@ -13,6 +13,9 @@
 #include <iostream>
 #include <cassert>
 #include <cmath>
+#if NDARRAY_HAVE_MPI
+#include <mpi.h>
+#endif
 
 #if NDARRAY_HAVE_VTK
 #include <vtkSmartPointer.h>
@@ -322,7 +325,10 @@ int test_vtk_to_vtk_image_data() {
 
 #endif // NDARRAY_HAVE_VTK
 
-int main() {
+int main(int argc, char** argv) {
+#if NDARRAY_HAVE_MPI
+  MPI_Init(&argc, &argv);
+#endif
   std::cout << "=== Running ndarray VTK Tests ===" << std::endl << std::endl;
 
 #if NDARRAY_HAVE_VTK
@@ -341,6 +347,10 @@ int main() {
   } else {
     std::cout << std::endl << "=== Some VTK tests failed ===" << std::endl;
   }
+
+#if NDARRAY_HAVE_MPI
+  MPI_Finalize();
+#endif
 
   return result;
 #else

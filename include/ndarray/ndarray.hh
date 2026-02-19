@@ -3472,7 +3472,10 @@ template <typename T, typename StoragePolicy>
 void ndarray<T, StoragePolicy>::read_netcdf_auto(
   const std::string& filename, const std::string& varname)
 {
-  if (should_use_parallel_io()) {
+#if NDARRAY_HAVE_MPI
+  int mpi_initialized = 0;
+  MPI_Initialized(&mpi_initialized);
+  if (mpi_initialized && should_use_parallel_io()) {
     // Distributed mode: Parallel read using local core region
     const auto& core = dist_->local_core_;
     std::vector<size_t> starts(core.nd());
@@ -3509,13 +3512,20 @@ void ndarray<T, StoragePolicy>::read_netcdf_auto(
     // Serial mode: Regular read
     this->read_netcdf(filename, varname, MPI_COMM_SELF);
   }
+#else
+  // MPI not available, only serial mode
+  this->read_netcdf(filename, varname, MPI_COMM_SELF);
+#endif
 }
 
 template <typename T, typename StoragePolicy>
 void ndarray<T, StoragePolicy>::write_netcdf_auto(
   const std::string& filename, const std::string& varname)
 {
-  if (should_use_parallel_io()) {
+#if NDARRAY_HAVE_MPI
+  int mpi_initialized = 0;
+  MPI_Initialized(&mpi_initialized);
+  if (mpi_initialized && should_use_parallel_io()) {
     // Distributed mode: Parallel write using local core region
     const auto& core = dist_->local_core_;
     std::vector<size_t> starts(core.nd());
@@ -3609,6 +3619,22 @@ void ndarray<T, StoragePolicy>::write_netcdf_auto(
 
     NC_SAFE_CALL(nc_close(ncid));
   }
+#else
+  // MPI not available, only serial mode (to be implemented if needed, currently falls back to fatal error via virtual interface)
+  // Actually we should probably implement serial NetCDF write here too for completeness
+  int ncid;
+  NC_SAFE_CALL(nc_create(filename.c_str(), NC_NETCDF4, &ncid));
+  std::vector<int> dimids(this->nd());
+  for (size_t d = 0; d < this->nd(); d++) {
+    std::string dimname = "dim" + std::to_string(d);
+    NC_SAFE_CALL(nc_def_dim(ncid, dimname.c_str(), this->dimf(d), &dimids[d]));
+  }
+  int varid;
+  NC_SAFE_CALL(nc_def_var(ncid, varname.c_str(), this->nc_dtype(), this->nd(), dimids.data(), &varid));
+  NC_SAFE_CALL(nc_enddef(ncid));
+  this->to_netcdf(ncid, varid);
+  NC_SAFE_CALL(nc_close(ncid));
+#endif
 }
 
 #endif // NDARRAY_HAVE_MPI && NDARRAY_HAVE_NETCDF
@@ -3619,7 +3645,10 @@ template <typename T, typename StoragePolicy>
 void ndarray<T, StoragePolicy>::read_pnetcdf_auto(
   const std::string& filename, const std::string& varname)
 {
-  if (should_use_parallel_io()) {
+#if NDARRAY_HAVE_MPI
+  int mpi_initialized = 0;
+  MPI_Initialized(&mpi_initialized);
+  if (mpi_initialized && should_use_parallel_io()) {
     // Distributed mode: Parallel PNetCDF read
     const auto& core = dist_->local_core_;
     const auto& extent = dist_->local_extent_;
@@ -3718,13 +3747,31 @@ void ndarray<T, StoragePolicy>::read_pnetcdf_auto(
     this->read_pnetcdf_all(ncid, varid, starts.data(), sizes.data());
     PNC_SAFE_CALL(ncmpi_close(ncid));
   }
+#else
+  // MPI not available, only serial mode
+  int ncid, varid;
+  PNC_SAFE_CALL(ncmpi_open(MPI_COMM_SELF, filename.c_str(), NC_NOWRITE, MPI_INFO_NULL, &ncid));
+  PNC_SAFE_CALL(ncmpi_inq_varid(ncid, varname.c_str(), &varid));
+  int ndims;
+  PNC_SAFE_CALL(ncmpi_inq_varndims(ncid, varid, &ndims));
+  std::vector<MPI_Offset> starts(ndims, 0);
+  std::vector<MPI_Offset> sizes(ndims);
+  std::vector<int> dimids(ndims);
+  PNC_SAFE_CALL(ncmpi_inq_vardimid(ncid, varid, dimids.data()));
+  for (int d = 0; d < ndims; d++) PNC_SAFE_CALL(ncmpi_inq_dimlen(ncid, dimids[d], &sizes[d]));
+  this->read_pnetcdf_all(ncid, varid, starts.data(), sizes.data());
+  PNC_SAFE_CALL(ncmpi_close(ncid));
+#endif
 }
 
 template <typename T, typename StoragePolicy>
 void ndarray<T, StoragePolicy>::write_pnetcdf_auto(
   const std::string& filename, const std::string& varname)
 {
-  if (should_use_parallel_io()) {
+#if NDARRAY_HAVE_MPI
+  int mpi_initialized = 0;
+  MPI_Initialized(&mpi_initialized);
+  if (mpi_initialized && should_use_parallel_io()) {
     // Distributed mode: Parallel PNetCDF write
     const auto& core = dist_->local_core_;
     const auto& extent = dist_->local_extent_;
@@ -3831,6 +3878,7 @@ void ndarray<T, StoragePolicy>::write_pnetcdf_auto(
     this->write_pnetcdf_all(ncid, varid, starts.data(), sizes.data());
     PNC_SAFE_CALL(ncmpi_close(ncid));
   }
+#endif
 }
 
 #endif // NDARRAY_HAVE_MPI && NDARRAY_HAVE_PNETCDF
@@ -3842,7 +3890,9 @@ void ndarray<T, StoragePolicy>::read_hdf5_auto(
   const std::string& filename, const std::string& varname)
 {
 #if NDARRAY_HAVE_MPI
-  if (should_use_parallel_io()) {
+  int mpi_initialized = 0;
+  MPI_Initialized(&mpi_initialized);
+  if (mpi_initialized && should_use_parallel_io()) {
     // Distributed mode: Parallel HDF5 read
     // Note: Requires HDF5 built with parallel support (--enable-parallel)
 #ifdef H5_HAVE_PARALLEL
@@ -3947,7 +3997,9 @@ void ndarray<T, StoragePolicy>::write_hdf5_auto(
   const std::string& filename, const std::string& varname)
 {
 #if NDARRAY_HAVE_MPI
-  if (should_use_parallel_io()) {
+  int mpi_initialized = 0;
+  MPI_Initialized(&mpi_initialized);
+  if (mpi_initialized && should_use_parallel_io()) {
     // Distributed mode: Parallel HDF5 write
 #ifdef H5_HAVE_PARALLEL
     const auto& core = dist_->local_core_;
@@ -4040,7 +4092,9 @@ template <typename T, typename StoragePolicy>
 void ndarray<T, StoragePolicy>::read_binary_auto(const std::string& filename)
 {
 #if NDARRAY_HAVE_MPI
-  if (should_use_parallel_io()) {
+  int mpi_initialized = 0;
+  MPI_Initialized(&mpi_initialized);
+  if (mpi_initialized && should_use_parallel_io()) {
     // Distributed mode: MPI-IO parallel read
     // Read only the local core region using column-major (Fortran) order
     const auto& core = dist_->local_core_;
@@ -4141,7 +4195,9 @@ template <typename T, typename StoragePolicy>
 void ndarray<T, StoragePolicy>::write_binary_auto(const std::string& filename)
 {
 #if NDARRAY_HAVE_MPI
-  if (should_use_parallel_io()) {
+  int mpi_initialized = 0;
+  MPI_Initialized(&mpi_initialized);
+  if (mpi_initialized && should_use_parallel_io()) {
     // Distributed mode: MPI-IO parallel write
     const auto& core = dist_->local_core_;
     const size_t nd = this->nd();
@@ -4342,4 +4398,4 @@ inline std::shared_ptr<ndarray_base> ndarray_base::new_by_h5_dtype(hid_t type)
 
 } // namespace ftk
 
-#endif // _NDARRAY_HH
+#endif // _NDARRAY_NDARRAY_HH

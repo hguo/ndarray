@@ -15,6 +15,9 @@
 #include <cassert>
 #include <cmath>
 #include <chrono>
+#if NDARRAY_HAVE_MPI
+#include <mpi.h>
+#endif
 
 #define TEST_ASSERT(condition, message) \
   do { \
@@ -28,7 +31,10 @@
 #define TEST_SECTION(name) \
   std::cout << "  Testing: " << name << std::endl
 
-int main() {
+int main(int argc, char** argv) {
+#if NDARRAY_HAVE_MPI
+  MPI_Init(&argc, &argv);
+#endif
   std::cout << "=== Running GPU Tests ===" << std::endl << std::endl;
 
 #if !NDARRAY_HAVE_CUDA && !NDARRAY_HAVE_SYCL
@@ -393,6 +399,10 @@ int main() {
 
   std::cout << std::endl;
   std::cout << "=== All GPU tests passed ===" << std::endl;
+
+#if NDARRAY_HAVE_MPI
+  MPI_Finalize();
+#endif
 
   return 0;
 }

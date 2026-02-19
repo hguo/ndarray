@@ -13,6 +13,9 @@
 #include <iostream>
 #include <cassert>
 #include <cmath>
+#if NDARRAY_HAVE_MPI
+#include <mpi.h>
+#endif
 
 #define TEST_ASSERT(condition, message) \
   do { \
@@ -26,7 +29,10 @@
 #define TEST_SECTION(name) \
   std::cout << "  Testing: " << name << std::endl
 
-int main() {
+int main(int argc, char** argv) {
+#if NDARRAY_HAVE_MPI
+  MPI_Init(&argc, &argv);
+#endif
   std::cout << "=== Running ndarray Core Tests ===" << std::endl << std::endl;
 
   int failed_tests = 0;
@@ -257,6 +263,10 @@ int main() {
   }
 
   std::cout << std::endl;
-  std::cout << "=== All Core Tests Passed ===" << std::endl;
-  return 0;
-}
+    std::cout << "=== All Core Tests Passed ===" << std::endl;
+  
+  #if NDARRAY_HAVE_MPI
+    MPI_Finalize();
+  #endif
+    return 0;
+  }

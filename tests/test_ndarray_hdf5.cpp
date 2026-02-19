@@ -12,9 +12,8 @@
 #include <iostream>
 #include <cassert>
 #include <cmath>
-
-#if NDARRAY_HAVE_HDF5
-#include <hdf5.h>
+#if NDARRAY_HAVE_MPI
+#include <mpi.h>
 #endif
 
 #define TEST_ASSERT(condition, message) \
@@ -29,7 +28,10 @@
 #define TEST_SECTION(name) \
   std::cout << "  Testing: " << name << std::endl
 
-int main() {
+int main(int argc, char** argv) {
+#if NDARRAY_HAVE_MPI
+  MPI_Init(&argc, &argv);
+#endif
   std::cout << "=== Running ndarray HDF5 Tests ===" << std::endl << std::endl;
 
 #if NDARRAY_HAVE_HDF5
@@ -276,5 +278,8 @@ int main() {
   return 1;
 #endif
 
+#if NDARRAY_HAVE_MPI
+  MPI_Finalize();
+#endif
   return 0;
 }

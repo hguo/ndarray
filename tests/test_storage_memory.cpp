@@ -19,6 +19,9 @@
 #include <vector>
 #include <cassert>
 #include <cmath>
+#if NDARRAY_HAVE_MPI
+#include <mpi.h>
+#endif
 
 #define TEST_ASSERT(condition, message) \
   do { \
@@ -391,7 +394,10 @@ int run_all_memory_tests(const std::string& backend_name) {
   return result;
 }
 
-int main() {
+int main(int argc, char** argv) {
+#if NDARRAY_HAVE_MPI
+  MPI_Init(&argc, &argv);
+#endif
   std::cout << "\n";
   std::cout << "╔════════════════════════════════════════════════════════════╗" << std::endl;
   std::cout << "║     Storage Backend Memory Management Test Suite          ║" << std::endl;
@@ -430,6 +436,10 @@ int main() {
   std::cout << "For detailed memory leak detection, run with valgrind:\n";
   std::cout << "  valgrind --leak-check=full --show-leak-kinds=all ./test_storage_memory\n";
   std::cout << "\n";
+
+#if NDARRAY_HAVE_MPI
+  MPI_Finalize();
+#endif
 
   return result;
 }

@@ -19,6 +19,9 @@
 #include <cassert>
 #include <cmath>
 #include <fstream>
+#if NDARRAY_HAVE_MPI
+#include <mpi.h>
+#endif
 
 #define TEST_ASSERT(condition, message) \
   do { \
@@ -285,7 +288,10 @@ int test_stream_timestep_iteration() {
   return 0;
 }
 
-int main() {
+int main(int argc, char** argv) {
+#if NDARRAY_HAVE_MPI
+  MPI_Init(&argc, &argv);
+#endif
   std::cout << "\n";
   std::cout << "╔════════════════════════════════════════════════════════════╗" << std::endl;
   std::cout << "║     Storage Backend Stream Test Suite                     ║" << std::endl;
@@ -333,12 +339,19 @@ int main() {
   std::remove("test_stream_multivar.yaml");
   std::remove("test_stream_iteration.yaml");
 
+#if NDARRAY_HAVE_MPI
+  MPI_Finalize();
+#endif
+
   return result;
 }
 
 #else // !NDARRAY_HAVE_YAML
 
-int main() {
+int main(int argc, char** argv) {
+#if NDARRAY_HAVE_MPI
+  MPI_Init(&argc, &argv);
+#endif
   std::cout << "\n";
   std::cout << "╔════════════════════════════════════════════════════════════╗" << std::endl;
   std::cout << "║     Storage Backend Stream Test Suite                     ║" << std::endl;
@@ -347,6 +360,9 @@ int main() {
   std::cout << "⊘ Stream tests require NDARRAY_HAVE_YAML to be enabled" << std::endl;
   std::cout << "⊘ Please rebuild with yaml-cpp support to run these tests" << std::endl;
   std::cout << "\n";
+#if NDARRAY_HAVE_MPI
+  MPI_Finalize();
+#endif
   return 0;
 }
 

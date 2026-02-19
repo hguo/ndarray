@@ -10,6 +10,9 @@
 #include <ndarray/variable_name_utils.hh>
 #include <iostream>
 #include <cassert>
+#if NDARRAY_HAVE_MPI
+#include <mpi.h>
+#endif
 
 #define TEST_ASSERT(condition, message) \
   do { \
@@ -23,7 +26,10 @@
 #define TEST_SECTION(name) \
   std::cout << "  Testing: " << name << std::endl
 
-int main() {
+int main(int argc, char** argv) {
+#if NDARRAY_HAVE_MPI
+  MPI_Init(&argc, &argv);
+#endif
   std::cout << "=== Variable Name Matching Tests ===" << std::endl << std::endl;
 
   // Test 1: Exact match
@@ -286,6 +292,10 @@ int main() {
   std::cout << "  - Variable names change between MPAS output types" << std::endl;
   std::cout << "  - Users make typos in YAML configs" << std::endl;
   std::cout << "  - Need to discover what variables are available" << std::endl;
+
+#if NDARRAY_HAVE_MPI
+  MPI_Finalize();
+#endif
 
   return 0;
 }

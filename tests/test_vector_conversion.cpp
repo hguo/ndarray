@@ -7,6 +7,9 @@
 #include <ndarray/ndarray.hh>
 #include <iostream>
 #include <cassert>
+#if NDARRAY_HAVE_MPI
+#include <mpi.h>
+#endif
 
 #define TEST_ASSERT(condition, message) \
   do { \
@@ -20,7 +23,10 @@
 #define TEST_SECTION(name) \
   std::cout << "  Testing: " << name << std::endl
 
-int main() {
+int main(int argc, char** argv) {
+#if NDARRAY_HAVE_MPI
+  MPI_Init(&argc, &argv);
+#endif
   std::cout << "=== std::vector to ndarray Conversion Tests ===" << std::endl << std::endl;
 
   // Test 1: Constructor from vector (creates 1D array)
@@ -178,6 +184,10 @@ int main() {
   std::cout << "  - Use constructor for simple 1D arrays" << std::endl;
   std::cout << "  - Use from_vector_data(vec, shape) for multi-dimensional arrays" << std::endl;
   std::cout << "  - Use std_vector() to convert back" << std::endl;
+
+#if NDARRAY_HAVE_MPI
+  MPI_Finalize();
+#endif
 
   return 0;
 }

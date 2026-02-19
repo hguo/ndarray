@@ -15,6 +15,9 @@
 #include <cmath>
 #include <fstream>
 #include <sstream>
+#if NDARRAY_HAVE_MPI
+#include <mpi.h>
+#endif
 
 #define TEST_ASSERT(condition, message) \
   do { \
@@ -82,7 +85,10 @@ void create_static_synthetic_yaml(const std::string& filename) {
   f.close();
 }
 
-int main() {
+int main(int argc, char** argv) {
+#if NDARRAY_HAVE_MPI
+  MPI_Init(&argc, &argv);
+#endif
   std::cout << "=== Running ndarray Stream Tests ===" << std::endl << std::endl;
 
   // Test 1: Basic YAML parsing
@@ -938,6 +944,10 @@ int main() {
 
   // Call finalize to clean up fdpool
   ftk::ndarray_finalize();
+
+#if NDARRAY_HAVE_MPI
+  MPI_Finalize();
+#endif
 
   return 0;
 }

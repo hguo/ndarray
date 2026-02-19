@@ -12,6 +12,9 @@
 #include <cassert>
 #include <cmath>
 #include <fstream>
+#if NDARRAY_HAVE_MPI
+#include <mpi.h>
+#endif
 
 #define TEST_ASSERT(condition, message) \
   do { \
@@ -25,7 +28,10 @@
 #define TEST_SECTION(name) \
   std::cout << "  Testing: " << name << std::endl
 
-int main() {
+int main(int argc, char** argv) {
+#if NDARRAY_HAVE_MPI
+  MPI_Init(&argc, &argv);
+#endif
   std::cout << "=== Running ndarray I/O Tests ===" << std::endl << std::endl;
 
   // Test 1: Binary write and read
@@ -176,6 +182,10 @@ std::cout << "  NetCDF tests SKIPPED (requires manual ncid/varid management)" <<
 std::cout << "  HDF5 tests SKIPPED (requires manual hid_t management)" << std::endl;
 
   std::cout << std::endl;
-  std::cout << "=== All I/O Tests Passed ===" << std::endl;
-  return 0;
-}
+    std::cout << "=== All I/O Tests Passed ===" << std::endl;
+  
+  #if NDARRAY_HAVE_MPI
+    MPI_Finalize();
+  #endif
+    return 0;
+  }

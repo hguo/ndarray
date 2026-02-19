@@ -1,7 +1,13 @@
 #include <ndarray/ndarray.hh>
 #include <iostream>
+#if NDARRAY_HAVE_MPI
+#include <mpi.h>
+#endif
 
-int main() {
+int main(int argc, char** argv) {
+#if NDARRAY_HAVE_MPI
+  MPI_Init(&argc, &argv);
+#endif
   std::cout << "Testing I/O with different storage backends...\n\n";
 
   // Test 1: Native storage - write test data
@@ -83,6 +89,10 @@ int main() {
   std::cout << "\n✓ All I/O tests passed! Storage backends are fully backend-agnostic.\n";
 #else
   std::cout << "\nEigen not available - skipping Eigen storage tests\n";
+#endif
+
+#if NDARRAY_HAVE_MPI
+  MPI_Finalize();
 #endif
 
   return 0;

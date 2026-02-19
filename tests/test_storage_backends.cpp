@@ -15,6 +15,9 @@
 #include <cassert>
 #include <cmath>
 #include <vector>
+#if NDARRAY_HAVE_MPI
+#include <mpi.h>
+#endif
 
 #define TEST_ASSERT(condition, message) \
   do { \
@@ -321,7 +324,10 @@ int test_type_conversions() {
   return 0;
 }
 
-int main() {
+int main(int argc, char** argv) {
+#if NDARRAY_HAVE_MPI
+  MPI_Init(&argc, &argv);
+#endif
   std::cout << "\n";
   std::cout << "╔════════════════════════════════════════════════════════════╗" << std::endl;
   std::cout << "║     Storage Backend Comprehensive Test Suite              ║" << std::endl;
@@ -372,6 +378,10 @@ int main() {
   std::remove("test_backend_native.bin");
   std::remove("test_backend_eigen.bin");
   std::remove("test_backend_xtensor.bin");
+
+#if NDARRAY_HAVE_MPI
+  MPI_Finalize();
+#endif
 
   return result;
 }
