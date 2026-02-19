@@ -145,19 +145,26 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
+    - name: Cache CUDA
+      id: cache-cuda
+      uses: actions/cache@v3
+      with:
+        path: /usr/local/cuda-12.0
+        key: cuda-12.0-ubuntu2204
+
     - name: Install CUDA Toolkit
+      if: steps.cache-cuda.outputs.cache-hit != 'true'
       run: |
-        # CUDA is often pre-installed on GitHub Runners
-        if ! command -v nvcc &> /dev/null; then
-          # Add NVIDIA package repository if needed
-          wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.0-1_all.deb
-          sudo dpkg -i cuda-keyring_1.0-1_all.deb
-          sudo apt-get update
-          sudo apt-get install -y cuda-toolkit-12-0
-          echo "/usr/local/cuda-12.0/bin" >> $GITHUB_PATH
-        else
-          nvcc --version
-        fi
+        wget https://developer.download.nvidia.com/compute/cuda/12.0.0/local_installers/cuda_12.0.0_525.60.13_linux.run
+        sudo sh cuda_12.0.0_525.60.13_linux.run --silent --toolkit
+        # The runfile installer by default installs to /usr/local/cuda-12.0
+
+    - name: Set CUDA Path
+      run: |
+        echo "/usr/local/cuda-12.0/bin" >> $GITHUB_PATH
+        echo "LD_LIBRARY_PATH=/usr/local/cuda-12.0/lib64:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+        echo "CUDA_PATH=/usr/local/cuda-12.0" >> $GITHUB_ENV
+        echo "CUDA_TOOLKIT_ROOT_DIR=/usr/local/cuda-12.0" >> $GITHUB_ENV
 
     - name: Configure CMake (CUDA)
       run: |
@@ -167,7 +174,8 @@ jobs:
           -DNDARRAY_BUILD_EXAMPLES=OFF \
           -DNDARRAY_USE_CUDA=ON \
           -DNDARRAY_USE_MPI=OFF \
-          -DNDARRAY_USE_YAML=OFF
+          -DNDARRAY_USE_YAML=OFF \
+          -DCMAKE_CUDA_COMPILER=/usr/local/cuda-12.0/bin/nvcc
 
     - name: Build
       run: cmake --build build -j$(nproc)
