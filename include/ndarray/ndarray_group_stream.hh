@@ -81,26 +81,39 @@ inline void stream<StoragePolicy>::new_substream_from_yaml(YAML::Node y)
     }
     else if (format == "binary")
       sub.reset(new substream_binary<StoragePolicy>(*this));
+    else if (format == "netcdf") {
 #if NDARRAY_HAVE_NETCDF
-    else if (format == "netcdf")
       sub.reset(new substream_netcdf<StoragePolicy>(*this));
+#else
+      nd::fatal(nd::ERR_NOT_BUILT_WITH_NETCDF);
 #endif
+    }
+    else if (format == "h5") {
 #if NDARRAY_HAVE_HDF5
-    else if (format == "h5")
       sub.reset(new substream_h5<StoragePolicy>(*this));
+#else
+      nd::fatal(nd::ERR_NOT_BUILT_WITH_HDF5);
 #endif
+    }
+    else if (format == "adios2") {
 #if NDARRAY_HAVE_ADIOS2
-    else if (format == "adios2")
       sub.reset(new substream_adios2<StoragePolicy>(*this));
+#else
+      nd::fatal(nd::ERR_NOT_BUILT_WITH_ADIOS2);
 #endif
+    }
+    else if (format == "vti" || format == "vtu_resample" || format == "vti_output") {
 #if NDARRAY_HAVE_VTK
-    else if (format == "vti")
-      sub.reset(new substream_vti<StoragePolicy>(*this));
-    else if (format == "vtu_resample")
-      sub.reset(new substream_vtu_resample<StoragePolicy>(*this));
-    else if (format == "vti_output")
-      sub.reset(new substream_vti_o<StoragePolicy>(*this));
+      if (format == "vti")
+        sub.reset(new substream_vti<StoragePolicy>(*this));
+      else if (format == "vtu_resample")
+        sub.reset(new substream_vtu_resample<StoragePolicy>(*this));
+      else if (format == "vti_output")
+        sub.reset(new substream_vti_o<StoragePolicy>(*this));
+#else
+      nd::fatal(nd::ERR_NOT_BUILT_WITH_VTK);
 #endif
+    }
     else
       nd::fatal(nd::ERR_STREAM_FORMAT);
   }
