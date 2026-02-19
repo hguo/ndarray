@@ -20,18 +20,17 @@
 #include <hdf5.h>
 #endif
 
-#define TEST_ASSERT(condition, message) 
-  do { 
-    if (!(condition)) { 
-      std::cerr << "[Rank " << rank << "] FAILED: " << message << std::endl; 
-      std::cerr << "  at " << __FILE__ << ":" << __LINE__ << std::endl; 
-      MPI_Abort(MPI_COMM_WORLD, 1); 
-    } 
+#define TEST_ASSERT(condition, message) \
+  do { \
+    if (!(condition)) { \
+      std::cerr << "[Rank " << rank << "] FAILED: " << message << std::endl; \
+      std::cerr << "  at " << __FILE__ << ":" << __LINE__ << std::endl; \
+      MPI_Abort(MPI_COMM_WORLD, 1); \
+    } \
   } while (0)
 
-#define TEST_SECTION(name) 
-  if (rank == 0) std::cout << "
---- Testing: " << name << " ---" << std::endl
+#define TEST_SECTION(name) \
+  if (rank == 0) std::cout << "\n--- Testing: " << name << " ---" << std::endl
 
 int main(int argc, char** argv) {
 #if NDARRAY_HAVE_MPI && NDARRAY_HAVE_HDF5
@@ -142,9 +141,7 @@ int main(int argc, char** argv) {
   MPI_Barrier(MPI_COMM_WORLD);
   if (rank == 0) {
     std::remove(filename.c_str());
-    std::cout << "
-=== All HDF5 Auto I/O Tests Passed ===
-" << std::endl;
+    std::cout << "\n=== All HDF5 Auto I/O Tests Passed ===\n" << std::endl;
   }
 
   MPI_Finalize();
