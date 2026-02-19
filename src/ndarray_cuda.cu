@@ -227,6 +227,3 @@ template void launch_unpack_ghost_3d<double>(double*, const double*, int, int, i
 
 } // namespace nd
 } // namespace ftk
-
-} // namespace nd
-} // namespace ftk

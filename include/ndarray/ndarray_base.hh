@@ -181,24 +181,24 @@ public:
 
 public:
   // Set number of component dimensions (0=scalar, 1=vector, 2=tensor)
-  void set_multicomponents(size_t c=1) {ncd = c;}
+  void set_multicomponents(size_t c=1) {n_component_dims = c;}
 
   // Convert scalar array to vector array with 1 component: [nx, ny] → [1, nx, ny]
   void make_multicomponents();
 
-  // Get number of component dimensions (ncd value)
-  size_t multicomponents() const {return ncd;}
+  // Get number of component dimensions (n_component_dims value)
+  size_t multicomponents() const {return n_component_dims;}
 
-  // Get total number of components (product of first ncd dimensions)
-  // Example: for shape [3, 100, 200] with ncd=1, returns 3
+  // Get total number of components (product of first n_component_dims dimensions)
+  // Example: for shape [3, 100, 200] with n_component_dims=1, returns 3
   size_t ncomponents() const;
 
   // Mark whether the last dimension represents time
-  // When tv=true, the array is time-series data: [...spatial_dims..., time_dim]
-  void set_has_time(bool b) { tv = b; }
+  // When is_time_varying=true, the array is time-series data: [...spatial_dims..., time_dim]
+  void set_has_time(bool b) { is_time_varying = b; }
 
   // Check if last dimension is time
-  bool has_time() const { return tv; }
+  bool has_time() const { return is_time_varying; }
 
 public: // binary i/o
   void read_binary_file(const std::string& filename, int endian = NDARRAY_ENDIAN_LITTLE);
@@ -206,10 +206,8 @@ public: // binary i/o
   void to_binary_file(const std::string& filename);
   virtual void to_binary_file(FILE *fp) = 0;
 
-#if NDARRAY_HAVE_MPI
   virtual void read_binary_auto(const std::string& filename) = 0;
   virtual void write_binary_auto(const std::string& filename) = 0;
-#endif
 
 public: // netcdf
   void read_netcdf(const std::string& filename, const std::string& varname, const size_t starts[], const size_t sizes[], MPI_Comm comm=MPI_COMM_WORLD);
@@ -264,7 +262,7 @@ public: // h5 i/o
   bool read_h5(hid_t fid, const std::string& name);
   virtual bool read_h5_did(hid_t did) = 0;
 #endif
-#if NDARRAY_HAVE_MPI && NDARRAY_HAVE_HDF5
+#if NDARRAY_HAVE_HDF5
   virtual void read_hdf5_auto(const std::string& filename, const std::string& varname) = 0;
   virtual void write_hdf5_auto(const std::string& filename, const std::string& varname) = 0;
 #endif
@@ -327,19 +325,19 @@ public: // decomposition
 protected:
   std::vector<size_t> dims, s;
 
-  // ncd: number of leading dimensions that represent components (not spatial/temporal)
-  // ncd=0: scalar field, all dimensions are spatial (e.g., [nx, ny, nz])
-  // ncd=1: vector field, first dimension is components (e.g., [3, nx, ny, nz] for 3D velocity)
-  // ncd=2: tensor field, first two dimensions are components (e.g., [3, 3, nx, ny] for stress tensor)
-  // Total components = product of first ncd dimensions
-  size_t ncd = 0;
+  // n_component_dims: number of leading dimensions that represent components (not spatial/temporal)
+  // n_component_dims=0: scalar field, all dimensions are spatial (e.g., [nx, ny, nz])
+  // n_component_dims=1: vector field, first dimension is components (e.g., [3, nx, ny, nz] for 3D velocity)
+  // n_component_dims=2: tensor field, first two dimensions are components (e.g., [3, 3, nx, ny] for stress tensor)
+  // Total components = product of first n_component_dims dimensions
+  size_t n_component_dims = 0;
 
-  // tv: whether the last dimension represents time
-  // tv=false: static/spatial data only (e.g., [nx, ny, nz])
-  // tv=true: time-series data, last dimension is timesteps (e.g., [nx, ny, nt])
+  // is_time_varying: whether the last dimension represents time
+  // is_time_varying=false: static/spatial data only (e.g., [nx, ny, nz])
+  // is_time_varying=true: time-series data, last dimension is timesteps (e.g., [nx, ny, nt])
   // Combined: [component_dims..., spatial_dims..., time_dim]
-  //           <----- ncd -----> <-- nd()-ncd-1 --> <-- tv -->
-  bool tv = false;
+  //           <----- n_component_dims -----> <-- nd()-n_component_dims-1 --> <-- is_time_varying -->
+  bool is_time_varying = false;
 };
 
 ////////
@@ -349,10 +347,10 @@ inline lattice ndarray_base::get_lattice() const {
 }
 
 inline size_t ndarray_base::ncomponents() const {
-  // Compute total number of components by multiplying the first ncd dimensions
+  // Compute total number of components by multiplying the first n_component_dims dimensions
   // Examples:
-  //   [3, 100, 200] with ncd=1 → 3 components
-  //   [3, 3, 64, 64] with ncd=2 → 9 components
+  //   [3, 100, 200] with n_component_dims=1 → 3 components
+  //   [3, 3, 64, 64] with n_component_dims=2 → 9 components
   size_t rtn = 1;
   for (size_t i = 0; i < multicomponents(); i ++)
     rtn *= dims[i];
@@ -560,13 +558,13 @@ inline vtkSmartPointer<vtkDataArray> ndarray_base::to_vtk_data_array(std::string
   if (varname.length() > 0)
     d->SetName( varname.c_str() );
 
-  // fprintf(stderr, "to_vtk_data_array, ncd=%zu\n", ncd);
+  // fprintf(stderr, "to_vtk_data_array, n_component_dims=%zu\n", n_component_dims);
 
-  if (ncd == 1) {
+  if (n_component_dims == 1) {
     d->SetNumberOfComponents(shapef(0));
     d->SetNumberOfTuples( std::accumulate(dims.begin()+1, dims.end(), 1, std::multiplies<size_t>()) );
   }
-  else if (ncd == 0) {
+  else if (n_component_dims == 0) {
     d->SetNumberOfComponents(1);
     d->SetNumberOfTuples(nelem());
   } else {
@@ -884,8 +882,8 @@ inline std::ostream& ndarray_base::print_shapef(std::ostream& os) const
     else os << dims[i] << "}, ";
 
   os << "size=" << this->size() << ", "
-     << "multicomponents=" << this->ncd << ", "
-     << "time_varying=" << this->tv;
+     << "n_component_dims=" << this->n_component_dims << ", "
+     << "is_time_varying=" << this->is_time_varying;
 
 #if 0
   os << "prod={";
@@ -934,6 +932,6 @@ inline int ndarray_base::str2dtype(const std::string str)
     return NDARRAY_DTYPE_UNKNOWN;
 }
 
-} // namespace ndarray
+} // namespace ftk
 
 #endif

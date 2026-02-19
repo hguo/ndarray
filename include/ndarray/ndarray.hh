@@ -63,11 +63,11 @@ struct ndarray : public ndarray_base {
 
   template <typename T1> ndarray(const ndarray<T1>& array1) { from_array<T1>(array1); }
   template <typename T1, typename OtherPolicy> ndarray(const ndarray<T1, OtherPolicy>& array1) { from_array<T1, OtherPolicy>(array1); }
-  ndarray(const ndarray<T, StoragePolicy>& a) { dims = a.dims; s = a.s; ncd = a.ncd; tv = a.tv; storage_ = a.storage_; }
+  ndarray(const ndarray<T, StoragePolicy>& a) { dims = a.dims; s = a.s; n_component_dims = a.n_component_dims; is_time_varying = a.is_time_varying; storage_ = a.storage_; }
 
   template <typename T1> ndarray<T, StoragePolicy>& operator=(const ndarray<T1>& array1) { from_array<T1>(array1); return *this; }
   template <typename T1, typename OtherPolicy> ndarray<T, StoragePolicy>& operator=(const ndarray<T1, OtherPolicy>& array1) { from_array<T1, OtherPolicy>(array1); return *this; }
-  ndarray<T, StoragePolicy>& operator=(const ndarray<T, StoragePolicy>& a) { dims = a.dims; s = a.s; ncd = a.ncd; tv = a.tv; storage_ = a.storage_; return *this; }
+  ndarray<T, StoragePolicy>& operator=(const ndarray<T, StoragePolicy>& a) { dims = a.dims; s = a.s; n_component_dims = a.n_component_dims; is_time_varying = a.is_time_varying; storage_ = a.storage_; return *this; }
 
   std::ostream& print(std::ostream& os) const;
 
@@ -200,7 +200,35 @@ public: // Row-major (C-style) access: c(i0, i1, ...) where the last index varie
   const T& c(size_t i0, size_t i1, size_t i2, size_t i3, size_t i4, size_t i5, size_t i6) const {return storage_[i6+i5*s[1]+i4*s[2]+i3*s[3]+i2*s[4]+i1*s[5]+i0*s[6]];}
 
 
-public: // legacy f-style access
+public:
+  friend std::ostream& operator<<(std::ostream& os, const ndarray<T, StoragePolicy>& arr) {arr.print(os); return os;}
+  friend bool operator==(const ndarray<T, StoragePolicy>& lhs, const ndarray<T, StoragePolicy>& rhs) {
+    if (lhs.dims != rhs.dims) return false;
+    if (lhs.size() != rhs.size()) return false;
+    for (size_t i = 0; i < lhs.size(); i++) {
+      if (lhs.storage_[i] != rhs.storage_[i]) return false;
+    }
+    return true;
+  }
+
+  ndarray<T, StoragePolicy>& operator+=(const ndarray<T, StoragePolicy>& x);
+  ndarray<T, StoragePolicy>& operator-=(const ndarray<T, StoragePolicy>& x);
+
+  template <typename T1> ndarray<T, StoragePolicy>& operator*=(const T1& x);
+  template <typename T1> ndarray<T, StoragePolicy>& operator/=(const T1& x);
+
+  template <typename T1, typename SP1> friend ndarray<T1, SP1> operator+(const ndarray<T1, SP1>& lhs, const ndarray<T1, SP1>& rhs);
+  template <typename T1, typename SP1> friend ndarray<T1, SP1> operator-(const ndarray<T1, SP1>& lhs, const ndarray<T1, SP1>& rhs);
+
+  // template <typename T1> friend ndarray<T> operator*(const ndarray<T>& lhs, const T1& rhs);
+  template <typename T1> friend ndarray<T, StoragePolicy> operator*(const T1& lhs, const ndarray<T, StoragePolicy>& rhs) {return rhs * lhs;}
+  template <typename T1> friend ndarray<T, StoragePolicy> operator/(const ndarray<T, StoragePolicy>& lhs, const T1& rhs);
+
+public: // element access
+  T& operator[](size_t i) {return storage_[i];}
+  const T& operator[](size_t i) const {return storage_[i];}
+
+public: // legacy compatibility (deprecated)
   [[deprecated]] T& at(const std::vector<size_t>& idx) {return storage_[indexf(idx)];}
   [[deprecated]] const T& at(const std::vector<size_t>& idx) const {return storage_[indexf(idx)];}
 
@@ -254,34 +282,6 @@ public: // legacy f-style access
   [[deprecated]] const T& operator()(size_t i0, size_t i1, size_t i2, size_t i3, size_t i4, size_t i5) const {return storage_[i0+i1*s[1]+i2*s[2]+i3*s[3]+i4*s[4]+i5*s[5]];}
   [[deprecated]] const T& operator()(size_t i0, size_t i1, size_t i2, size_t i3, size_t i4, size_t i5, size_t i6) const {return storage_[i0+i1*s[1]+i2*s[2]+i3*s[3]+i4*s[4]+i5*s[5]+i6*s[6]];}
 
-
-public:
-  friend std::ostream& operator<<(std::ostream& os, const ndarray<T, StoragePolicy>& arr) {arr.print(os); return os;}
-  friend bool operator==(const ndarray<T, StoragePolicy>& lhs, const ndarray<T, StoragePolicy>& rhs) {
-    if (lhs.dims != rhs.dims) return false;
-    if (lhs.size() != rhs.size()) return false;
-    for (size_t i = 0; i < lhs.size(); i++) {
-      if (lhs.storage_[i] != rhs.storage_[i]) return false;
-    }
-    return true;
-  }
-
-  ndarray<T, StoragePolicy>& operator+=(const ndarray<T, StoragePolicy>& x);
-  ndarray<T, StoragePolicy>& operator-=(const ndarray<T, StoragePolicy>& x);
-
-  template <typename T1> ndarray<T, StoragePolicy>& operator*=(const T1& x);
-  template <typename T1> ndarray<T, StoragePolicy>& operator/=(const T1& x);
-
-  template <typename T1, typename SP1> friend ndarray<T1, SP1> operator+(const ndarray<T1, SP1>& lhs, const ndarray<T1, SP1>& rhs);
-  template <typename T1, typename SP1> friend ndarray<T1, SP1> operator-(const ndarray<T1, SP1>& lhs, const ndarray<T1, SP1>& rhs);
-
-  // template <typename T1> friend ndarray<T> operator*(const ndarray<T>& lhs, const T1& rhs);
-  template <typename T1> friend ndarray<T, StoragePolicy> operator*(const T1& lhs, const ndarray<T, StoragePolicy>& rhs) {return rhs * lhs;}
-  template <typename T1> friend ndarray<T, StoragePolicy> operator/(const ndarray<T, StoragePolicy>& lhs, const T1& rhs);
-
-  // element access
-  T& operator[](size_t i) {return storage_[i];}
-  const T& operator[](size_t i) const {return storage_[i];}
 
   template <typename F=float> // scalar multilinear interpolation
   bool mlerp(const F x[], T v[]) const;
@@ -369,6 +369,7 @@ public: // i/o for hdf5
   static ndarray<T, StoragePolicy> from_h5(const std::string& filename, const std::string& name);
 #if NDARRAY_HAVE_HDF5
   bool read_h5_did(hid_t did);
+  bool to_h5(const std::string& filename, const std::string& varname) const;
   static hid_t h5_mem_type_id();
 #endif
 
@@ -480,15 +481,13 @@ public: // Distribution-aware I/O (automatically chooses parallel/replicated/ser
   void write_pnetcdf_auto(const std::string& filename, const std::string& varname);
 #endif
 
-#if NDARRAY_HAVE_MPI && NDARRAY_HAVE_HDF5
+#if NDARRAY_HAVE_HDF5
   void read_hdf5_auto(const std::string& filename, const std::string& varname);
   void write_hdf5_auto(const std::string& filename, const std::string& varname);
 #endif
 
-#if NDARRAY_HAVE_MPI
   void read_binary_auto(const std::string& filename);
   void write_binary_auto(const std::string& filename);
-#endif
 
 public: // MPI and distributed memory support
 #if NDARRAY_HAVE_MPI
@@ -553,6 +552,8 @@ public: // MPI and distributed memory support
   const lattice& global_lattice() const;
   const lattice& local_core() const;
   const lattice& local_extent() const;
+  ndarray<T, StoragePolicy>& local_array() { return *this; }
+  const ndarray<T, StoragePolicy>& local_array() const { return *this; }
 
   // Index conversion (throw if not distributed)
   std::vector<size_t> global_to_local(const std::vector<size_t>& global_idx) const;
@@ -644,6 +645,9 @@ private:
 #if NDARRAY_HAVE_CUDA
   void exchange_ghosts_gpu_direct();  // GPU direct (requires GPU-aware MPI, nvcc compilation)
 #endif
+#else
+  bool should_use_parallel_io() const { return false; }
+  bool should_use_replicated_io() const { return false; }
 #endif
 
 private:
@@ -786,8 +790,8 @@ void ndarray<T, StoragePolicy>::from_array(const ndarray<T1>& array1)
   reshapef(array1.shapef());
   for (auto i = 0; i < storage_.size(); i ++)
     storage_[i] = static_cast<T>(array1[i]);
-  ncd = array1.multicomponents();
-  tv = array1.has_time();
+  n_component_dims = array1.multicomponents();
+  is_time_varying = array1.has_time();
 }
 
 // Conversion from different storage policy
@@ -798,8 +802,8 @@ void ndarray<T, StoragePolicy>::from_array(const ndarray<T1, OtherPolicy>& array
   dims = array1.shapef();
   reshapef(dims);  // This will recalculate strides (s)
 
-  ncd = array1.multicomponents();
-  tv = array1.has_time();
+  n_component_dims = array1.multicomponents();
+  is_time_varying = array1.has_time();
 
   for (size_t i = 0; i < size(); i++) {
     storage_[i] = static_cast<T>(array1.data()[i]);
@@ -849,8 +853,8 @@ void ndarray<T, StoragePolicy>::swap(ndarray& x)
   dims.swap(x.dims);
   s.swap(x.s);
   std::swap(storage_, x.storage_);
-  std::swap(x.ncd, ncd);
-  std::swap(x.tv, tv);
+  std::swap(x.n_component_dims, n_component_dims);
+  std::swap(x.is_time_varying, is_time_varying);
 }
 
 template <typename T, typename StoragePolicy>
@@ -858,7 +862,7 @@ ndarray<T, StoragePolicy> ndarray<T, StoragePolicy>::subarray(const lattice& l0)
 {
   lattice l(l0);
   if (l0.nd_cuttable() < nd()) {
-    for (int i = 0; i < ncd; i ++) {
+    for (int i = 0; i < n_component_dims; i ++) {
       l.starts_.insert(l.starts_.begin(), 0);
       l.sizes_.insert(l.starts_.begin(), this->shapef(i));
     }
@@ -870,7 +874,7 @@ ndarray<T, StoragePolicy> ndarray<T, StoragePolicy>::subarray(const lattice& l0)
     arr[i] = f(idx);
   }
 
-  arr.ncd = ncd;
+  arr.n_component_dims = n_component_dims;
   return arr;
 }
 
@@ -1040,13 +1044,13 @@ inline void ndarray<T, StoragePolicy>::from_vtk_regular_data(
     if (nc == 1) reshapef(vdims[0], vdims[1]); //scalar field
     else {
       reshapef(nc, vdims[0], vdims[1]); // vector field
-      ncd = 1; // multicomponent array
+      n_component_dims = 1; // multicomponent array
     };
   } else if (nd == 3) {
     if (nc == 1) reshapef(vdims[0], vdims[1], vdims[2]); // scalar field
     else {
       reshapef(nc, vdims[0], vdims[1], vdims[2]);
-      ncd = 1; // multicomponent array
+      n_component_dims = 1; // multicomponent array
     }
   } else {
     fprintf(stderr, "[NDARRAY] fatal error: unsupported data dimension %d.\n", nd);
@@ -1064,7 +1068,7 @@ inline void ndarray<T, StoragePolicy>::from_vtk_regular_data(
 template<typename T, typename StoragePolicy>
 inline void ndarray<T, StoragePolicy>::to_vtk_image_data_file(const std::string& filename, const std::string varname) const
 {
-  // fprintf(stderr, "to_vtk_image_data_file, ncd=%zu\n", ncd);
+  // fprintf(stderr, "to_vtk_image_data_file, n_component_dims=%zu\n", n_component_dims);
   vtkSmartPointer<vtkXMLImageDataWriter> writer = vtkXMLImageDataWriter::New();
   writer->SetFileName(filename.c_str());
   writer->SetInputData( to_vtk_image_data(varname) );
@@ -1075,8 +1079,8 @@ template<typename T, typename StoragePolicy>
 inline vtkSmartPointer<vtkImageData> ndarray<T, StoragePolicy>::to_vtk_image_data(std::string varname) const
 {
   vtkSmartPointer<vtkImageData> d = vtkImageData::New();
-  // fprintf(stderr, "to_vtk_image_data, ncd=%zu\n", ncd);
-  if (ncd) { // multicomponent
+  // fprintf(stderr, "to_vtk_image_data, n_component_dims=%zu\n", n_component_dims);
+  if (n_component_dims) { // multicomponent
     if (nd() == 3) d->SetDimensions(shapef(1), shapef(2), 1);
     else d->SetDimensions(shapef(1), shapef(2), shapef(3)); // nd == 4
 
@@ -1740,6 +1744,39 @@ inline bool ndarray<T, StoragePolicy>::read_h5_did(hid_t did)
     nd::fatal("unsupported h5 extent type");
 
   return true;
+}
+
+template <typename T, typename StoragePolicy>
+inline bool ndarray<T, StoragePolicy>::to_h5(const std::string& filename, const std::string& varname) const
+{
+  hid_t dtype = h5_mem_type_id();
+  if (dtype < 0) {
+    std::cerr << "[ndarray] Error: Unsupported data type for HDF5 output" << std::endl;
+    return false;
+  }
+
+  hid_t file_id = H5Fcreate(filename.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+  if (file_id < 0) return false;
+
+  const size_t nd = this->nd();
+  std::vector<hsize_t> dims(nd);
+  for (size_t d = 0; d < nd; d++) {
+    dims[nd - 1 - d] = this->dimf(d);
+  }
+
+  hid_t dataspace_id = H5Screate_simple(static_cast<int>(nd), dims.data(), NULL);
+  hid_t dataset_id = H5Dcreate2(file_id, varname.c_str(), dtype, dataspace_id,
+                                 H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+  if (dataset_id >= 0) {
+    H5Dwrite(dataset_id, dtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, storage_.data());
+    H5Dclose(dataset_id);
+  }
+
+  H5Sclose(dataspace_id);
+  H5Fclose(file_id);
+
+  return dataset_id >= 0;
 }
 
 template <typename T, typename StoragePolicy>
@@ -3783,12 +3820,13 @@ void ndarray<T, StoragePolicy>::write_pnetcdf_auto(
 
 #endif // NDARRAY_HAVE_MPI && NDARRAY_HAVE_PNETCDF
 
-#if NDARRAY_HAVE_MPI && NDARRAY_HAVE_HDF5
+#if NDARRAY_HAVE_HDF5
 
 template <typename T, typename StoragePolicy>
 void ndarray<T, StoragePolicy>::read_hdf5_auto(
   const std::string& filename, const std::string& varname)
 {
+#if NDARRAY_HAVE_MPI
   if (should_use_parallel_io()) {
     // Distributed mode: Parallel HDF5 read
     // Note: Requires HDF5 built with parallel support (--enable-parallel)
@@ -3874,21 +3912,26 @@ void ndarray<T, StoragePolicy>::read_hdf5_auto(
 
   } else if (should_use_replicated_io()) {
     // Replicated mode: Rank 0 reads + broadcast
-    if (dist_->rank == 0) this->read_hdf5(filename, varname);
+    if (dist_->rank == 0) this->read_h5(filename, varname);
     size_t total_size = this->size();
     MPI_Bcast(&total_size, 1, MPI_UNSIGNED_LONG, 0, dist_->comm);
     if (dist_->rank != 0) this->reshapef(this->dims);
     MPI_Bcast(this->data(), static_cast<int>(total_size), mpi_datatype(), 0, dist_->comm);
   } else {
-    // Serial mode
-    this->read_hdf5(filename, varname);
+    // Serial mode fallback
+    this->read_h5(filename, varname);
   }
+#else
+  // MPI not available, only serial mode
+  this->read_h5(filename, varname);
+#endif
 }
 
 template <typename T, typename StoragePolicy>
 void ndarray<T, StoragePolicy>::write_hdf5_auto(
   const std::string& filename, const std::string& varname)
 {
+#if NDARRAY_HAVE_MPI
   if (should_use_parallel_io()) {
     // Distributed mode: Parallel HDF5 write
 #ifdef H5_HAVE_PARALLEL
@@ -3964,21 +4007,24 @@ void ndarray<T, StoragePolicy>::write_hdf5_auto(
 
   } else if (should_use_replicated_io()) {
     // Replicated mode: Only rank 0 writes
-    if (dist_->rank == 0) this->to_hdf5(filename, varname);
+    if (dist_->rank == 0) this->to_h5(filename, varname);
     MPI_Barrier(dist_->comm);
   } else {
-    // Serial mode
-    this->to_hdf5(filename, varname);
+    // Serial mode fallback
+    this->to_h5(filename, varname);
   }
+#else
+  // MPI not available, only serial mode
+  this->to_h5(filename, varname);
+#endif
 }
 
-#endif // NDARRAY_HAVE_MPI && NDARRAY_HAVE_HDF5
-
-#if NDARRAY_HAVE_MPI
+#endif // NDARRAY_HAVE_HDF5
 
 template <typename T, typename StoragePolicy>
 void ndarray<T, StoragePolicy>::read_binary_auto(const std::string& filename)
 {
+#if NDARRAY_HAVE_MPI
   if (should_use_parallel_io()) {
     // Distributed mode: MPI-IO parallel read
     // Read only the local core region using column-major (Fortran) order
@@ -4067,14 +4113,19 @@ void ndarray<T, StoragePolicy>::read_binary_auto(const std::string& filename)
     MPI_Bcast(this->data(), static_cast<int>(total_size), mpi_datatype(), 0, dist_->comm);
 
   } else {
-    // Serial mode
+    // Serial mode fallback
     this->read_binary_file(filename);
   }
+#else
+  // MPI not available, only serial mode
+  this->read_binary_file(filename);
+#endif
 }
 
 template <typename T, typename StoragePolicy>
 void ndarray<T, StoragePolicy>::write_binary_auto(const std::string& filename)
 {
+#if NDARRAY_HAVE_MPI
   if (should_use_parallel_io()) {
     // Distributed mode: MPI-IO parallel write
     const auto& core = dist_->local_core_;
@@ -4125,12 +4176,14 @@ void ndarray<T, StoragePolicy>::write_binary_auto(const std::string& filename)
     MPI_Barrier(dist_->comm);
 
   } else {
-    // Serial mode
+    // Serial mode fallback
     this->to_binary_file(filename);
   }
+#else
+  // MPI not available, only serial mode
+  this->to_binary_file(filename);
+#endif
 }
-
-#endif // NDARRAY_HAVE_MPI
 
 // Type aliases for convenience
 template <typename T>

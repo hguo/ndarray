@@ -7,7 +7,12 @@ if (NDARRAY_HAVE_HENSON)
   endif                       (NOT APPLE)
 endif ()
 
-add_library (ndarray SHARED ndarray.cpp)
+set (ndarray_sources ndarray.cpp)
+if (NDARRAY_HAVE_CUDA)
+  list (APPEND ndarray_sources ndarray_cuda.cu)
+endif ()
+
+add_library (ndarray SHARED ${ndarray_sources})
 
 # Link all dependencies with PUBLIC visibility so they propagate to consumers
 # This allows examples/tests to simply link against ndarray without manually

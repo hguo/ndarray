@@ -281,8 +281,11 @@ if (OpenMP_CXX_FOUND)
 endif ()
 
 if (NDARRAY_USE_CUDA STREQUAL AUTO)
-  enable_language (CUDA OPTIONAL) #FIXME: NDARRAY_HAVE_CUDA in AUTO mode
+  enable_language (CUDA OPTIONAL)
   find_package (CUDAToolkit OPTIONAL)
+  if (CMAKE_CUDA_COMPILER)
+    set (NDARRAY_HAVE_CUDA TRUE)
+  endif ()
 elseif (NDARRAY_USE_CUDA)
   enable_language (CUDA)
   find_package (CUDAToolkit)

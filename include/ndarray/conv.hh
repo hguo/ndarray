@@ -220,6 +220,6 @@ ndarray<T> conv_gaussian(
   else return ndarray<T>();
 }
 
-}  // namespace ndarray
+}  // namespace ftk
 
 #endif  // _NDARRAY_CONV_HH
