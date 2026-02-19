@@ -12,6 +12,9 @@
 
 #include <ndarray/config.hh>
 #include <iostream>
+#if NDARRAY_HAVE_MPI
+#include <mpi.h>
+#endif
 
 #if NDARRAY_HAVE_YAML
 
@@ -19,9 +22,6 @@
 #include <cassert>
 #include <cmath>
 #include <fstream>
-#if NDARRAY_HAVE_MPI
-#include <mpi.h>
-#endif
 
 #define TEST_ASSERT(condition, message) \
   do { \
