@@ -923,6 +923,198 @@ int main(int argc, char** argv) {
   std::cout << "  Mixed stream test SKIPPED (not built with NetCDF)" << std::endl;
 #endif
 
+#if NDARRAY_HAVE_NETCDF
+  // Test 16: One static + two time-varying substreams
+  {
+    TEST_SECTION("1 static + 2 time-varying substreams");
+
+    try {
+      const size_t nx = 8, ny = 10, nt = 4;
+
+      // Create static NetCDF file (mesh/coordinates)
+      int ncid_static, dimids_static[2], varid_x, varid_y;
+      nc_create("test_stream_multi_static.nc", NC_CLOBBER, &ncid_static);
+      nc_def_dim(ncid_static, "x", nx, &dimids_static[1]);
+      nc_def_dim(ncid_static, "y", ny, &dimids_static[0]);
+      nc_def_var(ncid_static, "x_coord", NC_FLOAT, 2, dimids_static, &varid_x);
+      nc_def_var(ncid_static, "y_coord", NC_FLOAT, 2, dimids_static, &varid_y);
+      nc_enddef(ncid_static);
+
+      // Write static coordinate data
+      std::vector<float> x_coords(nx * ny);
+      std::vector<float> y_coords(nx * ny);
+      for (size_t j = 0; j < ny; j++) {
+        for (size_t i = 0; i < nx; i++) {
+          x_coords[j * nx + i] = static_cast<float>(i);
+          y_coords[j * nx + i] = static_cast<float>(j);
+        }
+      }
+      nc_put_var_float(ncid_static, varid_x, x_coords.data());
+      nc_put_var_float(ncid_static, varid_y, y_coords.data());
+      nc_close(ncid_static);
+
+      // Create first time-varying NetCDF file (temperature)
+      int ncid_temp, dimids_temp[3], varid_temp;
+      nc_create("test_stream_multi_temp.nc", NC_CLOBBER, &ncid_temp);
+      nc_def_dim(ncid_temp, "time", NC_UNLIMITED, &dimids_temp[0]);
+      nc_def_dim(ncid_temp, "x", nx, &dimids_temp[2]);
+      nc_def_dim(ncid_temp, "y", ny, &dimids_temp[1]);
+      nc_def_var(ncid_temp, "temperature", NC_FLOAT, 3, dimids_temp, &varid_temp);
+      nc_enddef(ncid_temp);
+
+      // Write time-varying temperature data
+      for (size_t t = 0; t < nt; t++) {
+        std::vector<float> temp(nx * ny);
+        for (size_t i = 0; i < nx * ny; i++) {
+          temp[i] = 20.0f + t * 5.0f + i * 0.1f;  // Base 20°C, +5°C per timestep
+        }
+        size_t start[3] = {t, 0, 0};
+        size_t count[3] = {1, ny, nx};
+        nc_put_vara_float(ncid_temp, varid_temp, start, count, temp.data());
+      }
+      nc_close(ncid_temp);
+
+      // Create second time-varying NetCDF file (velocity)
+      int ncid_vel, dimids_vel[3], varid_vel;
+      nc_create("test_stream_multi_vel.nc", NC_CLOBBER, &ncid_vel);
+      nc_def_dim(ncid_vel, "time", NC_UNLIMITED, &dimids_vel[0]);
+      nc_def_dim(ncid_vel, "x", nx, &dimids_vel[2]);
+      nc_def_dim(ncid_vel, "y", ny, &dimids_vel[1]);
+      nc_def_var(ncid_vel, "velocity", NC_FLOAT, 3, dimids_vel, &varid_vel);
+      nc_enddef(ncid_vel);
+
+      // Write time-varying velocity data
+      for (size_t t = 0; t < nt; t++) {
+        std::vector<float> vel(nx * ny);
+        for (size_t i = 0; i < nx * ny; i++) {
+          vel[i] = 1.0f + t * 0.5f + i * 0.01f;  // Base 1 m/s, +0.5 m/s per timestep
+        }
+        size_t start[3] = {t, 0, 0};
+        size_t count[3] = {1, ny, nx};
+        nc_put_vara_float(ncid_vel, varid_vel, start, count, vel.data());
+      }
+      nc_close(ncid_vel);
+
+      // Create YAML with 1 static + 2 time-varying substreams
+      std::ofstream yaml("test_stream_multi_mixed.yaml");
+      yaml << "stream:\n";
+      yaml << "  name: test_multi_mixed\n";
+      yaml << "  substreams:\n";
+
+      // Static substream
+      yaml << "    - name: static_mesh\n";
+      yaml << "      format: netcdf\n";
+      yaml << "      filenames:\n";
+      yaml << "        - test_stream_multi_static.nc\n";
+      yaml << "      vars:\n";
+      yaml << "        - name: x_coord\n";
+      yaml << "          nc_name: x_coord\n";
+      yaml << "          dtype: float32\n";
+      yaml << "        - name: y_coord\n";
+      yaml << "          nc_name: y_coord\n";
+      yaml << "          dtype: float32\n";
+      yaml << "      static: true\n";
+
+      // First dynamic substream
+      yaml << "    - name: dynamic_temp\n";
+      yaml << "      format: netcdf\n";
+      yaml << "      filenames:\n";
+      yaml << "        - test_stream_multi_temp.nc\n";
+      yaml << "      vars:\n";
+      yaml << "        - name: temperature\n";
+      yaml << "          nc_name: temperature\n";
+      yaml << "          dtype: float32\n";
+
+      // Second dynamic substream
+      yaml << "    - name: dynamic_vel\n";
+      yaml << "      format: netcdf\n";
+      yaml << "      filenames:\n";
+      yaml << "        - test_stream_multi_vel.nc\n";
+      yaml << "      vars:\n";
+      yaml << "        - name: velocity\n";
+      yaml << "          nc_name: velocity\n";
+      yaml << "          dtype: float32\n";
+      yaml.close();
+
+      // Test reading
+      ftk::stream s;
+      s.parse_yaml("test_stream_multi_mixed.yaml");
+
+      TEST_ASSERT(s.total_timesteps() == nt, "Should have correct number of timesteps");
+
+      // Test reading static data
+      auto g_static = s.read_static();
+      TEST_ASSERT(g_static != nullptr, "Failed to read static data");
+      TEST_ASSERT(g_static->has("x_coord"), "Missing x_coord in static data");
+      TEST_ASSERT(g_static->has("y_coord"), "Missing y_coord in static data");
+      TEST_ASSERT(!g_static->has("temperature"), "Static data should NOT contain dynamic variables");
+      TEST_ASSERT(!g_static->has("velocity"), "Static data should NOT contain dynamic variables");
+
+      auto x_arr = g_static->get_arr<float>("x_coord");
+      auto y_arr = g_static->get_arr<float>("y_coord");
+      TEST_ASSERT(x_arr.size() == nx * ny, "Wrong x_coord size");
+      TEST_ASSERT(y_arr.size() == nx * ny, "Wrong y_coord size");
+      TEST_ASSERT(std::abs(x_arr[0] - 0.0f) < 1e-5f, "Wrong x_coord[0] value");
+      TEST_ASSERT(std::abs(y_arr[ny * nx - 1] - 9.0f) < 1e-5f, "Wrong y_coord[last] value");
+
+      // Test reading both dynamic variables at timestep 0
+      auto g0 = s.read(0);
+      TEST_ASSERT(g0 != nullptr, "Failed to read timestep 0");
+      TEST_ASSERT(g0->has("temperature"), "Missing temperature at t=0");
+      TEST_ASSERT(g0->has("velocity"), "Missing velocity at t=0");
+
+      auto temp0 = g0->get_arr<float>("temperature");
+      auto vel0 = g0->get_arr<float>("velocity");
+      TEST_ASSERT(temp0.size() == nx * ny, "Wrong temperature size at t=0");
+      TEST_ASSERT(vel0.size() == nx * ny, "Wrong velocity size at t=0");
+      TEST_ASSERT(std::abs(temp0[0] - 20.0f) < 1e-5f, "Wrong temperature at t=0");
+      TEST_ASSERT(std::abs(vel0[0] - 1.0f) < 1e-5f, "Wrong velocity at t=0");
+
+      // Test reading both dynamic variables at timestep 2
+      auto g2 = s.read(2);
+      TEST_ASSERT(g2 != nullptr, "Failed to read timestep 2");
+      TEST_ASSERT(g2->has("temperature"), "Missing temperature at t=2");
+      TEST_ASSERT(g2->has("velocity"), "Missing velocity at t=2");
+
+      auto temp2 = g2->get_arr<float>("temperature");
+      auto vel2 = g2->get_arr<float>("velocity");
+      TEST_ASSERT(std::abs(temp2[0] - 30.0f) < 1e-5f, "Wrong temperature at t=2 (expected 20 + 2*5 = 30)");
+      TEST_ASSERT(std::abs(vel2[0] - 2.0f) < 1e-5f, "Wrong velocity at t=2 (expected 1 + 2*0.5 = 2)");
+
+      // Test reading both dynamic variables at last timestep
+      auto g3 = s.read(3);
+      TEST_ASSERT(g3 != nullptr, "Failed to read timestep 3");
+      auto temp3 = g3->get_arr<float>("temperature");
+      auto vel3 = g3->get_arr<float>("velocity");
+      TEST_ASSERT(std::abs(temp3[0] - 35.0f) < 1e-5f, "Wrong temperature at t=3");
+      TEST_ASSERT(std::abs(vel3[0] - 2.5f) < 1e-5f, "Wrong velocity at t=3");
+
+      // Verify static data is still accessible (should be same as before)
+      auto g_static2 = s.read_static();
+      auto x_arr2 = g_static2->get_arr<float>("x_coord");
+      TEST_ASSERT(std::abs(x_arr2[0] - x_arr[0]) < 1e-5f, "Static data should persist");
+
+      std::cout << "    - Successfully read 1 static + 2 time-varying substreams" << std::endl;
+      std::cout << "    - Static substream: x_coord, y_coord" << std::endl;
+      std::cout << "    - Dynamic substream 1: temperature (" << nt << " timesteps)" << std::endl;
+      std::cout << "    - Dynamic substream 2: velocity (" << nt << " timesteps)" << std::endl;
+      std::cout << "    - Verified data correctness at t=0, t=2, t=3" << std::endl;
+      std::cout << "    PASSED" << std::endl;
+
+      std::remove("test_stream_multi_static.nc");
+      std::remove("test_stream_multi_temp.nc");
+      std::remove("test_stream_multi_vel.nc");
+      std::remove("test_stream_multi_mixed.yaml");
+
+    } catch (const std::exception& e) {
+      std::cerr << "    Multi-substream test failed: " << e.what() << std::endl;
+      return 1;
+    }
+  }
+#else
+  std::cout << "  Multi-substream test SKIPPED (not built with NetCDF)" << std::endl;
+#endif
+
   // Cleanup test files
   std::remove("test_stream_basic.yaml");
   std::remove("test_stream_read.yaml");
