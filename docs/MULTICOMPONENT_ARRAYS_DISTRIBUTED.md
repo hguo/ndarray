@@ -1,6 +1,12 @@
-# Handling Multicomponent and Time-Varying Arrays
+# Handling Multicomponent and Time-Varying Arrays in Distributed Mode
 
-## Problem
+## Key Principle
+
+**IMPORTANT**: Component and time dimensions are **NOT partitioned** across MPI ranks.
+
+Only **spatial dimensions** are decomposed. Component and time dimensions are **replicated** on all ranks.
+
+## Why This Design?
 
 Arrays can have non-spatial dimensions that should NOT be decomposed:
 - **Vector components**: velocity field [1000, 800, 600, 3] where 3 = (vx, vy, vz)
@@ -8,7 +14,13 @@ Arrays can have non-spatial dimensions that should NOT be decomposed:
 - **Time slices**: time-varying data [1000, 800, 600, 100] where 100 = timesteps
 - **Multiple variables**: combined storage [1000, 800, 600, 5] where 5 = (temp, pressure, density, ...)
 
-**Key requirement**: Domain decomposition should only split spatial dimensions, leaving other dimensions intact on each rank.
+**Key requirement**: Domain decomposition splits only spatial dimensions, leaving component and time dimensions intact on each rank.
+
+**Benefits**:
+- ✅ All vector/tensor components available locally (no communication for vector operations)
+- ✅ All timesteps available locally (enables temporal analysis without communication)
+- ✅ Cache-friendly: components at each spatial point are contiguous in memory
+- ✅ Natural for physics: compute full vectors, divergence, curl, etc. at any local point
 
 ## Solution: Explicit Decomposition Pattern
 
@@ -23,9 +35,11 @@ void decompose(MPI_Comm comm,
 ```
 
 **Decomposition pattern interpretation:**
-- `decomp[i] > 0`: Split dimension i into decomp[i] pieces
-- `decomp[i] == 0`: Don't split dimension i (replicate on all ranks)
-- `decomp[i] == 1`: Don't split dimension i (explicitly specified)
+- `decomp[i] > 0`: **Split** dimension i into decomp[i] pieces (spatial dimensions)
+- `decomp[i] == 0`: **DON'T split** dimension i - replicate on all ranks (components, time)
+- `decomp[i] == 1`: **DON'T split** dimension i - explicitly specified (equivalent to 0)
+
+**Default behavior**: Use `decomp[i] = 0` for component and time dimensions.
 
 ### 2. Examples
 

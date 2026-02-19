@@ -10,11 +10,57 @@ The `distributed_ndarray` class provides distributed memory parallel I/O for lar
 
 - **Automatic Domain Decomposition**: Prime factorization-based load balancing
 - **Manual Decomposition**: User-specified domain splitting patterns
+- **Selective Partitioning**: Only spatial dimensions are decomposed (see below)
 - **Ghost Layer Support**: Configurable ghost cells for stencil operations
 - **Parallel I/O**: Format-agnostic reading (NetCDF, HDF5, binary via MPI-IO)
 - **Index Conversion**: Seamless global ↔ local index translation
 - **Ghost Exchange**: MPI communication for boundary synchronization
 - **Storage Backend Support**: Works with all ndarray storage policies
+
+---
+
+## CRITICAL: Which Dimensions Are Partitioned?
+
+**Only spatial dimensions are partitioned across MPI ranks.**
+
+**Component and time dimensions are NOT partitioned** (replicated on all ranks).
+
+| Dimension Type | Partitioned? | On Each Rank |
+|----------------|--------------|--------------|
+| **Spatial** (x, y, z) | ✅ YES | Subdomain only |
+| **Component** (vector/tensor) | ❌ NO | All components |
+| **Time** (timesteps) | ❌ NO | All timesteps |
+
+### Example: 3D Velocity Field
+
+```cpp
+ftk::ndarray<float> velocity;
+
+// Shape: [3, nx, ny, nz] = [components, x, y, z]
+velocity.decompose(MPI_COMM_WORLD,
+                   {3, 1000, 800, 600},      // global dims
+                   0,                         // nprocs = all
+                   {0, 4, 2, 1},             // decomp pattern
+                   {0, 1, 1, 1});            // ghost widths
+
+// Decomposition pattern interpretation:
+// decomp[0] = 0  →  DON'T partition components (all 3 on every rank)
+// decomp[1] = 4  →  partition x into 4 pieces
+// decomp[2] = 2  →  partition y into 2 pieces
+// decomp[3] = 1  →  DON'T partition z (all ranks have full z extent)
+
+// Result with 8 ranks (4×2×1 spatial decomposition):
+// Each rank has: [3, 250, 400, 600]
+//                 ↑ ALL 3 components (vx, vy, vz)
+//                   ↑↑↑ spatial subdomain
+```
+
+**Why this design?**
+- ✅ All vector components available locally (compute magnitude, divergence, etc. without communication)
+- ✅ Cache-friendly (components contiguous in memory)
+- ✅ Natural for physics workflows
+
+See [MULTICOMPONENT_ARRAYS_DISTRIBUTED.md](MULTICOMPONENT_ARRAYS_DISTRIBUTED.md) for detailed examples.
 
 ## Quick Start
 

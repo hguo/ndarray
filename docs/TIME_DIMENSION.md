@@ -66,6 +66,53 @@ ndarray<T> slice_time(size_t t) const;
 std::vector<ndarray<T>> slice_time() const;
 ```
 
+## Distributed Arrays (MPI)
+
+When using time-varying arrays in distributed mode:
+
+**IMPORTANT**: Time dimensions are **NOT partitioned** across MPI ranks.
+
+```cpp
+ftk::ndarray<float> temp_time;
+
+// Shape: [100, 200, 50, 100] = [nx, ny, nz, nt=100 timesteps]
+temp_time.decompose(MPI_COMM_WORLD,
+                    {100, 200, 50, 100},      // global dims
+                    0,                         // nprocs = all
+                    {4, 2, 1, 0},             // Split spatial, DON'T split time
+                    {1, 1, 1, 0});            // No ghosts in time dim
+
+// Result with 8 ranks (4×2×1 decomposition):
+// Each rank has: [25, 100, 50, 100]
+//                 ↑↑↑ spatial dims partitioned
+//                              ↑↑↑ ALL 100 timesteps on every rank (not partitioned)
+```
+
+**Why not partition time?**
+- All timesteps available locally for temporal analysis
+- No communication needed for time derivatives, FFTs, trend analysis
+- Enables "space-parallel, time-local" workflows
+
+**Combined with multicomponent arrays:**
+```cpp
+ftk::ndarray<float> velocity_time;
+
+// Shape: [3, 100, 200, 50, 100] = [ncomp, nx, ny, nz, nt]
+velocity_time.decompose(MPI_COMM_WORLD,
+                        {3, 100, 200, 50, 100},
+                        0,
+                        {0, 4, 2, 1, 0},      // Keep comp & time, split spatial
+                        {0, 1, 1, 1, 0});     // Ghosts only in spatial dims
+
+// Each rank has: [3, 25, 100, 50, 100]
+//                 ↑ components (replicated)
+//                                    ↑↑↑ time (replicated)
+```
+
+See [MULTICOMPONENT_ARRAYS_DISTRIBUTED.md](MULTICOMPONENT_ARRAYS_DISTRIBUTED.md) for details.
+
+---
+
 ## Time Slicing Implementation
 
 The `slice_time()` function removes the last dimension:

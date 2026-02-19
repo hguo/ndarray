@@ -693,11 +693,44 @@ float good = vel.f(c, x, y);
 // You may need to manually adjust ncd if extracting a single component
 ```
 
+## Distributed Arrays (MPI)
+
+When using multicomponent arrays in distributed mode:
+
+**IMPORTANT**: Component dimensions are **NOT partitioned** across MPI ranks.
+
+```cpp
+ftk::ndarray<float> velocity;
+
+// Shape: [3, 100, 200, 50] = [ncomp=3, nx=100, ny=200, nz=50]
+velocity.decompose(MPI_COMM_WORLD,
+                   {3, 100, 200, 50},        // global dims
+                   0,                         // nprocs = all
+                   {0, 4, 2, 1},             // DON'T split components, split spatial
+                   {0, 1, 1, 1});            // No ghosts in component dim
+
+// Result with 8 ranks (4×2×1 decomposition):
+// Each rank has: [3, 25, 100, 50]
+//                 ↑ ALL 3 components on every rank (not partitioned)
+//                   ↑↑↑ spatial dimensions partitioned
+```
+
+**Why not partition components?**
+- All components at each spatial point are available locally
+- No communication needed for vector operations (magnitude, dot product, etc.)
+- Cache-friendly: components are contiguous in memory
+
+See [MULTICOMPONENT_ARRAYS_DISTRIBUTED.md](MULTICOMPONENT_ARRAYS_DISTRIBUTED.md) for details.
+
+---
+
 ## See Also
 
 - [ARRAY_ACCESS.md](ARRAY_ACCESS.md) - Detailed guide to f() and c() element access
 - [FORTRAN_C_CONVENTIONS.md](FORTRAN_C_CONVENTIONS.md) - Understanding F/C ordering
 - [TIME_DIMENSION.md](TIME_DIMENSION.md) - Handling time-varying multicomponent fields
+- [MULTICOMPONENT_ARRAYS_DISTRIBUTED.md](MULTICOMPONENT_ARRAYS_DISTRIBUTED.md) - **MPI distributed behavior**
+- [DISTRIBUTED_NDARRAY.md](DISTRIBUTED_NDARRAY.md) - General distributed array guide
 - [VTK_TESTS.md](VTK_TESTS.md) - VTK integration examples
 
 ---

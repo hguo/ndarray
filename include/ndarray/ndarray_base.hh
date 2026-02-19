@@ -201,6 +201,12 @@ public:
   //   scalar.f(x, y, z)          // Scalar field
   //   velocity.f(c, x, y, z)     // Vector field: c ∈ [0, ncomp)
   //   jacobian.f(i, j, x, y)     // Tensor field: i,j ∈ [0, 3)
+  //
+  // DISTRIBUTED ARRAYS (MPI):
+  //   Component dimensions are NOT partitioned across ranks (replicated).
+  //   Use decomp[i]=0 for component dimensions in decompose().
+  //   Example: velocity.decompose(comm, {3,100,200}, 0, {0,4,2}, {0,1,1})
+  //            → All 3 components on every rank, spatial dims partitioned 4×2
 
   // Set number of component dimensions (0=scalar, 1=vector, 2=tensor)
   // Must be called after reshapef() for multicomponent arrays
@@ -222,6 +228,12 @@ public:
 
   // Mark whether the last dimension represents time
   // When is_time_varying=true, the array is time-series data: [...spatial_dims..., time_dim]
+  //
+  // DISTRIBUTED ARRAYS (MPI):
+  //   Time dimension is NOT partitioned across ranks (replicated).
+  //   Use decomp[last]=0 for time dimension in decompose().
+  //   Example: temp.decompose(comm, {100,200,50}, 0, {4,2,0}, {1,1,0})
+  //            → All 50 timesteps on every rank, spatial dims partitioned 4×2
   void set_has_time(bool b) { is_time_varying = b; }
 
   // Check if last dimension is time

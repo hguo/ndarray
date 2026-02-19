@@ -540,14 +540,25 @@ public: // MPI and distributed memory support
    * - read/write methods do parallel I/O automatically
    * - exchange_ghosts() updates ghost layers via MPI
    *
+   * IMPORTANT: Only spatial dimensions are decomposed. Component and time dimensions
+   *            should use decomp[i]=0 to replicate them on all ranks.
+   *
    * @param comm MPI communicator
    * @param global_dims Global array dimensions
    * @param nprocs Number of processes (0 = use comm size)
    * @param decomp Decomposition pattern (empty = auto, or specify per-dimension):
-   *               - decomp[i] > 0: Split dimension i into decomp[i] pieces
-   *               - decomp[i] == 0: Don't split dimension i (replicate on all ranks)
-   *               Example: [4, 2, 1, 0] = split first 3 spatial dims, keep last dim intact
-   *               Use case: velocity[1000,800,600,3] with decomp[4,2,1,0] keeps vector components together
+   *               - decomp[i] > 0: Split dimension i into decomp[i] pieces (spatial dims)
+   *               - decomp[i] == 0: DON'T split dimension i - replicate on all ranks (components, time)
+   *               - If empty, auto-decompose all dimensions
+   *
+   *               Example 1: velocity[3,1000,800,600] with decomp={0,4,2,1}
+   *                         → All 3 components on every rank (not partitioned)
+   *                         → Spatial dims partitioned 4×2×1 = 8 ranks
+   *
+   *               Example 2: temp_time[100,200,50] with decomp={4,2,0}
+   *                         → Spatial dims partitioned 4×2 = 8 ranks
+   *                         → All 50 timesteps on every rank (not partitioned)
+   *
    * @param ghost Ghost layers per dimension (0 for non-decomposed dimensions)
    */
   void decompose(MPI_Comm comm,
