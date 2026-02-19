@@ -60,6 +60,7 @@ enum {
   ERR_PNETCDF_IO,             // Parallel-NetCDF I/O operation failed
   ERR_HDF5_NOT_PARALLEL,      // HDF5 was not built with parallel support
   ERR_HDF5_IO,                // HDF5 I/O operation failed
+  ERR_HDF5_UNSUPPORTED_TYPE,  // Unsupported data type for HDF5 output
   ERR_ADIOS2 = 7000,
   ERR_ADIOS2_VARIABLE_NOT_FOUND,
   ERR_MESH_UNSUPPORTED_FORMAT = 8000,
@@ -119,6 +120,7 @@ inline std::string err2str(int e)
   case ERR_PNETCDF_IO: return "Parallel-NetCDF I/O error";
   case ERR_HDF5_NOT_PARALLEL: return "HDF5 was not built with parallel support";
   case ERR_HDF5_IO: return "HDF5 I/O error";
+  case ERR_HDF5_UNSUPPORTED_TYPE: return "unsupported data type for HDF5";
   case ERR_ADIOS2: return "adios2 error";
   case ERR_ADIOS2_VARIABLE_NOT_FOUND: return "adios2 variable not found";
   case ERR_MESH_UNSUPPORTED_FORMAT: return "unsupported mesh format";

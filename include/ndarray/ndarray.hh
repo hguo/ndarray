@@ -1751,7 +1751,7 @@ inline bool ndarray<T, StoragePolicy>::to_h5(const std::string& filename, const 
 {
   hid_t dtype = h5_mem_type_id();
   if (dtype < 0) {
-    std::cerr << "[ndarray] Error: Unsupported data type for HDF5 output" << std::endl;
+    nd::warn(nd::ERR_HDF5_UNSUPPORTED_TYPE);
     return false;
   }
 
