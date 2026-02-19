@@ -2,6 +2,7 @@
 #define _NDARRAY_FDPOOL_H
 
 #include <ndarray/config.hh>
+#include <ndarray/error.hh>
 #if NDARRAY_HAVE_MPI
 #include <mpi.h>
 #endif
@@ -89,7 +90,7 @@ struct fdpool_nc {
    * @param comm MPI communicator for parallel NetCDF (default: MPI_COMM_WORLD)
    * @return NetCDF file identifier (ncid) for use with NetCDF API
    *
-   * @note If NC_HAS_PARALLEL is enabled, attempts parallel open first,
+   * @note If NDARRAY_HAVE_NETCDF_PARALLEL is enabled, attempts parallel open first,
    *       falls back to serial open if parallel open fails.
    * @note Throws/exits on open failure via NC_SAFE_CALL macro
    *
@@ -132,7 +133,7 @@ inline int fdpool_nc::open(const std::string& f, MPI_Comm comm)
     int ncid, rtn;
 
 #if NDARRAY_HAVE_NETCDF
-#if NC_HAS_PARALLEL
+#if NDARRAY_HAVE_NETCDF_PARALLEL
     // Try parallel open first (requires NetCDF built with parallel support)
     rtn = nc_open_par(f.c_str(), NC_NOWRITE, comm, MPI_INFO_NULL, &ncid);
     if (rtn != NC_NOERR) {

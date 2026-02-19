@@ -10,6 +10,7 @@
 #cmakedefine NDARRAY_HAVE_HIP 1
 #cmakedefine NDARRAY_HAVE_MPI 1
 #cmakedefine NDARRAY_HAVE_NETCDF 1
+#cmakedefine NDARRAY_HAVE_NETCDF_PARALLEL 1
 #cmakedefine NDARRAY_HAVE_OPENMP 1
 #cmakedefine NDARRAY_HAVE_PNETCDF 1
 #cmakedefine NDARRAY_HAVE_PNG 1

@@ -37,7 +37,7 @@
 #if NDARRAY_HAVE_NETCDF
 #include <netcdf.h>
 #include <netcdf_meta.h>
-#if NC_HAS_PARALLEL
+#if NDARRAY_HAVE_NETCDF_PARALLEL
 #include <netcdf_par.h>
 #endif
 #endif
@@ -579,7 +579,7 @@ inline void ndarray_base::read_netcdf(const std::string& filename, const std::st
 {
 #if NDARRAY_HAVE_NETCDF
   int ncid, varid;
-#if NC_HAS_PARALLEL
+#if NDARRAY_HAVE_NETCDF_PARALLEL
   int rtn = nc_open_par(filename.c_str(), NC_NOWRITE, comm, MPI_INFO_NULL, &ncid);
   if (rtn != NC_NOERR)
     NC_SAFE_CALL( nc_open(filename.c_str(), NC_NOWRITE, &ncid) );
@@ -858,7 +858,7 @@ inline void ndarray_base::read_netcdf(const std::string& filename, const std::st
 {
 #ifdef NDARRAY_HAVE_NETCDF
   int ncid, varid;
-#if NC_HAS_PARALLEL
+#if NDARRAY_HAVE_NETCDF_PARALLEL
   int rtn = nc_open_par(filename.c_str(), NC_NOWRITE, comm, MPI_INFO_NULL, &ncid);
   if (rtn != NC_NOERR)
     NC_SAFE_CALL( nc_open(filename.c_str(), NC_NOWRITE, &ncid) );

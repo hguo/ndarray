@@ -2333,6 +2333,13 @@ void ndarray<T, StoragePolicy>::decompose(MPI_Comm comm,
                                           const std::vector<size_t>& decomp,
                                           const std::vector<size_t>& ghost)
 {
+  int mpi_initialized = 0;
+  MPI_Initialized(&mpi_initialized);
+  if (!mpi_initialized) {
+    this->reshapef(global_dims);
+    return;
+  }
+
   // Validate decomp size if provided
   if (!decomp.empty() && decomp.size() != global_dims.size()) {
     throw std::invalid_argument("decomp size must match global_dims size");
@@ -2409,6 +2416,10 @@ void ndarray<T, StoragePolicy>::decompose(MPI_Comm comm,
 template <typename T, typename StoragePolicy>
 void ndarray<T, StoragePolicy>::set_replicated(MPI_Comm comm)
 {
+  int mpi_initialized = 0;
+  MPI_Initialized(&mpi_initialized);
+  if (!mpi_initialized) return;
+
   // Create distribution info
   dist_ = std::make_unique<distribution_info>();
   dist_->type = DistType::REPLICATED;
@@ -3538,6 +3549,7 @@ void ndarray<T, StoragePolicy>::write_netcdf_auto(
 
     // All ranks write their portion
     int ncid;
+#if NDARRAY_HAVE_NETCDF_PARALLEL
     NC_SAFE_CALL(nc_open_par(filename.c_str(), NC_WRITE, dist_->comm, MPI_INFO_NULL, &ncid));
 
     int varid;
@@ -3546,6 +3558,9 @@ void ndarray<T, StoragePolicy>::write_netcdf_auto(
     this->to_netcdf(ncid, varid, starts.data(), sizes.data());
 
     NC_SAFE_CALL(nc_close(ncid));
+#else
+    nd::fatal("Parallel NetCDF write requires NetCDF built with MPI support");
+#endif
 
   } else if (should_use_replicated_io()) {
     // Replicated mode: Only rank 0 writes
