@@ -42,6 +42,10 @@
 #include <pybind11/numpy.h>
 #endif
 
+#if NDARRAY_HAVE_PNG
+#include <ndarray/ndarray_png.hh>
+#endif
+
 namespace ftk {
 
 // Default argument already specified in forward declaration (ndarray_base.hh)
@@ -1997,8 +2001,6 @@ pybind11::array_t<T, pybind11::array::c_style> ndarray<T, StoragePolicy>::to_num
 #endif
 
 #if NDARRAY_HAVE_PNG
-#include <ndarray/ndarray_png.hh>
-
 template <typename T, typename StoragePolicy>
 void ndarray<T, StoragePolicy>::read_png(const std::string& filename)
 {
