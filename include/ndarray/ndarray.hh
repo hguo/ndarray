@@ -113,17 +113,27 @@ struct ndarray : public ndarray_base {
   void reshapef(size_t n0, size_t n1, size_t n2, size_t n3, size_t n4, size_t n5) {reshapef({n0, n1, n2, n3, n4, n5});}
   void reshapef(size_t n0, size_t n1, size_t n2, size_t n3, size_t n4, size_t n5, size_t n6) {reshapef({n0, n1, n2, n3, n4, n5, n6});}
 
-  [[deprecated]] void reshape(const std::vector<size_t> &dims_) {reshapef(dims_);}
-  [[deprecated]] void reshape(const std::vector<size_t> &dims, T val) {reshapef(dims, val);}
-  template <typename I> [[deprecated]] void reshape(const int ndims, const I sz[]) {reshapef(ndims, sz);}
+  [[deprecated("Use reshapef() for Fortran-order (first index varies fastest) or reshapec() for C-order/NumPy compatibility (last index varies fastest)")]]
+  void reshape(const std::vector<size_t> &dims_) {reshapef(dims_);}
+  [[deprecated("Use reshapef() for Fortran-order (first index varies fastest) or reshapec() for C-order/NumPy compatibility (last index varies fastest)")]]
+  void reshape(const std::vector<size_t> &dims, T val) {reshapef(dims, val);}
+  template <typename I> [[deprecated("Use reshapef() for Fortran-order (first index varies fastest) or reshapec() for C-order/NumPy compatibility (last index varies fastest)")]]
+  void reshape(const int ndims, const I sz[]) {reshapef(ndims, sz);}
 
-  [[deprecated]] void reshape(size_t n0) {reshapef(std::vector<size_t>({n0}));}
-  [[deprecated]] void reshape(size_t n0, size_t n1) {reshapef({n0, n1});}
-  [[deprecated]] void reshape(size_t n0, size_t n1, size_t n2) {reshapef({n0, n1, n2});}
-  [[deprecated]] void reshape(size_t n0, size_t n1, size_t n2, size_t n3) {reshapef({n0, n1, n2, n3});}
-  [[deprecated]] void reshape(size_t n0, size_t n1, size_t n2, size_t n3, size_t n4) {reshapef({n0, n1, n2, n3, n4});}
-  [[deprecated]] void reshape(size_t n0, size_t n1, size_t n2, size_t n3, size_t n4, size_t n5) {reshapef({n0, n1, n2, n3, n4, n5});}
-  [[deprecated]] void reshape(size_t n0, size_t n1, size_t n2, size_t n3, size_t n4, size_t n5, size_t n6) {reshapef({n0, n1, n2, n3, n4, n5, n6});}
+  [[deprecated("Use reshapef() for Fortran-order (first index varies fastest) or reshapec() for C-order/NumPy compatibility (last index varies fastest)")]]
+  void reshape(size_t n0) {reshapef(std::vector<size_t>({n0}));}
+  [[deprecated("Use reshapef() for Fortran-order (first index varies fastest) or reshapec() for C-order/NumPy compatibility (last index varies fastest)")]]
+  void reshape(size_t n0, size_t n1) {reshapef({n0, n1});}
+  [[deprecated("Use reshapef() for Fortran-order (first index varies fastest) or reshapec() for C-order/NumPy compatibility (last index varies fastest)")]]
+  void reshape(size_t n0, size_t n1, size_t n2) {reshapef({n0, n1, n2});}
+  [[deprecated("Use reshapef() for Fortran-order (first index varies fastest) or reshapec() for C-order/NumPy compatibility (last index varies fastest)")]]
+  void reshape(size_t n0, size_t n1, size_t n2, size_t n3) {reshapef({n0, n1, n2, n3});}
+  [[deprecated("Use reshapef() for Fortran-order (first index varies fastest) or reshapec() for C-order/NumPy compatibility (last index varies fastest)")]]
+  void reshape(size_t n0, size_t n1, size_t n2, size_t n3, size_t n4) {reshapef({n0, n1, n2, n3, n4});}
+  [[deprecated("Use reshapef() for Fortran-order (first index varies fastest) or reshapec() for C-order/NumPy compatibility (last index varies fastest)")]]
+  void reshape(size_t n0, size_t n1, size_t n2, size_t n3, size_t n4, size_t n5) {reshapef({n0, n1, n2, n3, n4, n5});}
+  [[deprecated("Use reshapef() for Fortran-order (first index varies fastest) or reshapec() for C-order/NumPy compatibility (last index varies fastest)")]]
+  void reshape(size_t n0, size_t n1, size_t n2, size_t n3, size_t n4, size_t n5, size_t n6) {reshapef({n0, n1, n2, n3, n4, n5, n6});}
 
   void reset() { storage_.resize(0); dims.clear(); s.clear(); set_multicomponents(0); set_has_time(false); }
 
@@ -176,6 +186,9 @@ public: // Row-major (C-style) access: c(i0, i1, ...) where the last index varie
   // For a 2D array reshaped as (n0, n1):
   //   c(i0, i1) accesses element at memory location: i1 + i0*n1
   //   This matches C's row-major convention where the last index varies fastest
+  //
+  // IMPORTANT: c() is consistent with NumPy's default C-order behavior
+  // Use reshapec() with c() for NumPy compatibility
   //
   // Note: Both f() and c() access the same underlying storage but with different indexing schemes
   T& c(const std::vector<size_t>& idx) {return storage_[indexc(idx)];}
@@ -233,30 +246,53 @@ public: // element access
   const T& operator[](size_t i) const {return storage_[i];}
 
 public: // legacy compatibility (deprecated)
-  [[deprecated]] T& at(const std::vector<size_t>& idx) {return storage_[indexf(idx)];}
-  [[deprecated]] const T& at(const std::vector<size_t>& idx) const {return storage_[indexf(idx)];}
+  // WARNING: at() uses FORTRAN-ORDER (first index varies fastest, column-major)
+  //          at(i,j,k) is equivalent to f(i,j,k), NOT c(i,j,k)
+  //          Use f() for Fortran-order or c() for NumPy/C-order compatibility
+  [[deprecated("Use f() for Fortran-order (first index varies fastest) or c() for C-order/NumPy compatibility (last index varies fastest)")]]
+  T& at(const std::vector<size_t>& idx) {return storage_[indexf(idx)];}
+  [[deprecated("Use f() for Fortran-order (first index varies fastest) or c() for C-order/NumPy compatibility (last index varies fastest)")]]
+  const T& at(const std::vector<size_t>& idx) const {return storage_[indexf(idx)];}
 
-  [[deprecated]] T& at(const size_t idx[]) {return storage_[indexf(idx)];}
-  [[deprecated]] const T& at(const size_t idx[]) const {return storage_[indexf(idx)];}
+  [[deprecated("Use f() for Fortran-order (first index varies fastest) or c() for C-order/NumPy compatibility (last index varies fastest)")]]
+  T& at(const size_t idx[]) {return storage_[indexf(idx)];}
+  [[deprecated("Use f() for Fortran-order (first index varies fastest) or c() for C-order/NumPy compatibility (last index varies fastest)")]]
+  const T& at(const size_t idx[]) const {return storage_[indexf(idx)];}
 
-  [[deprecated]] T& at(const std::vector<int>& idx) {return storage_[indexf(idx)];}
-  [[deprecated]] const T& at(const std::vector<int>& idx) const {return storage_[indexf(idx)];}
+  [[deprecated("Use f() for Fortran-order (first index varies fastest) or c() for C-order/NumPy compatibility (last index varies fastest)")]]
+  T& at(const std::vector<int>& idx) {return storage_[indexf(idx)];}
+  [[deprecated("Use f() for Fortran-order (first index varies fastest) or c() for C-order/NumPy compatibility (last index varies fastest)")]]
+  const T& at(const std::vector<int>& idx) const {return storage_[indexf(idx)];}
 
-  [[deprecated]] T& at(size_t i0) {return storage_[i0];}
-  [[deprecated]] T& at(size_t i0, size_t i1) {return storage_[i0+i1*s[1]];}
-  [[deprecated]] T& at(size_t i0, size_t i1, size_t i2) {return storage_[i0+i1*s[1]+i2*s[2]];}
-  [[deprecated]] T& at(size_t i0, size_t i1, size_t i2, size_t i3) {return storage_[i0+i1*s[1]+i2*s[2]+i3*s[3]];}
-  [[deprecated]] T& at(size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) {return storage_[i0+i1*s[1]+i2*s[2]+i3*s[3]+i4*s[4]];}
-  [[deprecated]] T& at(size_t i0, size_t i1, size_t i2, size_t i3, size_t i4, size_t i5) {return storage_[i0+i1*s[1]+i2*s[2]+i3*s[3]+i4*s[4]+i5*s[5]];}
-  [[deprecated]] T& at(size_t i0, size_t i1, size_t i2, size_t i3, size_t i4, size_t i5, size_t i6) {return storage_[i0+i1*s[1]+i2*s[2]+i3*s[3]+i4*s[4]+i5*s[5]+i6*s[6]];}
+  [[deprecated("Use f() for Fortran-order (first index varies fastest) or c() for C-order/NumPy compatibility (last index varies fastest)")]]
+  T& at(size_t i0) {return storage_[i0];}
+  [[deprecated("Use f() for Fortran-order (first index varies fastest) or c() for C-order/NumPy compatibility (last index varies fastest)")]]
+  T& at(size_t i0, size_t i1) {return storage_[i0+i1*s[1]];}
+  [[deprecated("Use f() for Fortran-order (first index varies fastest) or c() for C-order/NumPy compatibility (last index varies fastest)")]]
+  T& at(size_t i0, size_t i1, size_t i2) {return storage_[i0+i1*s[1]+i2*s[2]];}
+  [[deprecated("Use f() for Fortran-order (first index varies fastest) or c() for C-order/NumPy compatibility (last index varies fastest)")]]
+  T& at(size_t i0, size_t i1, size_t i2, size_t i3) {return storage_[i0+i1*s[1]+i2*s[2]+i3*s[3]];}
+  [[deprecated("Use f() for Fortran-order (first index varies fastest) or c() for C-order/NumPy compatibility (last index varies fastest)")]]
+  T& at(size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) {return storage_[i0+i1*s[1]+i2*s[2]+i3*s[3]+i4*s[4]];}
+  [[deprecated("Use f() for Fortran-order (first index varies fastest) or c() for C-order/NumPy compatibility (last index varies fastest)")]]
+  T& at(size_t i0, size_t i1, size_t i2, size_t i3, size_t i4, size_t i5) {return storage_[i0+i1*s[1]+i2*s[2]+i3*s[3]+i4*s[4]+i5*s[5]];}
+  [[deprecated("Use f() for Fortran-order (first index varies fastest) or c() for C-order/NumPy compatibility (last index varies fastest)")]]
+  T& at(size_t i0, size_t i1, size_t i2, size_t i3, size_t i4, size_t i5, size_t i6) {return storage_[i0+i1*s[1]+i2*s[2]+i3*s[3]+i4*s[4]+i5*s[5]+i6*s[6]];}
 
-  [[deprecated]] const T& at(size_t i0) const {return storage_[i0];}
-  [[deprecated]] const T& at(size_t i0, size_t i1) const {return storage_[i0+i1*s[1]];}
-  [[deprecated]] const T& at(size_t i0, size_t i1, size_t i2) const {return storage_[i0+i1*s[1]+i2*s[2]];}
-  [[deprecated]] const T& at(size_t i0, size_t i1, size_t i2, size_t i3) const {return storage_[i0+i1*s[1]+i2*s[2]+i3*s[3]];}
-  [[deprecated]] const T& at(size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) const {return storage_[i0+i1*s[1]+i2*s[2]+i3*s[3]+i4*s[4]];}
-  [[deprecated]] const T& at(size_t i0, size_t i1, size_t i2, size_t i3, size_t i4, size_t i5) const {return storage_[i0+i1*s[1]+i2*s[2]+i3*s[3]+i4*s[4]+i5*s[5]];}
-  [[deprecated]] const T& at(size_t i0, size_t i1, size_t i2, size_t i3, size_t i4, size_t i5, size_t i6) const {return storage_[i0+i1*s[1]+i2*s[2]+i3*s[3]+i4*s[4]+i5*s[5]+i6*s[6]];}
+  [[deprecated("Use f() for Fortran-order (first index varies fastest) or c() for C-order/NumPy compatibility (last index varies fastest)")]]
+  const T& at(size_t i0) const {return storage_[i0];}
+  [[deprecated("Use f() for Fortran-order (first index varies fastest) or c() for C-order/NumPy compatibility (last index varies fastest)")]]
+  const T& at(size_t i0, size_t i1) const {return storage_[i0+i1*s[1]];}
+  [[deprecated("Use f() for Fortran-order (first index varies fastest) or c() for C-order/NumPy compatibility (last index varies fastest)")]]
+  const T& at(size_t i0, size_t i1, size_t i2) const {return storage_[i0+i1*s[1]+i2*s[2]];}
+  [[deprecated("Use f() for Fortran-order (first index varies fastest) or c() for C-order/NumPy compatibility (last index varies fastest)")]]
+  const T& at(size_t i0, size_t i1, size_t i2, size_t i3) const {return storage_[i0+i1*s[1]+i2*s[2]+i3*s[3]];}
+  [[deprecated("Use f() for Fortran-order (first index varies fastest) or c() for C-order/NumPy compatibility (last index varies fastest)")]]
+  const T& at(size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) const {return storage_[i0+i1*s[1]+i2*s[2]+i3*s[3]+i4*s[4]];}
+  [[deprecated("Use f() for Fortran-order (first index varies fastest) or c() for C-order/NumPy compatibility (last index varies fastest)")]]
+  const T& at(size_t i0, size_t i1, size_t i2, size_t i3, size_t i4, size_t i5) const {return storage_[i0+i1*s[1]+i2*s[2]+i3*s[3]+i4*s[4]+i5*s[5]];}
+  [[deprecated("Use f() for Fortran-order (first index varies fastest) or c() for C-order/NumPy compatibility (last index varies fastest)")]]
+  const T& at(size_t i0, size_t i1, size_t i2, size_t i3, size_t i4, size_t i5, size_t i6) const {return storage_[i0+i1*s[1]+i2*s[2]+i3*s[3]+i4*s[4]+i5*s[5]+i6*s[6]];}
 
   [[deprecated]] double get(size_t i0) const { return at(i0); }
   [[deprecated]] double get(size_t i0, size_t i1) const { return at(i0, i1); }

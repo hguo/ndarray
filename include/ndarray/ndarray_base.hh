@@ -132,16 +132,23 @@ struct ndarray_base {
 
   virtual void flip_byte_order() = 0;
 
+  // Fortran-order reshape: first dimension varies fastest (column-major)
+  // Use with f() for element access
   virtual void reshapef(const std::vector<size_t> &dims_) = 0;
   void reshapef(const std::vector<int>& dims);
   void reshapef(size_t ndims, const size_t sizes[]);
 
+  // C-order reshape: last dimension varies fastest (row-major)
+  // Dimensions are reversed internally, then stored as Fortran-order
+  // Use with c() for element access - consistent with NumPy default (C-order)
   void reshapec(const std::vector<size_t> &dims_);
   void reshapec(const std::vector<int>& dims);
   void reshapec(size_t ndims, const size_t sizes[]);
 
-  [[deprecated]] virtual void reshape(const std::vector<size_t> &dims_) { reshapef(dims_); }
-  [[deprecated]] void reshape(const std::vector<int>& dims) { reshapef(dims); }
+  [[deprecated("Use reshapef() for Fortran-order (first index varies fastest) or reshapec() for C-order/NumPy compatibility (last index varies fastest)")]]
+  virtual void reshape(const std::vector<size_t> &dims_) { reshapef(dims_); }
+  [[deprecated("Use reshapef() for Fortran-order (first index varies fastest) or reshapec() for C-order/NumPy compatibility (last index varies fastest)")]]
+  void reshape(const std::vector<int>& dims) { reshapef(dims); }
   [[deprecated]] void reshape(size_t ndims, const size_t sizes[]) { reshapef(ndims, sizes); }
 
   void reshape(const ndarray_base& array); //! copy shape from another array
@@ -180,17 +187,37 @@ public:
 //   virtual double af(size_t i0, size_t i1, size_t i2, size_t i3, size_t i4, size_t i5, size_t i6) const = 0;
 
 public:
+  // Multicomponent array support for vector/tensor fields
+  //
+  // Component dimensions are ALWAYS the FIRST dimensions in the array shape.
+  // This places all components at a single spatial point contiguous in memory.
+  //
+  // Examples:
+  //   Scalar 3D field:  reshapef(nx, ny, nz),       set_multicomponents(0)
+  //   Vector 3D field:  reshapef(3, nx, ny, nz),    set_multicomponents(1)
+  //   Tensor 2D field:  reshapef(3, 3, nx, ny),     set_multicomponents(2)
+  //
+  // Access with f(): component indices come FIRST
+  //   scalar.f(x, y, z)          // Scalar field
+  //   velocity.f(c, x, y, z)     // Vector field: c ∈ [0, ncomp)
+  //   jacobian.f(i, j, x, y)     // Tensor field: i,j ∈ [0, 3)
+
   // Set number of component dimensions (0=scalar, 1=vector, 2=tensor)
+  // Must be called after reshapef() for multicomponent arrays
   void set_multicomponents(size_t c=1) {n_component_dims = c;}
 
   // Convert scalar array to vector array with 1 component: [nx, ny] → [1, nx, ny]
+  // Useful for treating scalar fields uniformly with vector fields
   void make_multicomponents();
 
-  // Get number of component dimensions (n_component_dims value)
+  // Get number of component dimensions
+  // Returns: 0 (scalar), 1 (vector), or 2 (tensor)
   size_t multicomponents() const {return n_component_dims;}
 
   // Get total number of components (product of first n_component_dims dimensions)
-  // Example: for shape [3, 100, 200] with n_component_dims=1, returns 3
+  // Examples:
+  //   shape [3, 100, 200] with multicomponents()=1 → ncomponents()=3
+  //   shape [3, 3, 64, 64] with multicomponents()=2 → ncomponents()=9
   size_t ncomponents() const;
 
   // Mark whether the last dimension represents time
@@ -349,10 +376,11 @@ inline lattice ndarray_base::get_lattice() const {
 inline size_t ndarray_base::ncomponents() const {
   // Compute total number of components by multiplying the first n_component_dims dimensions
   // Examples:
-  //   [3, 100, 200] with n_component_dims=1 → 3 components
-  //   [3, 3, 64, 64] with n_component_dims=2 → 9 components
+  //   [3, 100, 200] with multicomponents()=1 → ncomponents()=3
+  //   [3, 3, 64, 64] with multicomponents()=2 → ncomponents()=9
+  //   [100, 200] with multicomponents()=0 → ncomponents()=1 (scalar)
   size_t rtn = 1;
-  for (size_t i = 0; i < multicomponents(); i ++)
+  for (size_t i = 0; i < multicomponents(); i++)
     rtn *= dims[i];
   return rtn;
 }

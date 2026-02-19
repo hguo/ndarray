@@ -274,6 +274,8 @@ T& c(size_t i0, size_t i1, size_t i2);
 
 **Access pattern**: **Last index varies fastest** (row-major).
 
+**IMPORTANT**: `c()` is **consistent with NumPy's default C-order behavior**.
+
 **Example**:
 ```cpp
 ftk::ndarray<float> arr;
@@ -316,13 +318,15 @@ c_arr[2][1][0] == arr.c(2, 1, 0);
 
 ---
 
-### 2.3 `at(...)` - Vector Index Access
+### 2.3 `at(...)` - Vector Index Access (DEPRECATED)
 
 ```cpp
-T& at(const std::vector<size_t>& idx);
+[[deprecated]] T& at(const std::vector<size_t>& idx);
 ```
 
 **Access with vector of indices** (Fortran-order).
+
+**DEPRECATED**: Use `f()` instead for Fortran-order or `c()` for NumPy/C-order compatibility.
 
 **Example**:
 ```cpp
@@ -330,15 +334,16 @@ ftk::ndarray<float> arr;
 arr.reshapef(10, 20, 30);
 
 std::vector<size_t> idx = {5, 10, 15};
-float val = arr.at(idx);  // Same as arr.f(5, 10, 15)
+float val = arr.at(idx);  // Same as arr.f(5, 10, 15) - DEPRECATED!
+
+// Use f() instead:
+float val = arr.f(5, 10, 15);  // Fortran-order (first index varies fastest)
+
+// Or use c() for NumPy compatibility:
+float val = arr.c(15, 10, 5);  // C-order (last index varies fastest)
 ```
 
-**Use when**:
-- Dynamic number of dimensions
-- Generic algorithms
-- Index vectors passed as parameters
-
-**Note**: Uses Fortran-order (same as `f()`).
+**Note**: `at()` uses Fortran-order (same as `f()`), NOT C-order like NumPy's default.
 
 ---
 
@@ -648,8 +653,8 @@ for (size_t idx = 0; idx < arr.size(); idx++) {
 | `shapef()` | Fortran | All dimensions | Full shape info |
 | `shapec()` | C | All dimensions (reversed) | C-style shape |
 | `f(...)` | Fortran | Element reference | NetCDF/Fortran I/O |
-| `c(...)` | C | Element reference | C/NumPy I/O |
-| `at(vec)` | Fortran | Element reference | Dynamic dimensions |
+| `c(...)` | C | Element reference | **NumPy/C I/O** |
+| `at(vec)` | Fortran | Element reference (DEPRECATED) | Use f() or c() instead |
 | `operator[]` | Linear | Element reference | Fast iteration |
 
 ---
