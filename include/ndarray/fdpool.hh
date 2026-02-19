@@ -8,6 +8,9 @@
 #endif
 #if NDARRAY_HAVE_NETCDF
 #include <netcdf.h>
+#if NDARRAY_HAVE_NETCDF_PARALLEL
+#include <netcdf_par.h>
+#endif
 #endif
 
 #include <map>
