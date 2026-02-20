@@ -55,13 +55,12 @@ inline void substream_binary<StoragePolicy>::read(int i, std::shared_ptr<group_t
 #if NDARRAY_HAVE_MPI
     // Configure distribution
     if (var.dist_type == VariableDistType::DISTRIBUTED) {
-      std::vector<size_t> gdims;
-      for (int d : var.dimensions) gdims.push_back(static_cast<size_t>(d));
-      // Binary dimensions in YAML are usually C-order, reshapec handles it but decompose needs Fortran-order
-      std::reverse(gdims.begin(), gdims.end());
+      std::vector<size_t> yaml_dims_c_order;
+      for (int d : var.dimensions) yaml_dims_c_order.push_back(static_cast<size_t>(d));
 
-      if (var.has_custom_decomposition) p->decompose(this->comm, gdims, 0, var.custom_decomp.dims, var.custom_decomp.ghost);
-      else p->decompose(this->comm, gdims);
+      // YAML dimensions are C-order, ndarray now stores C-order - direct use!
+      if (var.has_custom_decomposition) p->decompose(this->comm, yaml_dims_c_order, 0, var.custom_decomp.dims, var.custom_decomp.ghost);
+      else p->decompose(this->comm, yaml_dims_c_order);
     } else {
       p->set_replicated(this->comm);
     }

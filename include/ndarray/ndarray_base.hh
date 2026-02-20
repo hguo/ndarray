@@ -110,15 +110,53 @@ struct ndarray_base {
 
   size_t nd() const {return dims.size();}
 
-  size_t dimf(size_t i) const {return dims[i];}
+  // NOTE: dims now stores C-order (last varies fastest) internally like mdspan
+  // dimf/shapef return Fortran-order (user-facing), dimc/shapec return C-order
+
+  size_t dimf(size_t i) const {return dims[dims.size() - i - 1];}  // Reverse index
   size_t shapef(size_t i) const {return dimf(i);}
-  const std::vector<size_t> &shapef() const {return dims;}
+  const std::vector<size_t> shapef() const {
+    std::vector<size_t> f_dims(dims);
+    std::reverse(f_dims.begin(), f_dims.end());
+    return f_dims;
+  }
 
   std::ostream& print_shapef(std::ostream& os) const;
 
-  size_t dimc(size_t i) const {return dims[dims.size() - i -1];}
+  size_t dimc(size_t i) const {return dims[i];}  // Direct access (C-order)
   size_t shapec(size_t i) const {return dimc(i);}
-  const std::vector<size_t> shapec() const {std::vector<size_t> dc(dims); std::reverse(dc.begin(), dc.end()); return dc;}
+  const std::vector<size_t>& shapec() const {return dims;}  // Reference (C-order)
+
+  /**
+   * @brief Convert C-order shape to Fortran-order (for I/O API boundaries)
+   * @param c_shape Dimensions in C-order (last varies fastest)
+   * @return Dimensions in Fortran-order (first varies fastest)
+   */
+  static std::vector<size_t> c_to_f_order(const std::vector<size_t>& c_shape) {
+    std::vector<size_t> f_shape(c_shape);
+    std::reverse(f_shape.begin(), f_shape.end());
+    return f_shape;
+  }
+
+  /**
+   * @brief Convert C-order shape array to Fortran-order
+   */
+  static std::vector<size_t> c_to_f_order(const size_t* c_shape, size_t ndims) {
+    std::vector<size_t> f_shape(c_shape, c_shape + ndims);
+    std::reverse(f_shape.begin(), f_shape.end());
+    return f_shape;
+  }
+
+  /**
+   * @brief Convert Fortran-order shape to C-order (alias for shapec for static use)
+   * @param f_shape Dimensions in Fortran-order
+   * @return Dimensions in C-order
+   */
+  static std::vector<size_t> f_to_c_order(const std::vector<size_t>& f_shape) {
+    std::vector<size_t> c_shape(f_shape);
+    std::reverse(c_shape.begin(), c_shape.end());
+    return c_shape;
+  }
 
   [[deprecated]] size_t dim(size_t i) const { return dimf(i); }
   [[deprecated]] size_t shape(size_t i) const {return dimf(i);}
@@ -399,9 +437,11 @@ inline size_t ndarray_base::ncomponents() const {
 
 inline void ndarray_base::reshapec(const std::vector<size_t>& dims_)
 {
-  std::vector<size_t> dims(dims_);
-  std::reverse(dims.begin(), dims.end());
-  reshapef(dims);
+  // dims_ is in C-order, convert to Fortran-order for reshapef
+  // reshapef will then convert back to C-order for storage
+  std::vector<size_t> f_dims(dims_);
+  std::reverse(f_dims.begin(), f_dims.end());
+  reshapef(f_dims);
 }
 
 inline void ndarray_base::reshapec(const std::vector<int>& dims)
@@ -437,23 +477,44 @@ inline void ndarray_base::reshape(const ndarray_base& array)
   reshapef(array.shapef());
 }
 
+// Fortran-order indexing: first index varies fastest
+// With C-order strides, reverse indices and use C-order formula
 inline size_t ndarray_base::indexf(const size_t idx[]) const {
-  size_t i(idx[0]);
-  for (size_t j = 1; j < nd(); j ++)
-    i += idx[j] * s[j];
-  return i;
+  std::vector<size_t> reversed_idx(nd());
+  for (size_t j = 0; j < nd(); j++)
+    reversed_idx[j] = idx[nd() - 1 - j];
+  return indexc(reversed_idx.data());
 }
 
 inline size_t ndarray_base::indexf(const std::vector<size_t>& idx) const {
-  size_t i(idx[0]);
-  for (size_t j = 1; j < nd(); j ++)
-    i += idx[j] * s[j];
-  return i;
+  std::vector<size_t> reversed_idx(idx.rbegin(), idx.rend());
+  return indexc(reversed_idx);
 }
 
 inline size_t ndarray_base::indexf(const std::vector<int>& idx) const {
   std::vector<size_t> myidx(idx.begin(), idx.end());
   return indexf(myidx);
+}
+
+// C-order indexing: last index varies fastest
+// With C-order strides, direct formula
+inline size_t ndarray_base::indexc(const size_t idx[]) const {
+  size_t i = 0;
+  for (size_t j = 0; j < nd(); j++)
+    i += idx[j] * s[j];
+  return i;
+}
+
+inline size_t ndarray_base::indexc(const std::vector<size_t>& idx) const {
+  size_t i = 0;
+  for (size_t j = 0; j < nd(); j++)
+    i += idx[j] * s[j];
+  return i;
+}
+
+inline size_t ndarray_base::indexc(const std::vector<int>& idx) const {
+  std::vector<size_t> myidx(idx.begin(), idx.end());
+  return indexc(myidx);
 }
 
 inline void ndarray_base::make_multicomponents()
@@ -645,14 +706,18 @@ inline void ndarray_base::read_netcdf(const std::string& filename, const std::st
 inline void ndarray_base::read_netcdf(int ncid, int varid, int ndims, const size_t starts[], const size_t sizes[], MPI_Comm comm)
 {
 #if NDARRAY_HAVE_NETCDF
-  std::vector<size_t> mysizes(sizes, sizes+ndims);
-  std::reverse(mysizes.begin(), mysizes.end());
-  reshapef(mysizes);
+  // NetCDF uses C-order, ndarray now stores C-order internally - direct use!
+  std::vector<size_t> ndarray_sizes(sizes, sizes + ndims);
+  reshapec(ndarray_sizes);
+
+  // No conversion needed - starts/sizes already in C-order
+  std::vector<size_t> nc_starts(starts, starts + ndims);
+  std::vector<size_t> nc_sizes(sizes, sizes + ndims);
 
   if (nc_dtype() == NC_INT) {
-    NC_SAFE_CALL( nc_get_vara_int(ncid, varid, starts, sizes, (int*)pdata()) );
+    NC_SAFE_CALL( nc_get_vara_int(ncid, varid, nc_starts.data(), nc_sizes.data(), (int*)pdata()) );
   } else if (nc_dtype() == NC_FLOAT) {
-    NC_SAFE_CALL( nc_get_vara_float(ncid, varid, starts, sizes, (float*)pdata()) );
+    NC_SAFE_CALL( nc_get_vara_float(ncid, varid, nc_starts.data(), nc_sizes.data(), (float*)pdata()) );
 
     // fill value
     nc_type vr_type;
@@ -669,11 +734,11 @@ inline void ndarray_base::read_netcdf(int ncid, int varid, int ndims, const size
     }
 
   } else if (nc_dtype() == NC_DOUBLE) {
-    NC_SAFE_CALL( nc_get_vara_double(ncid, varid, starts, sizes, (double*)pdata()) );
+    NC_SAFE_CALL( nc_get_vara_double(ncid, varid, nc_starts.data(), nc_sizes.data(), (double*)pdata()) );
   } else if (nc_dtype() == NC_UINT) {
-    NC_SAFE_CALL( nc_get_vara_uint(ncid, varid, starts, sizes, (unsigned int*)pdata()) );
+    NC_SAFE_CALL( nc_get_vara_uint(ncid, varid, nc_starts.data(), nc_sizes.data(), (unsigned int*)pdata()) );
   } else if (nc_dtype() == NC_CHAR) {
-    NC_SAFE_CALL( nc_get_vara_text(ncid, varid, starts, sizes, (char*)pdata()) );
+    NC_SAFE_CALL( nc_get_vara_text(ncid, varid, nc_starts.data(), nc_sizes.data(), (char*)pdata()) );
   } else
     fatal(ERR_NOT_IMPLEMENTED);
 
@@ -684,23 +749,28 @@ inline void ndarray_base::read_netcdf(int ncid, int varid, int ndims, const size
 
 inline void ndarray_base::to_netcdf(int ncid, int varid) const
 {
-  std::vector<size_t> starts(dims.size(), 0), sizes(dims);
-  std::reverse(sizes.begin(), sizes.end());
-
-  to_netcdf(ncid, varid, &starts[0], &sizes[0]);
+  // Pass ndarray's native dimension order; overload will handle NetCDF reversal
+  std::vector<size_t> starts(dims.size(), 0);
+  to_netcdf(ncid, varid, &starts[0], &dims[0]);
 }
 
 inline void ndarray_base::to_netcdf(int ncid, int varid, const size_t st[], const size_t sz[]) const
 {
 #ifdef NDARRAY_HAVE_NETCDF
-  // Debug output removed - was reading beyond array bounds for dims < 4
+  // Query NetCDF variable dimensionality to know array sizes
+  int nc_ndims;
+  NC_SAFE_CALL( nc_inq_varndims(ncid, varid, &nc_ndims) );
+
+  // NetCDF uses C-order, ndarray now stores C-order - direct use!
+  std::vector<size_t> nc_starts(st, st + nc_ndims);
+  std::vector<size_t> nc_sizes(sz, sz + nc_ndims);
 
   if (nc_dtype() == NC_DOUBLE) {
-    NC_SAFE_CALL( nc_put_vara_double(ncid, varid, st, sz, (double*)pdata()) );
+    NC_SAFE_CALL( nc_put_vara_double(ncid, varid, nc_starts.data(), nc_sizes.data(), (double*)pdata()) );
   } else if (nc_dtype() == NC_FLOAT) {
-    NC_SAFE_CALL( nc_put_vara_float(ncid, varid, st, sz, (float*)pdata()) );
+    NC_SAFE_CALL( nc_put_vara_float(ncid, varid, nc_starts.data(), nc_sizes.data(), (float*)pdata()) );
   } else if (nc_dtype() == NC_INT) {
-    NC_SAFE_CALL( nc_put_vara_int(ncid, varid, st, sz, (int*)pdata()) );
+    NC_SAFE_CALL( nc_put_vara_int(ncid, varid, nc_starts.data(), nc_sizes.data(), (int*)pdata()) );
   } else
     fatal(ERR_NOT_IMPLEMENTED);
 #else
@@ -725,12 +795,10 @@ inline void ndarray_base::to_netcdf_multivariate(int ncid, int varids[]) const
 
 inline void ndarray_base::to_netcdf_unlimited_time(int ncid, int varid) const
 {
-  std::vector<size_t> starts(dims.size()+1, 0), sizes(dims);
+  // Pass ndarray's native dimension order plus time dim; overload will handle NetCDF reversal
+  std::vector<size_t> starts(dims.size()+1, 0);
+  std::vector<size_t> sizes(dims);
   sizes.push_back(1);
-  std::reverse(sizes.begin(), sizes.end());
-
-  // fprintf(stderr, "starts={%zu, %zu, %zu}, sizes={%zu, %zu, %zu}\n",
-  //     starts[0], starts[1], starts[2], sizes[0], sizes[1], sizes[2]);
 
   to_netcdf(ncid, varid, &starts[0], &sizes[0]);
 }
@@ -756,10 +824,7 @@ inline void ndarray_base::read_netcdf(int ncid, int varid, const size_t starts[]
   int ndims;
   NC_SAFE_CALL( nc_inq_varndims(ncid, varid, &ndims) );
 
-  std::vector<size_t> mysizes(sizes, sizes+ndims);
-  std::reverse(mysizes.begin(), mysizes.end());
-  reshapef(mysizes);
-
+  // Delegate to overload which handles dimension conversion and reshape
   read_netcdf(ncid, varid, ndims, starts, sizes, comm);
 #else
   fatal(ERR_NOT_BUILT_WITH_NETCDF);

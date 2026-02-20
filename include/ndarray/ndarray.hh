@@ -166,21 +166,23 @@ public: // Column-major (Fortran-style) access: f(i0, i1, ...) where i0 varies f
   T& f(const std::vector<int>& idx) {return storage_[indexf(idx)];}
   const T& f(const std::vector<int>& idx) const {return storage_[indexf(idx)];}
 
+  // Fortran-order: first index varies fastest
+  // With C-order strides, delegate to c() with reversed indices
   T& f(size_t i0) {return storage_[i0];}
-  T& f(size_t i0, size_t i1) {return storage_[i0+i1*s[1]];}
-  T& f(size_t i0, size_t i1, size_t i2) {return storage_[i0+i1*s[1]+i2*s[2]];}
-  T& f(size_t i0, size_t i1, size_t i2, size_t i3) {return storage_[i0+i1*s[1]+i2*s[2]+i3*s[3]];}
-  T& f(size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) {return storage_[i0+i1*s[1]+i2*s[2]+i3*s[3]+i4*s[4]];}
-  T& f(size_t i0, size_t i1, size_t i2, size_t i3, size_t i4, size_t i5) {return storage_[i0+i1*s[1]+i2*s[2]+i3*s[3]+i4*s[4]+i5*s[5]];}
-  T& f(size_t i0, size_t i1, size_t i2, size_t i3, size_t i4, size_t i5, size_t i6) {return storage_[i0+i1*s[1]+i2*s[2]+i3*s[3]+i4*s[4]+i5*s[5]+i6*s[6]];}
+  T& f(size_t i0, size_t i1) {return c(i1, i0);}
+  T& f(size_t i0, size_t i1, size_t i2) {return c(i2, i1, i0);}
+  T& f(size_t i0, size_t i1, size_t i2, size_t i3) {return c(i3, i2, i1, i0);}
+  T& f(size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) {return c(i4, i3, i2, i1, i0);}
+  T& f(size_t i0, size_t i1, size_t i2, size_t i3, size_t i4, size_t i5) {return c(i5, i4, i3, i2, i1, i0);}
+  T& f(size_t i0, size_t i1, size_t i2, size_t i3, size_t i4, size_t i5, size_t i6) {return c(i6, i5, i4, i3, i2, i1, i0);}
 
   const T& f(size_t i0) const {return storage_[i0];}
-  const T& f(size_t i0, size_t i1) const {return storage_[i0+i1*s[1]];}
-  const T& f(size_t i0, size_t i1, size_t i2) const {return storage_[i0+i1*s[1]+i2*s[2]];}
-  const T& f(size_t i0, size_t i1, size_t i2, size_t i3) const {return storage_[i0+i1*s[1]+i2*s[2]+i3*s[3]];}
-  const T& f(size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) const {return storage_[i0+i1*s[1]+i2*s[2]+i3*s[3]+i4*s[4]];}
-  const T& f(size_t i0, size_t i1, size_t i2, size_t i3, size_t i4, size_t i5) const {return storage_[i0+i1*s[1]+i2*s[2]+i3*s[3]+i4*s[4]+i5*s[5]];}
-  const T& f(size_t i0, size_t i1, size_t i2, size_t i3, size_t i4, size_t i5, size_t i6) const {return storage_[i0+i1*s[1]+i2*s[2]+i3*s[3]+i4*s[4]+i5*s[5]+i6*s[6]];}
+  const T& f(size_t i0, size_t i1) const {return c(i1, i0);}
+  const T& f(size_t i0, size_t i1, size_t i2) const {return c(i2, i1, i0);}
+  const T& f(size_t i0, size_t i1, size_t i2, size_t i3) const {return c(i3, i2, i1, i0);}
+  const T& f(size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) const {return c(i4, i3, i2, i1, i0);}
+  const T& f(size_t i0, size_t i1, size_t i2, size_t i3, size_t i4, size_t i5) const {return c(i5, i4, i3, i2, i1, i0);}
+  const T& f(size_t i0, size_t i1, size_t i2, size_t i3, size_t i4, size_t i5, size_t i6) const {return c(i6, i5, i4, i3, i2, i1, i0);}
 
 public: // Row-major (C-style) access: c(i0, i1, ...) where the last index varies fastest
   // For a 2D array reshaped as (n0, n1):
@@ -200,21 +202,23 @@ public: // Row-major (C-style) access: c(i0, i1, ...) where the last index varie
   T& c(const std::vector<int>& idx) {return storage_[indexc(idx)];}
   const T& c(const std::vector<int>& idx) const {return storage_[indexc(idx)];}
 
+  // C-order: last index varies fastest
+  // With C-order strides, this is direct indexing
   T& c(size_t i0) {return storage_[i0];}
-  T& c(size_t i0, size_t i1) {return storage_[i1+i0*s[1]];}
-  T& c(size_t i0, size_t i1, size_t i2) {return storage_[i2+i1*s[1]+i0*s[2]];}
-  T& c(size_t i0, size_t i1, size_t i2, size_t i3) {return storage_[i3+i2*s[1]+i1*s[2]+i0*s[3]];}
-  T& c(size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) {return storage_[i4+i3*s[1]+i2*s[2]+i1*s[3]+i0*s[4]];}
-  T& c(size_t i0, size_t i1, size_t i2, size_t i3, size_t i4, size_t i5) {return storage_[i5+i4*s[1]+i3*s[2]+i2*s[3]+i1*s[4]+i0*s[5]];}
-  T& c(size_t i0, size_t i1, size_t i2, size_t i3, size_t i4, size_t i5, size_t i6) {return storage_[i6+i5*s[1]+i4*s[2]+i3*s[3]+i2*s[4]+i1*s[5]+i0*s[6]];}
+  T& c(size_t i0, size_t i1) {return storage_[i0*s[0]+i1*s[1]];}
+  T& c(size_t i0, size_t i1, size_t i2) {return storage_[i0*s[0]+i1*s[1]+i2*s[2]];}
+  T& c(size_t i0, size_t i1, size_t i2, size_t i3) {return storage_[i0*s[0]+i1*s[1]+i2*s[2]+i3*s[3]];}
+  T& c(size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) {return storage_[i0*s[0]+i1*s[1]+i2*s[2]+i3*s[3]+i4*s[4]];}
+  T& c(size_t i0, size_t i1, size_t i2, size_t i3, size_t i4, size_t i5) {return storage_[i0*s[0]+i1*s[1]+i2*s[2]+i3*s[3]+i4*s[4]+i5*s[5]];}
+  T& c(size_t i0, size_t i1, size_t i2, size_t i3, size_t i4, size_t i5, size_t i6) {return storage_[i0*s[0]+i1*s[1]+i2*s[2]+i3*s[3]+i4*s[4]+i5*s[5]+i6*s[6]];}
 
   const T& c(size_t i0) const {return storage_[i0];}
-  const T& c(size_t i0, size_t i1) const {return storage_[i1+i0*s[1]];}
-  const T& c(size_t i0, size_t i1, size_t i2) const {return storage_[i2+i1*s[1]+i0*s[2]];}
-  const T& c(size_t i0, size_t i1, size_t i2, size_t i3) const {return storage_[i3+i2*s[1]+i1*s[2]+i0*s[3]];}
-  const T& c(size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) const {return storage_[i4+i3*s[1]+i2*s[2]+i1*s[3]+i0*s[4]];}
-  const T& c(size_t i0, size_t i1, size_t i2, size_t i3, size_t i4, size_t i5) const {return storage_[i5+i4*s[1]+i3*s[2]+i2*s[3]+i1*s[4]+i0*s[5]];}
-  const T& c(size_t i0, size_t i1, size_t i2, size_t i3, size_t i4, size_t i5, size_t i6) const {return storage_[i6+i5*s[1]+i4*s[2]+i3*s[3]+i2*s[4]+i1*s[5]+i0*s[6]];}
+  const T& c(size_t i0, size_t i1) const {return storage_[i0*s[0]+i1*s[1]];}
+  const T& c(size_t i0, size_t i1, size_t i2) const {return storage_[i0*s[0]+i1*s[1]+i2*s[2]];}
+  const T& c(size_t i0, size_t i1, size_t i2, size_t i3) const {return storage_[i0*s[0]+i1*s[1]+i2*s[2]+i3*s[3]];}
+  const T& c(size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) const {return storage_[i0*s[0]+i1*s[1]+i2*s[2]+i3*s[3]+i4*s[4]];}
+  const T& c(size_t i0, size_t i1, size_t i2, size_t i3, size_t i4, size_t i5) const {return storage_[i0*s[0]+i1*s[1]+i2*s[2]+i3*s[3]+i4*s[4]+i5*s[5]];}
+  const T& c(size_t i0, size_t i1, size_t i2, size_t i3, size_t i4, size_t i5, size_t i6) const {return storage_[i0*s[0]+i1*s[1]+i2*s[2]+i3*s[3]+i4*s[4]+i5*s[5]+i6*s[6]];}
 
 
 public:
@@ -1234,21 +1238,24 @@ template <typename T, typename StoragePolicy>
 void ndarray<T, StoragePolicy>::reshapef(const std::vector<size_t> &dims_)
 {
   if (device_type == NDARRAY_DEVICE_HOST) {
-    dims = dims_;
+    // dims_ is Fortran-order (user-facing), convert to C-order for internal storage
+    dims = f_to_c_order(dims_);
     s.resize(dims.size());
 
     if (dims.size() == 0)
       fatal(ERR_NDARRAY_RESHAPE_EMPTY);
 
-    for (size_t i = 0; i < this->nd(); i ++)
-      if (i == 0) this->s[i] = 1;
-      else this->s[i] = this->s[i-1]*this->dims[i-1];
+    // C-order strides: last dimension varies fastest
+    // s[nd-1] = 1, s[nd-2] = dims[nd-1], etc.
+    for (int i = this->nd() - 1; i >= 0; i--)
+      if (i == this->nd() - 1) this->s[i] = 1;
+      else this->s[i] = this->s[i+1] * this->dims[i+1];
 
-    size_t total_size = this->s[this->nd()-1]*this->dims[this->nd()-1];
+    size_t total_size = this->s[0] * this->dims[0];
 
     // Use reshape() if the storage backend supports it (xtensor, eigen)
     if constexpr (has_reshape<storage_type>::value) {
-      storage_.reshape(dims_);
+      storage_.reshape(dims_);  // Backend gets F-order
     } else {
       storage_.resize(total_size);
     }
@@ -1400,14 +1407,16 @@ inline void ndarray<T, StoragePolicy>::read_bp(adios2::IO &io, adios2::Engine &r
     } else
       var.SetStepSelection({step, 1});
 
-    std::vector<size_t> shape(var.Shape());
+    std::vector<size_t> adios_shape(var.Shape());
 
-    if (shape.size()) { // array type
-      std::vector<size_t> zeros(shape.size(), 0);
-      // fprintf(stderr, "%zu, %zu\n", shape.size(), zeros.size());
-      reshapef(shape);
+    if (adios_shape.size()) { // array type
+      // ADIOS2 uses C-order, ndarray now stores C-order - direct use!
+      reshapec(adios_shape);
 
-      var.SetSelection({zeros, shape}); // read everything
+      // SetSelection uses ADIOS2 C-order
+      std::vector<size_t> zeros(adios_shape.size(), 0);
+      var.SetSelection({zeros, adios_shape});
+
       // For non-native storage, read into temp storage then copy
       if constexpr (std::is_same_v<StoragePolicy, native_storage>) {
         reader.Get<T>(var, storage_.data_);
@@ -1418,9 +1427,6 @@ inline void ndarray<T, StoragePolicy>::read_bp(adios2::IO &io, adios2::Engine &r
           storage_[i] = temp[i];
         }
       }
-
-      std::reverse(shape.begin(), shape.end()); // we use a different dimension ordering than adios..
-      reshapef(shape);
     } else { // scalar type
       reshapef(1);
       if constexpr (std::is_same_v<StoragePolicy, native_storage>) {
@@ -1471,9 +1477,10 @@ bool ndarray<T, StoragePolicy>::read_bp_legacy(ADIOS_FILE *fp, const std::string
   // fprintf(stderr, "%d, %d, %d, %d\n", sz[0], sz[1], sz[2], sz[3]);
 
   if (!mydims.empty()) {
-    std::reverse(mydims.begin(), mydims.end());
-    reshapef(mydims);
+    // ADIOS1 uses C-order, ndarray now stores C-order - direct use!
+    reshapec(mydims);
 
+    // Selection uses ADIOS1 C-order
     ADIOS_SELECTION *sel = adios_selection_boundingbox(avi->ndim, st, sz);
     assert(sel->type == ADIOS_SELECTION_BOUNDINGBOX);
 
@@ -1789,12 +1796,14 @@ inline bool ndarray<T, StoragePolicy>::read_h5_did(hid_t did)
     hsize_t h5dims[h5ndims];
     H5Sget_simple_extent_dims(sid, h5dims, NULL);
 
-    std::vector<size_t> dims(h5ndims);
+    std::vector<size_t> h5_dims(h5ndims);
     for (auto i = 0; i < h5ndims; i ++)
-      dims[i] = h5dims[i];
-    std::reverse(dims.begin(), dims.end()); // we use a different dimension ordering than hdf5..
-    reshapef(dims);
+      h5_dims[i] = h5dims[i];
 
+    // HDF5 uses C-order, ndarray now stores C-order - direct use!
+    reshapec(h5_dims);
+
+    // H5Dread with H5S_ALL reads entire dataset
     H5Dread(did, h5_mem_type_id(), H5S_ALL, H5S_ALL, H5P_DEFAULT, storage_.data());
   } else if (type == H5S_SCALAR) {
     reshapef(1);
@@ -1818,12 +1827,12 @@ inline bool ndarray<T, StoragePolicy>::to_h5(const std::string& filename, const 
   if (file_id < 0) return false;
 
   const size_t nd = this->nd();
-  std::vector<hsize_t> dims(nd);
-  for (size_t d = 0; d < nd; d++) {
-    dims[nd - 1 - d] = this->dimf(d);
-  }
 
-  hid_t dataspace_id = H5Screate_simple(static_cast<int>(nd), dims.data(), NULL);
+  // HDF5 uses C-order, ndarray now stores C-order - direct use!
+  auto h5_dims_vec = shapec();  // Already in C-order
+  std::vector<hsize_t> h5_dims(h5_dims_vec.begin(), h5_dims_vec.end());
+
+  hid_t dataspace_id = H5Screate_simple(static_cast<int>(nd), h5_dims.data(), NULL);
   hid_t dataset_id = H5Dcreate2(file_id, varname.c_str(), dtype, dataspace_id,
                                  H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
