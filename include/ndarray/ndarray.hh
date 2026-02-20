@@ -1188,13 +1188,13 @@ inline void ndarray<T, StoragePolicy>::read_vtk_image_data_file_sequence(const s
 template<typename T, typename StoragePolicy>
 inline void ndarray<T, StoragePolicy>::read_vtk_image_data_file_sequence(const std::string& pattern)
 {
-  fatal(ERR_NOT_BUILT_WITH_VTK);
+  throw feature_not_available(ERR_NOT_BUILT_WITH_VTK, "VTK support not enabled in this build");
 }
 
 template<typename T, typename StoragePolicy>
 inline void ndarray<T, StoragePolicy>::to_vtk_image_data_file(const std::string& filename, const std::string) const
 {
-  fatal(ERR_NOT_BUILT_WITH_VTK);
+  throw feature_not_available(ERR_NOT_BUILT_WITH_VTK, "VTK support not enabled in this build");
 }
 #endif
 
@@ -4434,9 +4434,9 @@ inline std::shared_ptr<ndarray_base> ndarray_base::new_by_vtk_dtype(int type)
   else if (type == VTK_UNSIGNED_CHAR)
     p.reset(new ndarray<unsigned char>);
   else
-    fatal(ERR_NOT_IMPLEMENTED);
+    throw not_implemented("VTK rectilinear grid output not yet implemented");
 #else
-  fatal(ERR_NOT_BUILT_WITH_VTK);
+  throw feature_not_available(ERR_NOT_BUILT_WITH_VTK, "VTK support not enabled in this build");
 #endif
 
   return p;

@@ -547,7 +547,7 @@ inline void ndarray_base::read_vtk_image_data_file(const std::string& filename, 
   reader->Update();
   from_vtk_image_data(reader->GetOutput(), array_name);
 #else
-  fatal(ERR_NOT_BUILT_WITH_VTK);
+  throw feature_not_available(ERR_NOT_BUILT_WITH_VTK, "VTK support not enabled in this build");
 #endif
 }
 
@@ -557,7 +557,7 @@ inline std::shared_ptr<ndarray_base> ndarray_base::new_from_vtk_image_data(
     std::string varname)
 {
   if (!vti)
-    fatal("the input vtkImageData is null");
+    throw vtk_error("Input vtkImageData is null");
 
   vtkSmartPointer<vtkDataArray> arr = vti->GetPointData()->GetArray(varname.c_str());
 
@@ -570,7 +570,7 @@ inline std::shared_ptr<ndarray_base> ndarray_base::new_from_vtk_image_data(
 inline std::shared_ptr<ndarray_base> ndarray_base::new_from_vtk_data_array(vtkSmartPointer<vtkDataArray> da)
 {
   if (!da)
-    fatal("the input vtkDataArray is null");
+    throw vtk_error("Input vtkDataArray is null");
 
   auto p = new_by_vtk_dtype( da->GetDataType() );
   p->from_vtk_data_array(da);

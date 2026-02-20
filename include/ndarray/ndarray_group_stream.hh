@@ -111,11 +111,11 @@ inline void stream<StoragePolicy>::new_substream_from_yaml(YAML::Node y)
       else if (format == "vti_output")
         sub.reset(new substream_vti_o<StoragePolicy>(*this));
 #else
-      fatal(ERR_NOT_BUILT_WITH_VTK);
+      throw feature_not_available(ERR_NOT_BUILT_WITH_VTK, "VTK support not enabled in this build");
 #endif
     }
     else
-      fatal(ERR_STREAM_FORMAT);
+      throw stream_error(ERR_STREAM_FORMAT, "Unknown stream format: " + format);
   }
 
   sub->name = name;
