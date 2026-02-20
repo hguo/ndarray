@@ -583,10 +583,17 @@ inline bool ndarray_base::read_h5(const std::string& filename, const std::string
 {
 #if NDARRAY_HAVE_HDF5
   auto fid = H5Fopen(filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
-  if (fid < 0) return false; else {
-    bool succ = read_h5(fid, name);
+  if (fid < 0) {
+    throw hdf5_error(ERR_HDF5_IO, "Cannot open HDF5 file: " + filename);
+  }
+
+  try {
+    read_h5(fid, name);
     H5Fclose(fid);
-    return succ;
+    return true;
+  } catch (...) {
+    H5Fclose(fid);
+    throw;  // Re-throw the exception after cleanup
   }
 #else
   fatal(ERR_NOT_BUILT_WITH_HDF5);
