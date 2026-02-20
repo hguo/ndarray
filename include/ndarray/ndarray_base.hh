@@ -160,7 +160,7 @@ struct ndarray_base {
 
   [[deprecated]] size_t dim(size_t i) const { return dimf(i); }
   [[deprecated]] size_t shape(size_t i) const {return dimf(i);}
-  [[deprecated]] const std::vector<size_t> &shape() const {return shapef();}
+  [[deprecated]] std::vector<size_t> shape() const {return shapef();}
 
   size_t nelem() const { if (dims.empty()) return 0; else return std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<size_t>()); }
   virtual size_t elem_size() const = 0;
