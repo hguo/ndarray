@@ -31,7 +31,9 @@ struct lattice {
   size_t upper_bound(size_t i) const {return starts_[i] + sizes_[i] - 1;}
   size_t lower_bound(size_t i) const {return starts_[i];} // + sizes_[i] - 1;}
 
-  size_t n() const {return prod_[nd()-1] * sizes_[nd()-1];}
+  // With C-order strides: prod_[0] = product of all dims except first
+  // Total size = prod_[0] * sizes_[0]
+  size_t n() const {return prod_[0] * sizes_[0];}
   const std::vector<size_t>& starts() const {return starts_;}
   const std::vector<size_t>& sizes() const {return sizes_;}
 
