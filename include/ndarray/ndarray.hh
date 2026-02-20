@@ -1793,8 +1793,8 @@ inline bool ndarray<T, StoragePolicy>::read_h5_did(hid_t did)
 
   if (type == H5S_SIMPLE) {
     const int h5ndims = H5Sget_simple_extent_ndims(sid);
-    hsize_t h5dims[h5ndims];
-    H5Sget_simple_extent_dims(sid, h5dims, NULL);
+    std::vector<hsize_t> h5dims(h5ndims);
+    H5Sget_simple_extent_dims(sid, h5dims.data(), NULL);
 
     std::vector<size_t> h5_dims(h5ndims);
     for (auto i = 0; i < h5ndims; i ++)
