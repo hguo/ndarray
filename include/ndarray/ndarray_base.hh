@@ -337,7 +337,7 @@ public: // h5 i/o
   bool read_h5(const std::string& filename, const std::string& name);
 #if NDARRAY_HAVE_HDF5
   bool read_h5(hid_t fid, const std::string& name);
-  virtual bool read_h5_did(hid_t did) = 0;
+  virtual void read_h5_did(hid_t did) = 0;
 #endif
 #if NDARRAY_HAVE_HDF5
   virtual void read_hdf5_auto(const std::string& filename, const std::string& varname) = 0;
@@ -598,11 +598,13 @@ inline bool ndarray_base::read_h5(const std::string& filename, const std::string
 inline bool ndarray_base::read_h5(hid_t fid, const std::string& name)
 {
   auto did = H5Dopen2(fid, name.c_str(), H5P_DEFAULT);
-  if (did < 0) return false; else {
-    bool succ = read_h5_did(did);
-    H5Dclose(did);
-    return succ;
+  if (did < 0) {
+    throw hdf5_error(ERR_HDF5_IO, "Cannot open HDF5 dataset: " + name);
   }
+
+  read_h5_did(did);
+  H5Dclose(did);
+  return true;
 }
 #endif
 

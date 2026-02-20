@@ -412,8 +412,8 @@ public: // i/o for vtkStructuredGrid data
 public: // i/o for hdf5
   static ndarray<T, StoragePolicy> from_h5(const std::string& filename, const std::string& name);
 #if NDARRAY_HAVE_HDF5
-  bool read_h5_did(hid_t did);
-  bool to_h5(const std::string& filename, const std::string& varname) const;
+  void read_h5_did(hid_t did);
+  void to_h5(const std::string& filename, const std::string& varname) const;
   static hid_t h5_mem_type_id();
 #endif
 
@@ -1786,7 +1786,7 @@ ndarray<T, StoragePolicy> ndarray<T, StoragePolicy>::from_h5(const std::string& 
 
 #if NDARRAY_HAVE_HDF5
 template <typename T, typename StoragePolicy>
-inline bool ndarray<T, StoragePolicy>::read_h5_did(hid_t did)
+inline void ndarray<T, StoragePolicy>::read_h5_did(hid_t did)
 {
   auto sid = H5Dget_space(did); // space id
   auto type = H5Sget_simple_extent_type(sid);
@@ -1808,23 +1808,23 @@ inline bool ndarray<T, StoragePolicy>::read_h5_did(hid_t did)
   } else if (type == H5S_SCALAR) {
     reshapef(1);
     H5Dread(did, h5_mem_type_id(), H5S_ALL, H5S_ALL, H5P_DEFAULT, storage_.data());
-  } else
-    fatal("unsupported h5 extent type");
-
-  return true;
+  } else {
+    throw hdf5_error(ERR_HDF5_IO, "Unsupported HDF5 extent type");
+  }
 }
 
 template <typename T, typename StoragePolicy>
-inline bool ndarray<T, StoragePolicy>::to_h5(const std::string& filename, const std::string& varname) const
+inline void ndarray<T, StoragePolicy>::to_h5(const std::string& filename, const std::string& varname) const
 {
   hid_t dtype = h5_mem_type_id();
   if (dtype < 0) {
-    warn(ERR_HDF5_UNSUPPORTED_TYPE);
-    return false;
+    throw hdf5_error(ERR_HDF5_UNSUPPORTED_TYPE, "Unsupported data type for HDF5 output");
   }
 
   hid_t file_id = H5Fcreate(filename.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
-  if (file_id < 0) return false;
+  if (file_id < 0) {
+    throw hdf5_error(ERR_HDF5_IO, "Cannot create HDF5 file: " + filename);
+  }
 
   const size_t nd = this->nd();
 
@@ -1836,15 +1836,16 @@ inline bool ndarray<T, StoragePolicy>::to_h5(const std::string& filename, const 
   hid_t dataset_id = H5Dcreate2(file_id, varname.c_str(), dtype, dataspace_id,
                                  H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
-  if (dataset_id >= 0) {
-    H5Dwrite(dataset_id, dtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, storage_.data());
-    H5Dclose(dataset_id);
+  if (dataset_id < 0) {
+    H5Sclose(dataspace_id);
+    H5Fclose(file_id);
+    throw hdf5_error(ERR_HDF5_IO, "Cannot create HDF5 dataset: " + varname);
   }
 
+  H5Dwrite(dataset_id, dtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, storage_.data());
+  H5Dclose(dataset_id);
   H5Sclose(dataspace_id);
   H5Fclose(file_id);
-
-  return dataset_id >= 0;
 }
 
 template <typename T, typename StoragePolicy>

@@ -288,6 +288,17 @@ public:
 };
 
 /**
+ * @brief Exception for HDF5-related errors
+ */
+class hdf5_error : public file_error {
+public:
+  explicit hdf5_error(int code, const std::string& msg = "")
+    : file_error(code, msg) {}
+  explicit hdf5_error(const std::string& msg)
+    : file_error(msg) {}
+};
+
+/**
  * @brief Exception for ADIOS2-related errors
  */
 class adios2_error : public exception {
@@ -372,9 +383,14 @@ inline void print_backtrace()
     throw vtk_error(err, str);
   }
 
-  // NetCDF errors
+  // NetCDF and HDF5 errors
   else if (err >= ERR_NETCDF_MISSING_VARIABLE && err < ERR_ADIOS2) {
-    throw netcdf_error(err, str);
+    // HDF5 errors are in the middle of this range
+    if (err >= ERR_HDF5_NOT_PARALLEL && err <= ERR_HDF5_UNSUPPORTED_TYPE) {
+      throw hdf5_error(err, str);
+    } else {
+      throw netcdf_error(err, str);
+    }
   }
 
   // ADIOS2 errors
