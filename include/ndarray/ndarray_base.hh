@@ -677,7 +677,7 @@ inline vtkSmartPointer<vtkDataArray> ndarray_base::to_vtk_data_array(std::string
     d->SetNumberOfComponents(1);
     d->SetNumberOfTuples(nelem());
   } else {
-    fatal(ERR_NDARRAY_MULTIDIMENSIONAL_COMPONENTS);
+    throw vtk_error(ERR_NDARRAY_MULTIDIMENSIONAL_COMPONENTS, "VTK output only supports one dimension for components (vectors/tensors with >1D components not supported)");
   }
   memcpy(d->GetVoidPointer(0), this->pdata(), elem_size() * nelem()); // nelem());
   return d;

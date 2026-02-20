@@ -1243,7 +1243,7 @@ void ndarray<T, StoragePolicy>::reshapef(const std::vector<size_t> &dims_)
     s.resize(dims.size());
 
     if (dims.size() == 0)
-      fatal(ERR_NDARRAY_RESHAPE_EMPTY);
+      throw std::invalid_argument("Cannot reshape to empty dimensions");
 
     // C-order strides: last dimension varies fastest
     // s[nd-1] = 1, s[nd-2] = dims[nd-1], etc.
@@ -1260,7 +1260,7 @@ void ndarray<T, StoragePolicy>::reshapef(const std::vector<size_t> &dims_)
       storage_.resize(total_size);
     }
   } else
-    fatal(ERR_NDARRAY_RESHAPE_DEVICE);
+    throw device_error(ERR_NDARRAY_RESHAPE_DEVICE, "Reshaping a device ndarray is not supported");
 }
 
 template <typename T, typename StoragePolicy>
@@ -1287,7 +1287,8 @@ ndarray<T, StoragePolicy>& ndarray<T, StoragePolicy>::scale(T factor)
 template <typename T, typename StoragePolicy>
 ndarray<T, StoragePolicy>& ndarray<T, StoragePolicy>::add(const ndarray<T, StoragePolicy>& other)
 {
-  if (this->dims != other.dims) fatal("ndarray::add: dimension mismatch");
+  if (this->dims != other.dims)
+    throw std::invalid_argument("ndarray::add: dimension mismatch");
 #if NDARRAY_HAVE_CUDA
   if (device_type == NDARRAY_DEVICE_CUDA && other.device_type == NDARRAY_DEVICE_CUDA) {
     launch_add<T>(static_cast<T*>(devptr), static_cast<const T*>(other.devptr), nelem());
@@ -1982,8 +1983,7 @@ ndarray<T, StoragePolicy> ndarray<T, StoragePolicy>::get_transpose() const
             a.f(l, k, j, i) = f(i, j, k, l);
     return a;
   } else {
-    fatal(ERR_NDARRAY_UNSUPPORTED_DIMENSIONALITY);
-    return a;
+    throw std::logic_error("Unsupported dimensionality for global index conversion (only 1D, 2D, 3D supported)");
   }
 }
 
