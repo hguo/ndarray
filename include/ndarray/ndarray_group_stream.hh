@@ -99,7 +99,7 @@ inline void stream<StoragePolicy>::new_substream_from_yaml(YAML::Node y)
 #if NDARRAY_HAVE_ADIOS2
       sub.reset(new substream_adios2<StoragePolicy>(*this));
 #else
-      fatal(ERR_NOT_BUILT_WITH_ADIOS2);
+      throw feature_not_available(ERR_NOT_BUILT_WITH_ADIOS2, "ADIOS2 support not enabled in this build");
 #endif
     }
     else if (format == "vti" || format == "vtu_resample" || format == "vti_output") {

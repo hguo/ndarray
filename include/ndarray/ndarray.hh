@@ -1523,8 +1523,7 @@ bool ndarray<T, StoragePolicy>::read_bp_legacy(const std::string& filename, cons
   adios_read_close(fp);
   return succ;
 #else
-  fatal(ERR_NOT_BUILT_WITH_ADIOS1);
-  return false;
+  throw feature_not_available(ERR_NOT_BUILT_WITH_ADIOS1, "ADIOS1 support not enabled in this build");
 #endif
 }
 
@@ -4485,11 +4484,10 @@ inline std::shared_ptr<ndarray_base> ndarray_base::new_by_adios2_dtype(const std
   else if (type == adios2::GetType<char>())
     p.reset(new ndarray<char>);
   else
-    fatal(ERR_NOT_IMPLEMENTED);
+    throw not_implemented("Unsupported ADIOS2 data type");
 #else
-  warn(ERR_NOT_BUILT_WITH_ADIOS2);
+  throw feature_not_available(ERR_NOT_BUILT_WITH_ADIOS2, "ADIOS2 support not enabled in this build");
 #endif
-  return p;
 }
 
 #if NDARRAY_HAVE_HDF5

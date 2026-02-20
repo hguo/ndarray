@@ -656,8 +656,7 @@ inline void ndarray_base::read_bp(const std::string& filename, const std::string
 
   // if (empty()) read_bp_legacy(filename, varname, comm);
 #else
-  warn(ERR_NOT_BUILT_WITH_ADIOS2);
-  read_bp_legacy(filename, varname, comm);
+  throw feature_not_available(ERR_NOT_BUILT_WITH_ADIOS2, "ADIOS2 support not enabled in this build");
 #endif
 }
 
