@@ -60,7 +60,7 @@ int test_1d_ghost_exchange() {
   for (size_t i = 0; i < darray.local_core().size(0); i++) {
     for (size_t j = 0; j < darray.local_core().size(1); j++) {
       float value = static_cast<float>(rank * 1000 + i);
-      darray.at(i, j) = value;
+      darray.f(i, j) = value;
     }
   }
 
@@ -116,7 +116,7 @@ int test_2d_ghost_exchange() {
       size_t global_i = darray.local_core().start(0) + i;
       size_t global_j = darray.local_core().start(1) + j;
       double value = static_cast<double>(global_i * 1000 + global_j);
-      darray.at(i, j) = value;
+      darray.f(i, j) = value;
     }
   }
 
@@ -160,7 +160,7 @@ int test_stencil_with_ghosts() {
     for (size_t j = 0; j < temperature.local_core().size(1); j++) {
       size_t global_i = temperature.local_core().start(0) + i;
       float value = std::sin(static_cast<float>(global_i) * 3.14159f / 100.0f) * 100.0f;
-      temperature.at(i, j) = value;
+      temperature.f(i, j) = value;
     }
   }
 
@@ -181,10 +181,10 @@ int test_stencil_with_ghosts() {
   // smooth[i] = (temp[i-1] + temp[i] + temp[i+1]) / 3
   for (size_t i = 1; i < temperature.local_core().size(0) - 1; i++) {
     for (size_t j = 0; j < temperature.local_core().size(1); j++) {
-      float left = temperature.at(i - 1, j);
-      float center = temperature.at(i, j);
-      float right = temperature.at(i + 1, j);
-      smoothed.at(i, j) = (left + center + right) / 3.0f;
+      float left = temperature.f(i - 1, j);
+      float center = temperature.f(i, j);
+      float right = temperature.f(i + 1, j);
+      smoothed.f(i, j) = (left + center + right) / 3.0f;
     }
   }
 
@@ -193,8 +193,8 @@ int test_stencil_with_ghosts() {
   bool values_reasonable = true;
   for (size_t i = 1; i < temperature.local_core().size(0) - 1; i++) {
     for (size_t j = 0; j < temperature.local_core().size(1); j++) {
-      float original = temperature.at(i, j);
-      float smoothed_val = smoothed.at(i, j);
+      float original = temperature.f(i, j);
+      float smoothed_val = smoothed.f(i, j);
 
       // Smoothed value should be close to original for smooth functions
       if (std::abs(smoothed_val - original) > 50.0f) {

@@ -230,7 +230,7 @@ int main(int argc, char** argv) {
 
       for (size_t i = 0; i < 10; i++) {
         for (size_t j = 0; j < 20; j++) {
-          arr2d.at(i, j) = static_cast<float>(i * 20 + j);
+          arr2d.f(i, j) = static_cast<float>(i * 20 + j);
         }
       }
 
@@ -239,7 +239,7 @@ int main(int argc, char** argv) {
 
       for (size_t i = 0; i < 10; i++) {
         for (size_t j = 0; j < 20; j++) {
-          TEST_ASSERT(std::abs(arr2d.at(i, j) - static_cast<float>(i * 20 + j)) < 1e-5,
+          TEST_ASSERT(std::abs(arr2d.f(i, j) - static_cast<float>(i * 20 + j)) < 1e-5,
                       "2D array data corrupted");
         }
       }
@@ -253,7 +253,7 @@ int main(int argc, char** argv) {
       for (size_t i = 0; i < 5; i++) {
         for (size_t j = 0; j < 6; j++) {
           for (size_t k = 0; k < 7; k++) {
-            arr3d.at(i, j, k) = static_cast<double>(i * 42 + j * 7 + k);
+            arr3d.f(i, j, k) = static_cast<double>(i * 42 + j * 7 + k);
           }
         }
       }
@@ -264,7 +264,7 @@ int main(int argc, char** argv) {
       for (size_t i = 0; i < 5; i++) {
         for (size_t j = 0; j < 6; j++) {
           for (size_t k = 0; k < 7; k++) {
-            TEST_ASSERT(std::abs(arr3d.at(i, j, k) - static_cast<double>(i * 42 + j * 7 + k)) < 1e-10,
+            TEST_ASSERT(std::abs(arr3d.f(i, j, k) - static_cast<double>(i * 42 + j * 7 + k)) < 1e-10,
                         "3D array data corrupted");
           }
         }

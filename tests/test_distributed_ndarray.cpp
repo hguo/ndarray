@@ -296,7 +296,7 @@ int test_parallel_netcdf_read() {
     // Fill with known pattern: data[i,j] = i * 100 + j
     for (size_t i = 0; i < global_nx; i++) {
       for (size_t j = 0; j < global_ny; j++) {
-        global_data.at(i, j) = static_cast<float>(i * 100 + j);
+        global_data.f(i, j) = static_cast<float>(i * 100 + j);
       }
     }
 
@@ -359,7 +359,7 @@ int test_parallel_netcdf_read() {
         size_t global_j = darray.local_core().start(1) + j;
 
         float expected = static_cast<float>(global_i * 100 + global_j);
-        float actual = local.at(i, j);
+        float actual = local.f(i, j);
 
         if (std::abs(expected - actual) > 1e-6f) {
           std::cerr << "[Rank " << rank << "] Data mismatch at local [" << i << "," << j
@@ -420,7 +420,7 @@ int test_parallel_binary_read() {
     // Fill with known pattern
     for (size_t i = 0; i < global_nx; i++) {
       for (size_t j = 0; j < global_ny; j++) {
-        global_data.at(i, j) = static_cast<double>(i * 100 + j);
+        global_data.f(i, j) = static_cast<double>(i * 100 + j);
       }
     }
 
@@ -470,7 +470,7 @@ int test_parallel_binary_read() {
         size_t global_i = darray.local_core().start(0) + i;
         size_t global_j = darray.local_core().start(1) + j;
         double expected = static_cast<double>(global_i * 100 + global_j);
-        double actual = local.at(i, j);
+        double actual = local.f(i, j);
         std::cout << "[Rank " << rank << "] local[" << i << "," << j << "] = " << actual
                   << ", expected = " << expected << " (global [" << global_i << "," << global_j << "])" << std::endl;
       }
@@ -484,7 +484,7 @@ int test_parallel_binary_read() {
       size_t global_j = darray.local_core().start(1) + j;
 
       double expected = static_cast<double>(global_i * 100 + global_j);
-      double actual = local.at(i, j);
+      double actual = local.f(i, j);
 
       if (std::abs(expected - actual) > 1e-9) {
         std::cerr << "[Rank " << rank << "] Data mismatch at local [" << i << "," << j
@@ -532,7 +532,7 @@ int test_ghost_exchange_correctness() {
     for (size_t j = 0; j < darray.local_core().size(1); j++) {
       size_t global_i = darray.local_core().start(0) + i;
       size_t global_j = darray.local_core().start(1) + j;
-      local.at(ghost_offset_0 + i, ghost_offset_1 + j) =
+      local.f(ghost_offset_0 + i, ghost_offset_1 + j) =
         static_cast<float>(rank * 1000 + global_i * 100 + global_j);
     }
   }
@@ -554,7 +554,7 @@ int test_ghost_exchange_correctness() {
       size_t global_i = darray.local_core().start(0) + i;
       size_t global_j = darray.local_core().start(1) + j;
       float expected = static_cast<float>(rank * 1000 + global_i * 100 + global_j);
-      float actual = local.at(ghost_offset_0 + i, ghost_offset_1 + j);
+      float actual = local.f(ghost_offset_0 + i, ghost_offset_1 + j);
       if (std::abs(expected - actual) > 1e-6f) {
         if (errors < 5) {  // Limit error reporting
           std::cerr << "[Rank " << rank << "] Core value changed after exchange at local ["
@@ -1025,7 +1025,7 @@ int test_global_index_access() {
     for (size_t j = 0; j < arr.local_core().size(1); j++) {
       size_t global_i = arr.local_core().start(0) + i;
       size_t global_j = arr.local_core().start(1) + j;
-      local.at(i, j) = static_cast<float>(global_i * 100 + global_j);
+      local.f(i, j) = static_cast<float>(global_i * 100 + global_j);
     }
   }
 

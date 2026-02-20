@@ -190,7 +190,7 @@ double benchmark_2d_access(size_t rows, size_t cols) {
 
   for (size_t i = 0; i < rows; i++) {
     for (size_t j = 0; j < cols; j++) {
-      mat.at(i, j) = static_cast<float>(i * cols + j);
+      mat.f(i, j) = static_cast<float>(i * cols + j);
     }
   }
 
@@ -200,7 +200,7 @@ double benchmark_2d_access(size_t rows, size_t cols) {
     float sum = 0.0f;
     for (size_t i = 0; i < rows; i++) {
       for (size_t j = 0; j < cols; j++) {
-        sum += mat.at(i, j);
+        sum += mat.f(i, j);
       }
     }
     result = sum;

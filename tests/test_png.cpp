@@ -65,7 +65,7 @@ int main(int argc, char** argv) {
       for (int x = 0; x < width; x++) {
         // Create a gradient pattern
         unsigned char val = static_cast<unsigned char>((x + y) % 256);
-        gray_out.at(y, x) = val;
+        gray_out.f(y, x) = val;
       }
     }
 
@@ -86,7 +86,7 @@ int main(int argc, char** argv) {
     // Verify data
     for (int y = 0; y < height; y++) {
       for (int x = 0; x < width; x++) {
-        TEST_ASSERT(gray_in.at(y, x) == gray_out.at(y, x), "Pixel value mismatch");
+        TEST_ASSERT(gray_in.f(y, x) == gray_out.f(y, x), "Pixel value mismatch");
       }
     }
 
@@ -109,11 +109,11 @@ int main(int argc, char** argv) {
     for (int y = 0; y < height; y++) {
       for (int x = 0; x < width; x++) {
         // R channel: horizontal gradient
-        rgb_out.at(0, y, x) = static_cast<unsigned char>((x * 255) / width);
+        rgb_out.f(0, y, x) = static_cast<unsigned char>((x * 255) / width);
         // G channel: vertical gradient
-        rgb_out.at(1, y, x) = static_cast<unsigned char>((y * 255) / height);
+        rgb_out.f(1, y, x) = static_cast<unsigned char>((y * 255) / height);
         // B channel: checkerboard
-        rgb_out.at(2, y, x) = ((x / 8 + y / 8) % 2) ? 255 : 0;
+        rgb_out.f(2, y, x) = ((x / 8 + y / 8) % 2) ? 255 : 0;
       }
     }
 
@@ -137,7 +137,7 @@ int main(int argc, char** argv) {
     for (int y = 0; y < height; y++) {
       for (int x = 0; x < width; x++) {
         for (int c = 0; c < 3; c++) {
-          TEST_ASSERT(rgb_in.at(c, y, x) == rgb_out.at(c, y, x),
+          TEST_ASSERT(rgb_in.f(c, y, x) == rgb_out.f(c, y, x),
                       "RGB pixel value mismatch");
         }
       }
@@ -162,16 +162,16 @@ int main(int argc, char** argv) {
     for (int y = 0; y < height; y++) {
       for (int x = 0; x < width; x++) {
         // RGB: solid red
-        rgba_out.at(0, y, x) = 255;
-        rgba_out.at(1, y, x) = 0;
-        rgba_out.at(2, y, x) = 0;
+        rgba_out.f(0, y, x) = 255;
+        rgba_out.f(1, y, x) = 0;
+        rgba_out.f(2, y, x) = 0;
 
         // Alpha: radial gradient from center
         int dx = x - width/2;
         int dy = y - height/2;
         double dist = std::sqrt(dx*dx + dy*dy);
         double alpha = std::min(1.0, dist / (width/2));
-        rgba_out.at(3, y, x) = static_cast<unsigned char>(alpha * 255);
+        rgba_out.f(3, y, x) = static_cast<unsigned char>(alpha * 255);
       }
     }
 
@@ -195,7 +195,7 @@ int main(int argc, char** argv) {
     for (int y = 0; y < height; y++) {
       for (int x = 0; x < width; x++) {
         for (int c = 0; c < 4; c++) {
-          TEST_ASSERT(rgba_in.at(c, y, x) == rgba_out.at(c, y, x),
+          TEST_ASSERT(rgba_in.f(c, y, x) == rgba_out.f(c, y, x),
                       "RGBA pixel value mismatch");
         }
       }
@@ -217,7 +217,7 @@ int main(int argc, char** argv) {
 
     for (int y = 0; y < height; y++) {
       for (int x = 0; x < width; x++) {
-        float_arr.at(y, x) = static_cast<float>(x * y) / (width * height);
+        float_arr.f(y, x) = static_cast<float>(x * y) / (width * height);
       }
     }
 
@@ -258,9 +258,9 @@ int main(int argc, char** argv) {
 
     for (int y = 0; y < height; y++) {
       for (int x = 0; x < width; x++) {
-        double_rgb.at(0, y, x) = 255.0 * x / width;
-        double_rgb.at(1, y, x) = 255.0 * y / height;
-        double_rgb.at(2, y, x) = 128.0;
+        double_rgb.f(0, y, x) = 255.0 * x / width;
+        double_rgb.f(1, y, x) = 255.0 * y / height;
+        double_rgb.f(2, y, x) = 128.0;
       }
     }
 
@@ -302,9 +302,9 @@ int main(int argc, char** argv) {
     // Create a simple pattern (to avoid spending too much time)
     for (int y = 0; y < height; y++) {
       for (int x = 0; x < width; x++) {
-        large_img.at(0, y, x) = (x * 255) / width;
-        large_img.at(1, y, x) = (y * 255) / height;
-        large_img.at(2, y, x) = ((x + y) * 255) / (width + height);
+        large_img.f(0, y, x) = (x * 255) / width;
+        large_img.f(1, y, x) = (y * 255) / height;
+        large_img.f(2, y, x) = ((x + y) * 255) / (width + height);
       }
     }
 
@@ -330,8 +330,8 @@ int main(int argc, char** argv) {
     TEST_ASSERT(read_img.dimf(2) == width, "Width mismatch");
 
     // Spot check a few pixels
-    TEST_ASSERT(read_img.at(0, 0, 0) == large_img.at(0, 0, 0), "Corner pixel mismatch");
-    TEST_ASSERT(read_img.at(0, height/2, width/2) == large_img.at(0, height/2, width/2),
+    TEST_ASSERT(read_img.f(0, 0, 0) == large_img.f(0, 0, 0), "Corner pixel mismatch");
+    TEST_ASSERT(read_img.f(0, height/2, width/2) == large_img.f(0, height/2, width/2),
                 "Center pixel mismatch");
 
     std::cout << "    PASSED" << std::endl;

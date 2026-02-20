@@ -3678,7 +3678,7 @@ void ndarray<T, StoragePolicy>::write_netcdf_auto(
       std::vector<int> dimids(this->nd());
       for (size_t d = 0; d < this->nd(); d++) {
         std::string dimname = "dim" + std::to_string(d);
-        NC_SAFE_CALL(nc_def_dim(ncid, dimname.c_str(), this->dim(d), &dimids[d]));
+        NC_SAFE_CALL(nc_def_dim(ncid, dimname.c_str(), this->dimf(d), &dimids[d]));
       }
 
       // Define variable
@@ -3702,7 +3702,7 @@ void ndarray<T, StoragePolicy>::write_netcdf_auto(
     std::vector<int> dimids(this->nd());
     for (size_t d = 0; d < this->nd(); d++) {
       std::string dimname = "dim" + std::to_string(d);
-      NC_SAFE_CALL(nc_def_dim(ncid, dimname.c_str(), this->dim(d), &dimids[d]));
+      NC_SAFE_CALL(nc_def_dim(ncid, dimname.c_str(), this->dimf(d), &dimids[d]));
     }
 
     // Define variable
@@ -3946,7 +3946,7 @@ void ndarray<T, StoragePolicy>::write_pnetcdf_auto(
       std::vector<int> dimids(this->nd());
       for (size_t d = 0; d < this->nd(); d++) {
         std::string dimname = "dim" + std::to_string(d);
-        PNC_SAFE_CALL(ncmpi_def_dim(ncid, dimname.c_str(), this->dim(this->nd() - 1 - d), &dimids[d]));
+        PNC_SAFE_CALL(ncmpi_def_dim(ncid, dimname.c_str(), this->dimf(this->nd() - 1 - d), &dimids[d]));
       }
 
       PNC_SAFE_CALL(ncmpi_def_var(ncid, varname.c_str(), this->pnc_dtype(), this->nd(), dimids.data(), &varid));
@@ -3954,7 +3954,7 @@ void ndarray<T, StoragePolicy>::write_pnetcdf_auto(
 
       std::vector<MPI_Offset> starts(this->nd(), 0);
       std::vector<MPI_Offset> sizes(this->nd());
-      for (size_t d = 0; d < this->nd(); d++) sizes[d] = this->dim(this->nd() - 1 - d);
+      for (size_t d = 0; d < this->nd(); d++) sizes[d] = this->dimf(this->nd() - 1 - d);
 
       this->write_pnetcdf_all(ncid, varid, starts.data(), sizes.data());
       PNC_SAFE_CALL(ncmpi_close(ncid));
@@ -3969,7 +3969,7 @@ void ndarray<T, StoragePolicy>::write_pnetcdf_auto(
     std::vector<int> dimids(this->nd());
     for (size_t d = 0; d < this->nd(); d++) {
       std::string dimname = "dim" + std::to_string(d);
-      PNC_SAFE_CALL(ncmpi_def_dim(ncid, dimname.c_str(), this->dim(this->nd() - 1 - d), &dimids[d]));
+      PNC_SAFE_CALL(ncmpi_def_dim(ncid, dimname.c_str(), this->dimf(this->nd() - 1 - d), &dimids[d]));
     }
 
     PNC_SAFE_CALL(ncmpi_def_var(ncid, varname.c_str(), this->pnc_dtype(), this->nd(), dimids.data(), &varid));
@@ -3977,7 +3977,7 @@ void ndarray<T, StoragePolicy>::write_pnetcdf_auto(
 
     std::vector<MPI_Offset> starts(this->nd(), 0);
     std::vector<MPI_Offset> sizes(this->nd());
-    for (size_t d = 0; d < this->nd(); d++) sizes[d] = this->dim(this->nd() - 1 - d);
+    for (size_t d = 0; d < this->nd(); d++) sizes[d] = this->dimf(this->nd() - 1 - d);
 
     this->write_pnetcdf_all(ncid, varid, starts.data(), sizes.data());
     PNC_SAFE_CALL(ncmpi_close(ncid));
@@ -4206,6 +4206,7 @@ void ndarray<T, StoragePolicy>::read_binary_auto(const std::string& filename)
 #if NDARRAY_HAVE_MPI
   int mpi_initialized = 0;
   MPI_Initialized(&mpi_initialized);
+
   if (mpi_initialized && should_use_parallel_io()) {
     // Distributed mode: MPI-IO parallel read
     // Read only the local core region using column-major (Fortran) order
