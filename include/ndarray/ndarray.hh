@@ -2615,52 +2615,52 @@ bool ndarray<T, StoragePolicy>::is_local(const std::vector<size_t>& global_idx) 
 template <typename T, typename StoragePolicy>
 T& ndarray<T, StoragePolicy>::at_global(size_t i0) {
   auto local_idx = global_to_local({i0});
-  return this->at(local_idx[0]);
+  return this->f(local_idx[0]);
 }
 
 template <typename T, typename StoragePolicy>
 const T& ndarray<T, StoragePolicy>::at_global(size_t i0) const {
   auto local_idx = global_to_local({i0});
-  return this->at(local_idx[0]);
+  return this->f(local_idx[0]);
 }
 
 // 2D Fortran-order (at_global)
 template <typename T, typename StoragePolicy>
 T& ndarray<T, StoragePolicy>::at_global(size_t i0, size_t i1) {
   auto local_idx = global_to_local({i0, i1});
-  return this->at(local_idx[0], local_idx[1]);
+  return this->f(local_idx[0], local_idx[1]);
 }
 
 template <typename T, typename StoragePolicy>
 const T& ndarray<T, StoragePolicy>::at_global(size_t i0, size_t i1) const {
   auto local_idx = global_to_local({i0, i1});
-  return this->at(local_idx[0], local_idx[1]);
+  return this->f(local_idx[0], local_idx[1]);
 }
 
 // 3D Fortran-order (at_global)
 template <typename T, typename StoragePolicy>
 T& ndarray<T, StoragePolicy>::at_global(size_t i0, size_t i1, size_t i2) {
   auto local_idx = global_to_local({i0, i1, i2});
-  return this->at(local_idx[0], local_idx[1], local_idx[2]);
+  return this->f(local_idx[0], local_idx[1], local_idx[2]);
 }
 
 template <typename T, typename StoragePolicy>
 const T& ndarray<T, StoragePolicy>::at_global(size_t i0, size_t i1, size_t i2) const {
   auto local_idx = global_to_local({i0, i1, i2});
-  return this->at(local_idx[0], local_idx[1], local_idx[2]);
+  return this->f(local_idx[0], local_idx[1], local_idx[2]);
 }
 
 // 4D Fortran-order (at_global)
 template <typename T, typename StoragePolicy>
 T& ndarray<T, StoragePolicy>::at_global(size_t i0, size_t i1, size_t i2, size_t i3) {
   auto local_idx = global_to_local({i0, i1, i2, i3});
-  return this->at(local_idx[0], local_idx[1], local_idx[2], local_idx[3]);
+  return this->f(local_idx[0], local_idx[1], local_idx[2], local_idx[3]);
 }
 
 template <typename T, typename StoragePolicy>
 const T& ndarray<T, StoragePolicy>::at_global(size_t i0, size_t i1, size_t i2, size_t i3) const {
   auto local_idx = global_to_local({i0, i1, i2, i3});
-  return this->at(local_idx[0], local_idx[1], local_idx[2], local_idx[3]);
+  return this->f(local_idx[0], local_idx[1], local_idx[2], local_idx[3]);
 }
 
 // 1D Fortran-order (f_global)
