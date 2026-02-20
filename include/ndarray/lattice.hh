@@ -131,11 +131,13 @@ inline void lattice::reshape(const std::vector<size_t> &starts, const std::vecto
   sizes_ = sizes;
   prod_.resize(sizes.size());
 
-  for (int i = 0; i < nd(); i ++)
-    if (i == 0)
+  // C-order strides: last dimension varies fastest
+  // prod_[nd-1] = 1, prod_[nd-2] = sizes[nd-1], etc.
+  for (int i = nd() - 1; i >= 0; i--)
+    if (i == nd() - 1)
       prod_[i] = 1;
     else
-      prod_[i] = prod_[i-1] * sizes[i-1];
+      prod_[i] = prod_[i+1] * sizes[i+1];
 }
 
 inline void lattice::reshape(const std::vector<int> &starts, const std::vector<int> &sizes)

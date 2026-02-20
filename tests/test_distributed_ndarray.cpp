@@ -278,12 +278,6 @@ int test_parallel_netcdf_read() {
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
 
-  if (rank == 0) {
-    std::cout << "\n⊘ Skipping Test 6: Parallel NetCDF Read" << std::endl;
-    std::cout << "  (TODO: Fix Fortran/C order mismatch in distributed NetCDF I/O)" << std::endl;
-  }
-  return 0;
-
   TEST_SECTION("Create test NetCDF file (rank 0)");
   const size_t global_nx = 100;
   const size_t global_ny = 80;
