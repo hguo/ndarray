@@ -38,7 +38,7 @@ struct substream_adios2 : public substream<StoragePolicy> {
 template <typename StoragePolicy>
 inline void substream_adios2<StoragePolicy>::initialize(YAML::Node y)
 {
-  if (!is_static)
+  if (!this->is_static)
     this->total_timesteps = this->filenames.size();
 }
 

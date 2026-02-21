@@ -4484,6 +4484,8 @@ inline std::shared_ptr<ndarray_base> ndarray_base::new_by_adios2_dtype(const std
     p.reset(new ndarray<char>);
   else
     throw not_implemented("Unsupported ADIOS2 data type");
+
+  return p;
 #else
   throw feature_not_available(ERR_NOT_BUILT_WITH_ADIOS2, "ADIOS2 support not enabled in this build");
 #endif
