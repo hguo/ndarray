@@ -83,6 +83,16 @@ if (NDARRAY_HAVE_CUDA OR NDARRAY_HAVE_SYCL)
   endif()
 
   add_test(NAME gpu COMMAND test_gpu)
+
+  # GPU kernel and data management tests
+  add_executable(test_gpu_kernels test_gpu_kernels.cpp)
+  target_link_libraries(test_gpu_kernels ndarray)
+
+  if (NDARRAY_HAVE_SYCL)
+    target_compile_options(test_gpu_kernels PRIVATE ${SYCL_FLAGS})
+  endif()
+
+  add_test(NAME gpu_kernels COMMAND test_gpu_kernels)
 endif()
 
 # PNG functionality tests (requires PNG support)
@@ -129,6 +139,7 @@ if (NDARRAY_HAVE_CUDA OR NDARRAY_HAVE_SYCL)
     message("    + SYCL support enabled")
   endif()
   message("  - test_gpu: GPU device memory management and transfers")
+  message("  - test_gpu_kernels: GPU data management and kernel tests (fill, scale, add)")
 endif()
 if (NDARRAY_HAVE_PNG)
   message("    + PNG support enabled")
