@@ -638,3 +638,97 @@ jobs:
         grep -n '](http' README.md || echo "No external links found"
         grep -n ']\[' README.md && (echo "Found undefined link references" && exit 1) || true
         echo "Documentation checks passed"
+
+  code-coverage:
+    name: Code Coverage
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          cmake \
+          g++ \
+          gcovr \
+          lcov \
+          libyaml-cpp-dev \
+          libnetcdf-dev \
+          libhdf5-dev \
+          libpng-dev
+
+    - name: Configure CMake with coverage flags
+      run: |
+        cmake -B build \
+          -DCMAKE_BUILD_TYPE=Debug \
+          -DCMAKE_CXX_FLAGS="--coverage -fprofile-arcs -ftest-coverage" \
+          -DCMAKE_C_FLAGS="--coverage -fprofile-arcs -ftest-coverage" \
+          -DCMAKE_EXE_LINKER_FLAGS="--coverage" \
+          -DNDARRAY_BUILD_TESTS=ON \
+          -DNDARRAY_BUILD_EXAMPLES=OFF \
+          -DNDARRAY_USE_NETCDF=ON \
+          -DNDARRAY_USE_HDF5=ON \
+          -DNDARRAY_USE_YAML=ON \
+          -DNDARRAY_USE_PNG=ON
+
+    - name: Build with coverage
+      run: cmake --build build -j$(nproc)
+
+    - name: Run tests
+      working-directory: build
+      run: ctest --output-on-failure || true
+
+    - name: Generate coverage report (gcovr)
+      working-directory: build
+      run: |
+        gcovr -r .. --print-summary --xml coverage.xml --html coverage.html --html-details \
+          --exclude '../tests/.*' \
+          --exclude '.*/build/.*' \
+          --exclude '.*/CMakeFiles/.*'
+
+    - name: Generate coverage report (lcov)
+      working-directory: build
+      run: |
+        lcov --capture --directory . --output-file coverage.info --rc lcov_branch_coverage=1
+        lcov --remove coverage.info \
+          '/usr/*' \
+          '*/tests/*' \
+          '*/build/*' \
+          '*/CMakeFiles/*' \
+          --output-file coverage_filtered.info --rc lcov_branch_coverage=1
+        lcov --list coverage_filtered.info --rc lcov_branch_coverage=1
+
+    - name: Generate HTML report
+      working-directory: build
+      run: |
+        genhtml coverage_filtered.info --output-directory coverage_html --rc lcov_branch_coverage=1
+        echo "Coverage report generated in build/coverage_html/index.html"
+
+    - name: Display coverage summary
+      working-directory: build
+      run: |
+        echo "=== Coverage Summary ==="
+        lcov --summary coverage_filtered.info --rc lcov_branch_coverage=1
+
+    - name: Upload coverage artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: coverage-report
+        path: |
+          build/coverage.html
+          build/coverage_html/
+        retention-days: 30
+
+    - name: Check coverage threshold
+      working-directory: build
+      run: |
+        COVERAGE=$(lcov --summary coverage_filtered.info --rc lcov_branch_coverage=1 2>&1 | grep "lines" | awk '{print $2}' | sed 's/%//')
+        echo "Line coverage: ${COVERAGE}%"
+        if (( $(echo "$COVERAGE < 60.0" | bc -l) )); then
+          echo "Warning: Coverage is below 60%"
+        else
+          echo "Coverage threshold met (>= 60%)"
+        fi
