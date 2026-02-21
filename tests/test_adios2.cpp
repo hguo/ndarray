@@ -183,13 +183,14 @@ int main(int argc, char** argv) {
       std::cout << "    - Read individual timesteps successfully" << std::endl;
     }
 
-    // Read all steps
+    // Read all steps (use -2 for NDARRAY_ADIOS2_STEPS_ALL)
     {
       ftk::ndarray<double> all_steps = ftk::ndarray<double>::from_bp(
-        "test_adios2_timeseries.bp", "velocity", -1);
+        "test_adios2_timeseries.bp", "velocity", -2);
 
-      // When reading all steps, data should be 3D: [nx, ny, nsteps]
+      // When reading all steps, data should be 3D: [nsteps, ny, nx] in C-order
       TEST_ASSERT(all_steps.nd() == 3, "Should be 3D when reading all steps");
+      // In Fortran order: [nx, ny, nsteps]
       TEST_ASSERT(all_steps.dimf(0) == nx, "Wrong x dimension");
       TEST_ASSERT(all_steps.dimf(1) == ny, "Wrong y dimension");
       TEST_ASSERT(all_steps.dimf(2) == nsteps, "Wrong time dimension");
@@ -299,7 +300,7 @@ int main(int argc, char** argv) {
       adios2::ADIOS adios;
 #endif
       adios2::IO io = adios.DeclareIO("LowLevelReadIO");
-      adios2::Engine reader = io.Open("test_adios2_lowlevel.bp", adios2::Mode::Read);
+      adios2::Engine reader = io.Open("test_adios2_lowlevel.bp", adios2::Mode::ReadRandomAccess);
 
       loaded.read_bp(io, reader, "wave", 0);
       reader.Close();

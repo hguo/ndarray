@@ -1405,19 +1405,26 @@ inline void ndarray<T, StoragePolicy>::read_bp(adios2::IO &io, adios2::Engine &r
       // nothing to do
     } else if (step == NDARRAY_ADIOS2_STEPS_ALL) {
       const size_t nsteps = var.Steps();
-      var.SetStepSelection({0, nsteps-1});
+      var.SetStepSelection({0, nsteps});  // {start, count} not {start, end}
     } else
       var.SetStepSelection({step, 1});
 
     std::vector<size_t> adios_shape(var.Shape());
+    std::vector<size_t> spatial_shape = adios_shape;  // Save spatial shape for SetSelection
+
+    // When reading all steps, add time dimension
+    if (step == NDARRAY_ADIOS2_STEPS_ALL) {
+      const size_t nsteps = var.Steps();
+      adios_shape.insert(adios_shape.begin(), nsteps);  // Prepend time dimension in C-order
+    }
 
     if (adios_shape.size()) { // array type
       // ADIOS2 uses C-order, ndarray now stores C-order - direct use!
       reshapec(adios_shape);
 
-      // SetSelection uses ADIOS2 C-order
-      std::vector<size_t> zeros(adios_shape.size(), 0);
-      var.SetSelection({zeros, adios_shape});
+      // SetSelection uses ADIOS2 C-order (without time dimension)
+      std::vector<size_t> zeros(spatial_shape.size(), 0);
+      var.SetSelection({zeros, spatial_shape});
 
       // For non-native storage, read into temp storage then copy
       if constexpr (std::is_same_v<StoragePolicy, native_storage>) {
