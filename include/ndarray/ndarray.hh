@@ -5,6 +5,7 @@
 #include <ndarray/ndarray_base.hh>
 #include <ndarray/storage/storage_policy.hh>
 #include <ndarray/storage/native_storage.hh>
+#include <ndarray/device.hh>
 
 #if NDARRAY_HAVE_XTENSOR
 #include <ndarray/storage/xtensor_storage.hh>
@@ -481,8 +482,8 @@ public: // device management
   int get_device_type() const { return device_type; }
   int get_device_id() const { return device_id; }
 
-  void *get_devptr() { return devptr; }
-  const void *get_devptr() const { return devptr; }
+  void *get_devptr() { return devptr_.get(); }
+  const void *get_devptr() const { return devptr_.get(); }
 
 #if NDARRAY_HAVE_SYCL
   void set_sycl_queue(sycl::queue* q) { sycl_queue_ptr = q; }
@@ -710,7 +711,7 @@ private:
 
   int device_type = NDARRAY_DEVICE_HOST;
   int device_id = 0;
-  void *devptr = NULL;
+  device_ptr devptr_;  // RAII-managed device memory
 
 #if NDARRAY_HAVE_SYCL
   sycl::queue* sycl_queue_ptr = nullptr;  // Optional: user can provide their own queue
@@ -814,7 +815,7 @@ void ndarray<T, StoragePolicy>::fill(T v)
 {
 #if NDARRAY_HAVE_CUDA
   if (device_type == NDARRAY_DEVICE_CUDA) {
-    launch_fill<T>(static_cast<T*>(devptr), nelem(), v);
+    launch_fill<T>(static_cast<T*>(devptr_.get()), nelem(), v);
     cudaDeviceSynchronize();
     return;
   }
@@ -1275,7 +1276,7 @@ ndarray<T, StoragePolicy>& ndarray<T, StoragePolicy>::scale(T factor)
 {
 #if NDARRAY_HAVE_CUDA
   if (device_type == NDARRAY_DEVICE_CUDA) {
-    launch_scale<T>(static_cast<T*>(devptr), nelem(), factor);
+    launch_scale<T>(static_cast<T*>(devptr_.get()), nelem(), factor);
     cudaDeviceSynchronize();
     return *this;
   }
@@ -1291,7 +1292,7 @@ ndarray<T, StoragePolicy>& ndarray<T, StoragePolicy>::add(const ndarray<T, Stora
     throw std::invalid_argument("ndarray::add: dimension mismatch");
 #if NDARRAY_HAVE_CUDA
   if (device_type == NDARRAY_DEVICE_CUDA && other.device_type == NDARRAY_DEVICE_CUDA) {
-    launch_add<T>(static_cast<T*>(devptr), static_cast<const T*>(other.devptr), nelem());
+    launch_add<T>(static_cast<T*>(devptr_.get()), static_cast<const T*>(other.devptr_.get()), nelem());
     cudaDeviceSynchronize();
     return *this;
   }
@@ -1540,9 +1541,9 @@ inline void ndarray<T, StoragePolicy>::to_device(int dev, int id)
       this->device_type = NDARRAY_DEVICE_CUDA;
       this->device_id = id;
 
+      devptr_.allocate(sizeof(T) * nelem(), NDARRAY_DEVICE_CUDA, id);
       cudaSetDevice(id);
-      cudaMalloc(&devptr, sizeof(T) * nelem());
-      cudaMemcpy(devptr, storage_.data(), sizeof(T) * storage_.size(),
+      cudaMemcpy(devptr_.get(), storage_.data(), sizeof(T) * storage_.size(),
           cudaMemcpyHostToDevice);
       storage_.resize(0);
     }
@@ -1566,10 +1567,10 @@ inline void ndarray<T, StoragePolicy>::to_device(int dev, int id)
       }
 
       // Allocate device memory
-      devptr = sycl::malloc_device<T>(nelem(), *q);
+      devptr_.allocate_sycl(sizeof(T) * nelem(), *q, id);
 
       // Copy data to device
-      q->memcpy(devptr, storage_.data(), sizeof(T) * storage_.size()).wait();
+      q->memcpy(devptr_.get(), storage_.data(), sizeof(T) * storage_.size()).wait();
 
       // Clean up temporary queue if we created it
       if (own_queue) delete q;
@@ -1594,13 +1595,12 @@ inline void ndarray<T, StoragePolicy>::to_host()
       storage_.resize(nelem());
 
       cudaSetDevice(this->device_id);
-      cudaMemcpy(storage_.data(), devptr, sizeof(T) * storage_.size(),
+      cudaMemcpy(storage_.data(), devptr_.get(), sizeof(T) * storage_.size(),
           cudaMemcpyDeviceToHost);
-      cudaFree(devptr);
+      devptr_.free();
 
       this->device_type = NDARRAY_DEVICE_HOST;
       this->device_id = 0;
-      devptr = nullptr;
     } else
       fatal("array not on device");
 #else
@@ -1619,17 +1619,16 @@ inline void ndarray<T, StoragePolicy>::to_host()
     }
 
     // Copy data from device
-    q->memcpy(storage_.data(), devptr, sizeof(T) * storage_.size()).wait();
+    q->memcpy(storage_.data(), devptr_.get(), sizeof(T) * storage_.size()).wait();
 
-    // Free device memory
-    sycl::free(devptr, *q);
+    // Free device memory (RAII wrapper handles cleanup)
+    devptr_.free();
 
     // Clean up temporary queue if we created it
     if (own_queue) delete q;
 
     this->device_type = NDARRAY_DEVICE_HOST;
     this->device_id = 0;
-    devptr = nullptr;
 #else
     fatal(ERR_NOT_BUILT_WITH_SYCL);
 #endif
@@ -1650,11 +1649,11 @@ inline void ndarray<T, StoragePolicy>::copy_to_device(int dev, int id)
       this->device_type = NDARRAY_DEVICE_CUDA;
       this->device_id = id;
 
+      devptr_.allocate(sizeof(T) * nelem(), NDARRAY_DEVICE_CUDA, id);
       cudaSetDevice(id);
-      cudaMalloc(&devptr, sizeof(T) * nelem());
-      cudaMemcpy(devptr, storage_.data(), sizeof(T) * storage_.size(),
+      cudaMemcpy(devptr_.get(), storage_.data(), sizeof(T) * storage_.size(),
           cudaMemcpyHostToDevice);
-      // Note: p is NOT cleared, keeping data on both host and device
+      // Note: storage_ is NOT cleared, keeping data on both host and device
     }
 #else
     fatal(ERR_NOT_BUILT_WITH_CUDA);
@@ -1678,15 +1677,15 @@ inline void ndarray<T, StoragePolicy>::copy_to_device(int dev, int id)
       }
 
       // Allocate device memory
-      devptr = sycl::malloc_device<T>(nelem(), *q);
+      devptr_.allocate_sycl(sizeof(T) * nelem(), *q, id);
 
       // Copy data to device
-      q->memcpy(devptr, storage_.data(), sizeof(T) * storage_.size()).wait();
+      q->memcpy(devptr_.get(), storage_.data(), sizeof(T) * storage_.size()).wait();
 
       // Clean up temporary queue if we created it
       if (own_queue) delete q;
 
-      // Note: p is NOT cleared, keeping data on both host and device
+      // Note: storage_ is NOT cleared, keeping data on both host and device
     }
 #else
     fatal(ERR_NOT_BUILT_WITH_SYCL);
@@ -1707,7 +1706,7 @@ inline void ndarray<T, StoragePolicy>::copy_from_device()
     }
 
     cudaSetDevice(this->device_id);
-    cudaMemcpy(storage_.data(), devptr, sizeof(T) * storage_.size(),
+    cudaMemcpy(storage_.data(), devptr_.get(), sizeof(T) * storage_.size(),
         cudaMemcpyDeviceToHost);
     // Note: device memory is NOT freed
 #else
@@ -1728,7 +1727,7 @@ inline void ndarray<T, StoragePolicy>::copy_from_device()
     }
 
     // Copy data from device
-    q->memcpy(storage_.data(), devptr, sizeof(T) * storage_.size()).wait();
+    q->memcpy(storage_.data(), devptr_.get(), sizeof(T) * storage_.size()).wait();
 
     // Clean up temporary queue if we created it
     if (own_queue) delete q;
@@ -3063,7 +3062,7 @@ void ndarray<T, StoragePolicy>::exchange_ghosts_gpu_direct()
                           dist_->neighbors_[i].recv_count * sizeof(T)));
   }
 
-  T* d_array = static_cast<T*>(devptr);
+  T* d_array = static_cast<T*>(devptr_.get());
 
   // Pack boundary data on device using CUDA kernels
   for (size_t i = 0; i < dist_->neighbors_.size(); i++) {
