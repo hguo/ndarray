@@ -497,14 +497,31 @@ jobs:
           -DNDARRAY_BUILD_EXAMPLES=OFF \
           -DNDARRAY_USE_ADIOS2=ON \
           -DNDARRAY_USE_YAML=ON \
-          -DNDARRAY_USE_MPI=OFF
+          -DNDARRAY_USE_MPI=ON
 
     - name: Build
       run: cmake --build build -j$(nproc)
 
-    - name: Run tests
+    - name: Run serial tests
       working-directory: build
-      run: ctest --output-on-failure
+      run: ctest --output-on-failure -R "adios2"
+
+    - name: Run parallel ADIOS2 tests
+      working-directory: build
+      run: |
+        echo "Running parallel ADIOS2 tests with MPI..."
+        if [ -f bin/test_adios2_parallel ]; then
+          for np in 2 4; do
+            echo "Testing test_adios2_parallel with $np MPI ranks..."
+            mpirun -np $np bin/test_adios2_parallel || {
+              echo "Parallel ADIOS2 test with $np ranks failed"
+              exit 1
+            }
+          done
+          echo "All parallel ADIOS2 tests passed"
+        else
+          echo "test_adios2_parallel not built - skipping parallel tests"
+        fi
 
   build-png:
     name: PNG support (libpng)

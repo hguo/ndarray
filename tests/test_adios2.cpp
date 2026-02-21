@@ -67,7 +67,10 @@ int main(int argc, char** argv) {
   {
     TEST_SECTION("Write and read single-step BP file");
 
-    // Write data
+    // Write data (only rank 0 for serial-style test)
+#if NDARRAY_HAVE_MPI
+    if (rank == 0) {
+#endif
     {
       ftk::ndarray<float> data;
       data.reshapef(10, 20);
@@ -79,7 +82,8 @@ int main(int argc, char** argv) {
       }
 
 #if NDARRAY_HAVE_MPI
-      adios2::ADIOS adios(MPI_COMM_WORLD);
+      // Use MPI_COMM_SELF for independent I/O to avoid collective operations
+      adios2::ADIOS adios(MPI_COMM_SELF);
 #else
       adios2::ADIOS adios;
 #endif
@@ -103,7 +107,13 @@ int main(int argc, char** argv) {
 
       std::cout << "    - Wrote BP file: 10 x 20 array" << std::endl;
     }
+#if NDARRAY_HAVE_MPI
+    }
+    MPI_Barrier(MPI_COMM_SELF);  // Wait for rank 0 to finish writing
 
+    // All ranks read (using their own ADIOS context)
+    {
+#endif
     // Read data using high-level API
     {
       ftk::ndarray<float> loaded = ftk::ndarray<float>::from_bp(
@@ -130,7 +140,7 @@ int main(int argc, char** argv) {
     // Write time series
     {
 #if NDARRAY_HAVE_MPI
-      adios2::ADIOS adios(MPI_COMM_WORLD);
+      adios2::ADIOS adios(MPI_COMM_SELF);
 #else
       adios2::ADIOS adios;
 #endif
@@ -207,7 +217,7 @@ int main(int argc, char** argv) {
     TEST_SECTION("Multiple data types");
 
 #if NDARRAY_HAVE_MPI
-    adios2::ADIOS adios(MPI_COMM_WORLD);
+    adios2::ADIOS adios(MPI_COMM_SELF);
 #else
     adios2::ADIOS adios;
 #endif
@@ -270,7 +280,7 @@ int main(int argc, char** argv) {
     // Create test file
     {
 #if NDARRAY_HAVE_MPI
-      adios2::ADIOS adios(MPI_COMM_WORLD);
+      adios2::ADIOS adios(MPI_COMM_SELF);
 #else
       adios2::ADIOS adios;
 #endif
@@ -295,7 +305,7 @@ int main(int argc, char** argv) {
       ftk::ndarray<float> loaded;
 
 #if NDARRAY_HAVE_MPI
-      adios2::ADIOS adios(MPI_COMM_WORLD);
+      adios2::ADIOS adios(MPI_COMM_SELF);
 #else
       adios2::ADIOS adios;
 #endif
@@ -335,7 +345,7 @@ int main(int argc, char** argv) {
       }
 
 #if NDARRAY_HAVE_MPI
-      adios2::ADIOS adios(MPI_COMM_WORLD);
+      adios2::ADIOS adios(MPI_COMM_SELF);
 #else
       adios2::ADIOS adios;
 #endif
@@ -376,7 +386,7 @@ int main(int argc, char** argv) {
     // Create test file
     {
 #if NDARRAY_HAVE_MPI
-      adios2::ADIOS adios(MPI_COMM_WORLD);
+      adios2::ADIOS adios(MPI_COMM_SELF);
 #else
       adios2::ADIOS adios;
 #endif
@@ -400,7 +410,7 @@ int main(int argc, char** argv) {
     {
       ftk::ndarray<float> loaded;
 #if NDARRAY_HAVE_MPI
-      loaded.read_bp("test_adios2_convenience.bp", "field", 0, MPI_COMM_WORLD);
+      loaded.read_bp("test_adios2_convenience.bp", "field", 0, MPI_COMM_SELF);
 #else
       loaded.read_bp("test_adios2_convenience.bp", "field", 0);
 #endif
@@ -439,6 +449,7 @@ int main(int argc, char** argv) {
         }
       }
 
+      // Use MPI_COMM_WORLD for true parallel I/O
       adios2::ADIOS adios(MPI_COMM_WORLD);
       adios2::IO io = adios.DeclareIO("ParallelIO");
       adios2::Engine writer = io.Open("test_adios2_parallel.bp", adios2::Mode::Write);

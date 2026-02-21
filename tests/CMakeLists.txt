@@ -219,6 +219,12 @@ if (NDARRAY_HAVE_MPI)
     target_link_libraries(test_hdf5_auto ndarray)
     message("  - test_hdf5_auto: Distribution-aware HDF5 I/O (run with: mpirun -np 4 ./bin/test_hdf5_auto)")
   endif()
+
+  if (NDARRAY_HAVE_ADIOS2)
+    add_executable(test_adios2_parallel test_adios2_parallel.cpp)
+    target_link_libraries(test_adios2_parallel ndarray)
+    message("  - test_adios2_parallel: Parallel ADIOS2 I/O with MPI (run with: mpirun -np 4 ./bin/test_adios2_parallel)")
+  endif()
 endif()
 
 message("")
