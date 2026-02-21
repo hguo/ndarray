@@ -42,6 +42,10 @@ if (NDARRAY_HAVE_HDF5)
   add_executable(test_ndarray_hdf5 test_ndarray_hdf5.cpp)
   target_link_libraries(test_ndarray_hdf5 ndarray)
   add_test(NAME ndarray_hdf5 COMMAND test_ndarray_hdf5)
+
+  add_executable(test_hdf5_exceptions test_hdf5_exceptions.cpp)
+  target_link_libraries(test_hdf5_exceptions ndarray)
+  add_test(NAME hdf5_exceptions COMMAND test_hdf5_exceptions)
 endif()
 
 # VTK functionality tests (requires VTK support)
