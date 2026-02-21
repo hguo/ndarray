@@ -640,7 +640,7 @@ inline void ndarray_base::read_bp(const std::string& filename, const std::string
   adios2::ADIOS adios;
 #endif
   adios2::IO io = adios.DeclareIO("BPReader");
-  adios2::Engine reader = io.Open(filename, adios2::Mode::Read); // , MPI_COMM_SELF);
+  adios2::Engine reader = io.Open(filename, adios2::Mode::ReadRandomAccess);
 
   read_bp(io, reader, varname, step);
   reader.Close();

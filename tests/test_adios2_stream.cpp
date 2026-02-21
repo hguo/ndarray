@@ -73,8 +73,12 @@ int main(int argc, char** argv) {
           temperature[i] = t * 100.0f + i;
         }
 
-        // Define variable (ADIOS2 uses C-order: ny, nx)
-        auto var_temp = io.DefineVariable<float>("temperature", {ny, nx});
+        // Define variable with global, offset, and local dimensions
+        // ADIOS2 uses C-order: ny, nx
+        auto var_temp = io.DefineVariable<float>("temperature",
+          {ny, nx},    // Global dimensions
+          {0, 0},      // Offset
+          {ny, nx});   // Local dimensions
 
         writer.BeginStep();
         writer.Put(var_temp, temperature.data());
@@ -168,8 +172,10 @@ int main(int argc, char** argv) {
         vel[i] = 5.0 + i * 0.01;
       }
 
-      auto var_temp = io.DefineVariable<float>("temperature", {ny, nx});
-      auto var_vel = io.DefineVariable<double>("velocity", {ny, nx});
+      auto var_temp = io.DefineVariable<float>("temperature",
+        {ny, nx}, {0, 0}, {ny, nx});
+      auto var_vel = io.DefineVariable<double>("velocity",
+        {ny, nx}, {0, 0}, {ny, nx});
 
       writer.BeginStep();
       writer.Put(var_temp, temp.data());
@@ -242,7 +248,8 @@ int main(int argc, char** argv) {
       adios2::Engine writer = io.Open("test_stream_adios2_alias.bp", adios2::Mode::Write);
 
       std::vector<float> data(nx * ny, 42.0f);
-      auto var = io.DefineVariable<float>("temperature", {ny, nx});
+      auto var = io.DefineVariable<float>("temperature",
+        {ny, nx}, {0, 0}, {ny, nx});
 
       writer.BeginStep();
       writer.Put(var, data.data());
@@ -310,7 +317,8 @@ int main(int argc, char** argv) {
         coords[i] = static_cast<float>(i);
       }
 
-      auto var = io.DefineVariable<float>("coordinates", {ny, nx});
+      auto var = io.DefineVariable<float>("coordinates",
+        {ny, nx}, {0, 0}, {ny, nx});
 
       writer.BeginStep();
       writer.Put(var, coords.data());
