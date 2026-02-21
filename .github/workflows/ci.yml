@@ -669,10 +669,10 @@ jobs:
           -DCMAKE_EXE_LINKER_FLAGS="--coverage" \
           -DNDARRAY_BUILD_TESTS=ON \
           -DNDARRAY_BUILD_EXAMPLES=OFF \
-          -DNDARRAY_USE_NETCDF=ON \
-          -DNDARRAY_USE_HDF5=ON \
-          -DNDARRAY_USE_YAML=ON \
-          -DNDARRAY_USE_PNG=ON
+          -DNDARRAY_USE_NETCDF=TRUE \
+          -DNDARRAY_USE_HDF5=TRUE \
+          -DNDARRAY_USE_YAML=TRUE \
+          -DNDARRAY_USE_PNG=TRUE
 
     - name: Build with coverage
       run: cmake --build build -j$(nproc)
