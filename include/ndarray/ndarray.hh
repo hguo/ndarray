@@ -1446,6 +1446,9 @@ inline void ndarray<T, StoragePolicy>::read_bp(adios2::IO &io, adios2::Engine &r
         storage_[0] = temp[0];
       }
     }
+
+    // Execute all deferred Get operations
+    reader.PerformGets();
   } else {
     throw ERR_ADIOS2_VARIABLE_NOT_FOUND;
     // fatal(ERR_ADIOS2_VARIABLE_NOT_FOUND);

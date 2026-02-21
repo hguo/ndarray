@@ -67,10 +67,12 @@ inline void substream_adios2<StoragePolicy>::read(int i, std::shared_ptr<group_t
         return;
       }
     } else {
+      // For files written with BeginStep/EndStep, explicitly read step 0
       auto p = ndarray_base::new_from_bp(
           this->stream_.io,
           reader,
-          actual_varname);
+          actual_varname,
+          0);  // Read first timestep from this file
       g->set(var.name, p);
     }
   }
