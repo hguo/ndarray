@@ -302,22 +302,6 @@ make install
 # Your project will automatically use HDF5 >= 1.12.2
 ```
 
-**Direct access to dependency libraries:**
-
-Only add explicit `find_package` calls if you need **direct access** to dependency APIs in your code:
-
-```cmake
-find_package(ndarray REQUIRED)
-
-# Only needed if you call HDF5 functions directly (e.g., H5Fcreate)
-find_package(HDF5 REQUIRED)
-
-add_executable(my_app main.cpp)
-target_link_libraries(my_app
-  ndarray::ndarray
-  ${HDF5_LIBRARIES}  # For direct HDF5 API calls
-)
-```
 
 ## Quick Start
 
