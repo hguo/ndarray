@@ -404,7 +404,7 @@ for (size_t i = 0; i < data.size(); i++) {
 data.write_h5("output.h5", "scaled_temperature");
 ```
 
-### Array Slicing (Header-Only)
+### Array Slicing
 
 ```cpp
 ftk::ndarray<double> arr;
