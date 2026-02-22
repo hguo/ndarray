@@ -419,7 +419,47 @@ auto slice = arr.slice(start, size);
 
 ### Backend Interoperability (Eigen/xtensor)
 
-Seamlessly convert between ndarray and Eigen/xtensor for advanced computations:
+Seamlessly convert between ndarray and Eigen/xtensor for advanced computations.
+
+**Building ndarray with Eigen/xtensor support:**
+
+```bash
+# Install ndarray with Eigen support
+cmake .. \
+  -DCMAKE_INSTALL_PREFIX=$HOME/software/ndarray \
+  -DNDARRAY_USE_EIGEN=AUTO \
+  -DEigen3_DIR=$HOME/software/eigen/share/eigen3/cmake
+
+# Or with xtensor support
+cmake .. \
+  -DCMAKE_INSTALL_PREFIX=$HOME/software/ndarray \
+  -DNDARRAY_USE_XTENSOR=AUTO \
+  -Dxtensor_DIR=$HOME/software/xtensor/lib/cmake/xtensor
+```
+
+**Using Eigen/xtensor in your project:**
+
+When ndarray was built with Eigen/xtensor, your project needs to find the same libraries:
+
+```cmake
+cmake_minimum_required(VERSION 3.10)
+project(MyProject)
+
+# Find ndarray
+find_package(ndarray REQUIRED)
+
+# Tell CMake where to find Eigen/xtensor (same locations used to build ndarray)
+find_package(Eigen3 REQUIRED HINTS $ENV{HOME}/software/eigen/share/eigen3/cmake)
+# OR
+find_package(xtensor REQUIRED HINTS $ENV{HOME}/software/xtensor/lib/cmake/xtensor)
+
+add_executable(my_app main.cpp)
+target_link_libraries(my_app ndarray::ndarray Eigen3::Eigen)
+# OR
+# target_link_libraries(my_app ndarray::ndarray xtensor)
+```
+
+**Example code:**
 
 ```cpp
 #include <ndarray/ndarray.hh>
