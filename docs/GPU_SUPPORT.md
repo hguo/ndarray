@@ -176,8 +176,8 @@ For cross-platform GPU support:
 ```cpp
 #include <sycl/sycl.hpp>
 
-// Create SYCL queue
-sycl::queue q(sycl::default_selector{});
+// Create SYCL queue (SYCL 2020 syntax - selects default device)
+sycl::queue q;
 
 ndarray<float> arr({1024, 1024});
 arr.set_sycl_queue(&q);  // Optional: use specific queue

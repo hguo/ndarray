@@ -1572,7 +1572,7 @@ inline void ndarray<T, StoragePolicy>::to_device(int dev, int id)
       sycl::queue* q = sycl_queue_ptr;
       bool own_queue = false;
       if (q == nullptr) {
-        q = new sycl::queue(sycl::default_selector{});
+        q = new sycl::queue();  // SYCL 2020: default device
         own_queue = true;
       }
 
@@ -1624,7 +1624,7 @@ inline void ndarray<T, StoragePolicy>::to_host()
     sycl::queue* q = sycl_queue_ptr;
     bool own_queue = false;
     if (q == nullptr) {
-      q = new sycl::queue(sycl::default_selector{});
+      q = new sycl::queue();  // SYCL 2020: default device
       own_queue = true;
     }
 
@@ -1682,7 +1682,7 @@ inline void ndarray<T, StoragePolicy>::copy_to_device(int dev, int id)
       sycl::queue* q = sycl_queue_ptr;
       bool own_queue = false;
       if (q == nullptr) {
-        q = new sycl::queue(sycl::default_selector{});
+        q = new sycl::queue();  // SYCL 2020: default device
         own_queue = true;
       }
 
@@ -1732,7 +1732,7 @@ inline void ndarray<T, StoragePolicy>::copy_from_device()
     sycl::queue* q = sycl_queue_ptr;
     bool own_queue = false;
     if (q == nullptr) {
-      q = new sycl::queue(sycl::default_selector{});
+      q = new sycl::queue();  // SYCL 2020: default device
       own_queue = true;
     }
 

@@ -42,7 +42,8 @@ void cpu_vector_scale(ftk::ndarray<float>& arr, float scale) {
 void sycl_vector_add(const ftk::ndarray<float>& a,
                      const ftk::ndarray<float>& b,
                      ftk::ndarray<float>& result) {
-  sycl::queue q{sycl::default_selector{}};
+  // SYCL 2020: use default queue constructor (selects default device)
+  sycl::queue q;
 
   const size_t size = a.size();
 
@@ -66,7 +67,8 @@ void sycl_vector_add(const ftk::ndarray<float>& a,
 }
 
 void sycl_vector_scale(ftk::ndarray<float>& arr, float scale) {
-  sycl::queue q{sycl::default_selector{}};
+  // SYCL 2020: use default queue constructor (selects default device)
+  sycl::queue q;
 
   const size_t size = arr.size();
 
@@ -107,7 +109,8 @@ int main() {
 
 #if NDARRAY_HAVE_SYCL
   // Print device information
-  sycl::queue q{sycl::default_selector{}};
+  // SYCL 2020: use default queue constructor
+  sycl::queue q;
   print_device_info(q);
 
   // Create test arrays
