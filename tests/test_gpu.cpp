@@ -63,7 +63,39 @@ int main(int argc, char** argv) {
 #endif
 
 #if NDARRAY_HAVE_SYCL
-  std::cout << "SYCL support: ENABLED" << std::endl << std::endl;
+  std::cout << "SYCL support: ENABLED" << std::endl;
+
+  // Check for available SYCL devices
+  try {
+    auto platforms = sycl::platform::get_platforms();
+    int device_count = 0;
+    std::cout << "SYCL platforms found: " << platforms.size() << std::endl;
+
+    for (auto& platform : platforms) {
+      auto devices = platform.get_devices();
+      for (auto& device : devices) {
+        std::cout << "  Device " << device_count++ << ": "
+                  << device.get_info<sycl::info::device::name>() << std::endl;
+      }
+    }
+
+    if (device_count == 0) {
+      std::cout << "No SYCL devices available, skipping SYCL tests" << std::endl;
+      std::cout << "See: https://software.intel.com/content/www/us/en/develop/articles/intel-oneapi-dpcpp-system-requirements.html" << std::endl;
+#if NDARRAY_HAVE_MPI
+      MPI_Finalize();
+#endif
+      return 0;
+    }
+  } catch (const sycl::exception& e) {
+    std::cout << "SYCL exception during device detection: " << e.what() << std::endl;
+    std::cout << "Skipping SYCL tests" << std::endl;
+#if NDARRAY_HAVE_MPI
+    MPI_Finalize();
+#endif
+    return 0;
+  }
+  std::cout << std::endl;
 #endif
 
   const int device_type =
