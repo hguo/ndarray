@@ -142,43 +142,143 @@ make install
 
 ### Using ndarray in Your Project
 
-#### CMake Integration
+#### Step 1: Install ndarray
 
-```cmake
-find_package(ndarray REQUIRED)
-target_link_libraries(your_target ndarray::ndarray)
+**Default installation (to /usr/local):**
+```bash
+cd ndarray
+mkdir build && cd build
+cmake .. -DNDARRAY_USE_HDF5=AUTO -DNDARRAY_USE_NETCDF=AUTO
+make
+sudo make install
 ```
 
-#### Header-Only Usage (No External Dependencies)
+**Custom installation location:**
+```bash
+cmake .. \
+  -DCMAKE_INSTALL_PREFIX=$HOME/software/ndarray \
+  -DNDARRAY_USE_HDF5=AUTO \
+  -DNDARRAY_USE_NETCDF=AUTO
+make
+make install  # No sudo needed for user directory
+```
 
-For basic array operations without NetCDF, HDF5, ADIOS2, etc., simply include the headers:
+This installs:
+- Headers to `${CMAKE_INSTALL_PREFIX}/include/ndarray/`
+- CMake config to `${CMAKE_INSTALL_PREFIX}/lib/cmake/ndarray/`
+- Library (if built with dependencies) to `${CMAKE_INSTALL_PREFIX}/lib/`
+
+#### Step 2: CMake Integration in Your Project
+
+**Your project's CMakeLists.txt:**
 
 ```cmake
-include_directories(/path/to/ndarray/include)
+cmake_minimum_required(VERSION 3.10)
+project(MyProject)
+
+# Find ndarray (searches standard locations like /usr/local)
+find_package(ndarray REQUIRED)
+
+add_executable(my_app main.cpp)
+target_link_libraries(my_app ndarray::ndarray)
+```
+
+**If ndarray is installed in a custom location:**
+
+```bash
+# Option 1: Use CMAKE_PREFIX_PATH
+cmake .. -DCMAKE_PREFIX_PATH=$HOME/software/ndarray
+
+# Option 2: Use ndarray_DIR (points to CMake config directory)
+cmake .. -Dndarray_DIR=$HOME/software/ndarray/lib/cmake/ndarray
+```
+
+#### Example: Complete Project Setup
+
+**Directory structure:**
+```
+my_project/
+├── CMakeLists.txt
+└── main.cpp
+```
+
+**CMakeLists.txt:**
+```cmake
+cmake_minimum_required(VERSION 3.10)
+project(DataProcessor CXX)
+
+set(CMAKE_CXX_STANDARD 17)
+
+# Find ndarray (automatically finds HDF5/NetCDF if ndarray was built with them)
+find_package(ndarray REQUIRED)
+
+add_executable(processor main.cpp)
+target_link_libraries(processor ndarray::ndarray)
+```
+
+**main.cpp:**
+```cpp
+#include <ndarray/ndarray.hh>
+#include <iostream>
+
+int main() {
+  ftk::ndarray<float> data;
+  data.read_h5("input.h5", "temperature");
+  std::cout << "Loaded " << data.size() << " elements\n";
+  return 0;
+}
+```
+
+**Build:**
+```bash
+mkdir build && cd build
+
+# If ndarray is in standard location (/usr/local)
+cmake ..
+
+# If ndarray is in custom location
+cmake .. -DCMAKE_PREFIX_PATH=$HOME/software/ndarray
+
+make
+./processor
+```
+
+#### Header-Only Usage (No Installation Required)
+
+For basic array operations without external dependencies, you can use ndarray without installation:
+
+```cmake
+# Point to ndarray source directory
+target_include_directories(your_target PRIVATE /path/to/ndarray/include)
 ```
 
 ```cpp
 #include <ndarray/ndarray.hh>
-// Use basic array operations, binary I/O, etc.
+
+int main() {
+  ftk::ndarray<double> arr;
+  arr.reshapec(100, 100);
+  arr.fill(0.0);
+  // Basic operations work without linking
+  return 0;
+}
 ```
 
-#### With External Dependencies
+#### Advanced: Multiple Dependencies
 
-When using features that require external libraries (NetCDF, HDF5, ADIOS2, MPI, VTK, etc.), you must:
-
-1. Build ndarray with the required dependencies enabled
-2. Link against both ndarray and the external libraries:
+When using I/O features, ndarray automatically propagates its dependencies:
 
 ```cmake
 find_package(ndarray REQUIRED)
-find_package(NetCDF REQUIRED)
-find_package(HDF5 REQUIRED)
 
-target_link_libraries(your_target
-  ndarray::ndarray
-  netcdf
-  ${HDF5_LIBRARIES}
-)
+add_executable(my_app main.cpp)
+
+# ndarray::ndarray already includes HDF5, NetCDF, etc. if it was built with them
+target_link_libraries(my_app ndarray::ndarray)
+
+# Only add these if you need direct access to the libraries in your code:
+# find_package(HDF5 REQUIRED)
+# target_link_libraries(my_app ${HDF5_LIBRARIES})
 ```
 
 ## Quick Start
