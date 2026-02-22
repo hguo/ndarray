@@ -88,6 +88,13 @@ if (NDARRAY_HAVE_CUDA)
   target_link_libraries (ndarray PUBLIC CUDA::cudart)
 endif ()
 
+if (NDARRAY_HAVE_SYCL)
+  # SYCL requires both compile and link flags (e.g., -fsycl)
+  # Using PUBLIC so all executables linking to ndarray get SYCL support
+  target_compile_options (ndarray PUBLIC ${SYCL_FLAGS})
+  target_link_options (ndarray PUBLIC ${SYCL_FLAGS})
+endif ()
+
 
 if (NDARRAY_HAVE_YAML)
   add_executable (ndarray-dryrun dryrun.cpp)
