@@ -144,29 +144,29 @@ make install
 
 #### Step 1: Install ndarray
 
-**Default installation (to /usr/local):**
+**Recommended: Custom installation location (no sudo required):**
 ```bash
 cd ndarray
 mkdir build && cd build
-cmake .. -DNDARRAY_USE_HDF5=AUTO -DNDARRAY_USE_NETCDF=AUTO
-make
-sudo make install
-```
-
-**Custom installation location:**
-```bash
 cmake .. \
   -DCMAKE_INSTALL_PREFIX=$HOME/software/ndarray \
   -DNDARRAY_USE_HDF5=AUTO \
   -DNDARRAY_USE_NETCDF=AUTO
 make
-make install  # No sudo needed for user directory
+make install
 ```
 
 This installs:
-- Headers to `${CMAKE_INSTALL_PREFIX}/include/ndarray/`
-- CMake config to `${CMAKE_INSTALL_PREFIX}/lib/cmake/ndarray/`
-- Library (if built with dependencies) to `${CMAKE_INSTALL_PREFIX}/lib/`
+- Headers to `$HOME/software/ndarray/include/ndarray/`
+- CMake config to `$HOME/software/ndarray/lib/cmake/ndarray/`
+- Library (if built with dependencies) to `$HOME/software/ndarray/lib/`
+
+**System-wide installation (requires sudo):**
+```bash
+cmake .. -DNDARRAY_USE_HDF5=AUTO -DNDARRAY_USE_NETCDF=AUTO
+make
+sudo make install  # Installs to /usr/local
+```
 
 #### Step 2: CMake Integration in Your Project
 
@@ -176,21 +176,24 @@ This installs:
 cmake_minimum_required(VERSION 3.10)
 project(MyProject)
 
-# Find ndarray (searches standard locations like /usr/local)
+# Find ndarray
 find_package(ndarray REQUIRED)
 
 add_executable(my_app main.cpp)
 target_link_libraries(my_app ndarray::ndarray)
 ```
 
-**If ndarray is installed in a custom location:**
+**Building your project:**
 
 ```bash
-# Option 1: Use CMAKE_PREFIX_PATH
+# Tell CMake where to find ndarray using CMAKE_PREFIX_PATH
 cmake .. -DCMAKE_PREFIX_PATH=$HOME/software/ndarray
 
-# Option 2: Use ndarray_DIR (points to CMake config directory)
+# Alternative: Use ndarray_DIR (points to CMake config directory)
 cmake .. -Dndarray_DIR=$HOME/software/ndarray/lib/cmake/ndarray
+
+# If installed system-wide (/usr/local), no additional flags needed
+cmake ..
 ```
 
 #### Example: Complete Project Setup
@@ -233,11 +236,11 @@ int main() {
 ```bash
 mkdir build && cd build
 
-# If ndarray is in standard location (/usr/local)
-cmake ..
-
-# If ndarray is in custom location
+# Standard approach: Specify where ndarray is installed
 cmake .. -DCMAKE_PREFIX_PATH=$HOME/software/ndarray
+
+# Or if installed system-wide (/usr/local)
+# cmake ..
 
 make
 ./processor
