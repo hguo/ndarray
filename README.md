@@ -22,7 +22,7 @@ NDArray is a **unified I/O abstraction library for time-varying scientific data*
 int main() {
   // Create and fill a 3D array
   ftk::ndarray<float> arr;
-  arr.reshapef(100, 200, 50);
+  arr.reshapec(100, 200, 50);
   // ... fill with data ...
 
   // Write to HDF5
@@ -243,7 +243,7 @@ These operations work without external dependencies:
 
 // Create a 3D array (10x20x30)
 ftk::ndarray<double> arr;
-arr.reshapef(10, 20, 30);
+arr.reshapec(10, 20, 30);
 
 // Fill with a constant value
 arr.fill(0.0);
@@ -252,7 +252,7 @@ arr.fill(0.0);
 arr[{5, 10, 15}] = 3.14;
 
 // Reshape to different dimensions
-arr.reshapef({100, 60});
+arr.reshapec({100, 60});
 
 // Get array properties
 std::cout << "Dimensions: " << arr.nd() << std::endl;
@@ -283,7 +283,7 @@ data.write_h5("output.h5", "scaled_temperature");
 
 ```cpp
 ftk::ndarray<double> arr;
-arr.reshapef(100, 100, 50);
+arr.reshapec(100, 100, 50);
 arr.fill(1.0);
 
 // Extract a slice
@@ -377,7 +377,11 @@ ctest
 Key classes and functions:
 
 - `ftk::ndarray<T>` - Main templated array class
-  - `reshapef(dims...)` - Reshape array with new dimensions (Fortran order)
+  - **Dual-indexing schemes**: Supports both Fortran order (column-major) and C order (row-major)
+  - `reshapec(dims...)` - Reshape array with new dimensions (C order, row-major)
+  - `reshapef(dims...)` - Reshape array with new dimensions (Fortran order, column-major)
+  - `c(i, j, k)` - Access elements using C-order indexing
+  - `f(i, j, k)` - Access elements using Fortran-order indexing
   - `get_ref<T>(key)` - Zero-copy reference access (for `ndarray_group`)
   - `slice(start, size)` - Extract sub-array
   - `read_netcdf()`, `write_netcdf()` - NetCDF I/O
