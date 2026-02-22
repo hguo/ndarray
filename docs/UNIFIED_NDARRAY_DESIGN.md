@@ -1,5 +1,7 @@
 # Unified ndarray Design: Single Class for Serial and Parallel
 
+> **Note**: This design document describes the implemented architecture. The unified `ndarray` class with optional MPI support via `decompose()` has been the implementation from the start. There is no separate `distributed_ndarray` class - references to it in this document are for conceptual comparison only.
+
 ## Core Concept
 
 **One `ndarray` class that adapts to MPI configuration at runtime.**
@@ -510,28 +512,28 @@ if (temp.is_distributed()) {
 ✅ **Safety**: Default is replicated (works for all cases)
 ✅ **Power**: Advanced users can control per-variable decomposition
 
-## Migration from Current Code
+## Current API (Implemented)
 
-### Old Code (distributed_ndarray)
+### Unified ndarray with optional MPI support
 ```cpp
-ftk::distributed_ndarray<float> temp(MPI_COMM_WORLD);
-temp.decompose({1000, 800}, 0, {}, {1, 1});
-temp.read_parallel("data.nc", "temperature", 0);
-temp.exchange_ghosts();
-```
-
-### New Code (unified ndarray)
-```cpp
+// Create a regular array
 ftk::ndarray<float> temp;
+
+// Make it distributed by calling decompose()
 temp.decompose(MPI_COMM_WORLD, {1000, 800}, 0, {}, {1, 1});
-temp.read_netcdf("data.nc", "temperature");  // Auto-parallel
+
+// I/O methods auto-detect parallel mode
+temp.read_netcdf("data.nc", "temperature");
+
+// Exchange ghost cells with neighbors
 temp.exchange_ghosts();
 ```
 
-Changes:
-- `distributed_ndarray` → `ndarray`
-- `read_parallel()` → `read_netcdf()` (auto-detects parallel mode)
-- Constructor no longer takes comm (passed to `decompose()` instead)
+Key features:
+- Single `ndarray` class for both serial and parallel
+- Call `decompose()` to enable MPI domain decomposition
+- I/O methods automatically use parallel I/O when decomposed
+- No separate `distributed_ndarray` class needed
 
 ## Open Questions
 
@@ -545,15 +547,11 @@ Changes:
    - **Recommendation**: If nprocs > 1 and no config → error (user must be explicit)
 
 4. **Backward compatibility**: Keep `distributed_ndarray` as typedef?
-   ```cpp
-   template <typename T, typename S = native_storage>
-   using distributed_ndarray [[deprecated]] = ndarray<T, S>;
-   ```
-   - **Recommendation**: Yes, for smooth migration
+   - **Status**: Not needed - the unified `ndarray` was implemented from the start
 
 ## Summary
 
-**Key Design Decision**: Merge `distributed_ndarray` into `ndarray` as optional runtime configuration.
+**Design Decision**: Single `ndarray` class with optional MPI support via `decompose()`.
 
 **User Benefit**: Write once, run anywhere (serial or parallel).
 

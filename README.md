@@ -53,8 +53,8 @@ int main() {
 
 ### Parallel Computing Integration
 - **Distributed Memory I/O** - Domain decomposition with automatic load balancing
-  - `distributed_ndarray`: MPI-aware arrays with ghost cell exchange
-  - `distributed_stream`: Time-series processing with parallel I/O
+  - `ndarray::decompose()`: MPI domain decomposition with ghost cell exchange
+  - `stream`: Time-series processing with parallel I/O support
   - Automatic/manual decomposition patterns (1D, 2D, 3D)
   - Global/local index conversion for distributed algorithms
   - See [Distributed Arrays Guide](docs/DISTRIBUTED_NDARRAY.md) for details

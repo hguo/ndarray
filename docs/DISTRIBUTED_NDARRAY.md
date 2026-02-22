@@ -2,9 +2,11 @@
 
 ## Overview
 
-The `distributed_ndarray` class provides distributed memory parallel I/O for large-scale scientific datasets using MPI. It enables efficient reading and processing of time-varying data across multiple compute nodes, with automatic domain decomposition and ghost cell exchange for stencil operations.
+The `ndarray` class provides distributed memory parallel I/O for large-scale scientific datasets using MPI through the `decompose()` method. It enables efficient reading and processing of time-varying data across multiple compute nodes, with automatic domain decomposition and ghost cell exchange for stencil operations.
 
 **Primary Use Case**: Reading and analyzing large time-series datasets (NetCDF, HDF5, ADIOS2, binary) in distributed memory settings for visualization and analysis workflows.
+
+**Note**: There is no separate `distributed_ndarray` class - the regular `ftk::ndarray` class becomes distributed when you call `.decompose()`.
 
 ## Key Features
 
@@ -67,28 +69,27 @@ See [MULTICOMPONENT_ARRAYS_DISTRIBUTED.md](MULTICOMPONENT_ARRAYS_DISTRIBUTED.md)
 ### Basic Example (Low-Level API)
 
 ```cpp
-#include <ndarray/distributed_ndarray.hh>
+#include <ndarray/ndarray.hh>
 #include <mpi.h>
 
 int main(int argc, char** argv) {
   MPI_Init(&argc, &argv);
 
-  // Create distributed array
-  ftk::distributed_ndarray<float> temperature(MPI_COMM_WORLD);
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-  // Automatic decomposition: 1000×800 grid with 1-layer ghosts
-  temperature.decompose({1000, 800}, 0, {}, {1, 1});
-
-  // Parallel read from NetCDF file
-  temperature.read_parallel("simulation.nc", "temperature", 0);
+  // Create array and decompose it
+  ftk::ndarray<float> temperature;
+  temperature.decompose(MPI_COMM_WORLD, {1000, 800}, 0, {}, {1, 1});
 
   // Exchange ghost cells with neighbors
-  temperature.exchange_ghosts();
+  temperature.start_exchange_ghosts();
+  temperature.finish_exchange_ghosts();
 
   // Access local data
-  auto& local = temperature.local_array();
-  std::cout << "Rank " << temperature.rank()
-            << " owns " << temperature.local_core() << std::endl;
+  const auto& core = temperature.local_core();
+  std::cout << "Rank " << rank << " owns "
+            << core.size(0) << " x " << core.size(1) << std::endl;
 
   MPI_Finalize();
   return 0;
@@ -100,21 +101,20 @@ int main(int argc, char** argv) {
 For time-series processing, use the YAML stream interface for cleaner code:
 
 ```cpp
-#include <ndarray/ndarray_group_stream.hh>  // Includes distributed support
+#include <ndarray/ndarray_group_stream.hh>
 #include <mpi.h>
 
 int main(int argc, char** argv) {
   MPI_Init(&argc, &argv);
 
-  ftk::distributed_stream<> stream(MPI_COMM_WORLD);
+  ftk::stream stream;
   stream.parse_yaml("config.yaml");
 
-  for (int t = 0; t < stream.n_timesteps(); t++) {
+  for (int t = 0; t < stream.total_timesteps(); t++) {
     auto group = stream.read(t);
-    group->exchange_ghosts_all();
 
-    auto& temperature = (*group)["temperature"];
-    auto& pressure = (*group)["pressure"];
+    auto temperature = group->get_arr<float>("temperature");
+    auto pressure = group->get_arr<float>("pressure");
     // ... process data ...
   }
 
@@ -149,7 +149,7 @@ Test your configuration without running mpirun:
 int main(int argc, char** argv) {
   MPI_Init(&argc, &argv);
 
-  ftk::distributed_stream<> stream(MPI_COMM_WORLD);
+  ftk::stream stream;
 
   // Enable dry-run mode (report only, no data reading)
   stream.set_dry_run(true, true);
@@ -158,7 +158,7 @@ int main(int argc, char** argv) {
   stream.parse_yaml("config.yaml");
 
   // Test reading (will print reports instead of loading data)
-  for (int t = 0; t < stream.n_timesteps(); t++) {
+  for (int t = 0; t < stream.total_timesteps(); t++) {
     stream.read(t);  // Reports what would be read
   }
 
@@ -193,11 +193,11 @@ mpirun -np 4 ./example
 The library automatically determines optimal domain decomposition based on the global dimensions and number of MPI ranks:
 
 ```cpp
-ftk::distributed_ndarray<float> darray(MPI_COMM_WORLD);
+ftk::ndarray<float> darray;
 
 // Automatic: library chooses decomposition
 // 1000×800 with 4 ranks might become 2×2 grid: [500×400] per rank
-darray.decompose({1000, 800}, 0, {}, {1, 1});
+darray.decompose(MPI_COMM_WORLD, {1000, 800}, 0, {}, {1, 1});
 ```
 
 The decomposition algorithm uses prime factorization to balance load across dimensions, preferring more even splits.
@@ -271,8 +271,8 @@ The library automatically detects file format from extension:
 ### Reading Data
 
 ```cpp
-ftk::distributed_ndarray<float> darray(MPI_COMM_WORLD);
-darray.decompose({1000, 800}, 0, {}, {1, 1});
+ftk::ndarray<float> darray;
+darray.decompose(MPI_COMM_WORLD, {1000, 800}, 0, {}, {1, 1});
 
 // Read from NetCDF (variable "temperature", timestep 0)
 darray.read_parallel("simulation.nc", "temperature", 0);
@@ -311,8 +311,8 @@ darray.read_parallel("data.bin");
 - **Extent region**: Core + ghost layers
 
 ```cpp
-ftk::distributed_ndarray<float> darray(MPI_COMM_WORLD);
-darray.decompose({1000, 800}, 4, {2, 2}, {1, 1});
+ftk::ndarray<float> darray;
+darray.decompose(MPI_COMM_WORLD, {1000, 800}, 4, {2, 2}, {1, 1});
 
 // Check if global point is on this rank
 std::vector<size_t> global_point = {500, 400};
@@ -448,8 +448,8 @@ The `exchange_ghosts()` implementation:
 ### Processing Multiple Timesteps
 
 ```cpp
-ftk::distributed_ndarray<float> temperature(MPI_COMM_WORLD);
-temperature.decompose({1000, 800}, 0, {}, {1, 1});
+ftk::ndarray<float> temperature;
+temperature.decompose(MPI_COMM_WORLD, {1000, 800}, 0, {}, {1, 1});
 
 for (int t = 0; t < num_timesteps; t++) {
   // Read timestep
@@ -522,18 +522,11 @@ if (temperature.rank() == 0) {
 
 ## API Reference
 
-### Constructor
-
-```cpp
-distributed_ndarray(MPI_Comm comm = MPI_COMM_WORLD)
-```
-
-Creates a distributed array with the given MPI communicator.
-
 ### Domain Decomposition
 
 ```cpp
-void decompose(const std::vector<size_t>& global_dims,
+void decompose(MPI_Comm comm,
+               const std::vector<size_t>& global_dims,
                size_t nprocs = 0,
                const std::vector<size_t>& decomp = {},
                const std::vector<size_t>& ghost = {})
@@ -542,6 +535,7 @@ void decompose(const std::vector<size_t>& global_dims,
 Decomposes the global domain across MPI ranks.
 
 **Parameters:**
+- `comm`: MPI communicator (e.g., `MPI_COMM_WORLD`)
 - `global_dims`: Global array dimensions (e.g., `{1000, 800}`)
 - `nprocs`: Number of processes (0 = use all ranks in communicator)
 - `decomp`: Decomposition pattern (empty = automatic, e.g., `{2, 2}` for 2×2 grid)
