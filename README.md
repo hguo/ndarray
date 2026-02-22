@@ -264,21 +264,59 @@ int main() {
 }
 ```
 
-#### Advanced: Multiple Dependencies
+#### Advanced: Dependency Handling
 
-When using I/O features, ndarray automatically propagates its dependencies:
+**Dependencies are automatically found by `ndarrayConfig.cmake`:**
+
+When you call `find_package(ndarray REQUIRED)`, the config file automatically finds all dependencies that ndarray was built with (HDF5, NetCDF, ADIOS2, MPI, etc.). You do **NOT** need to manually call `find_package` for these.
 
 ```cmake
 find_package(ndarray REQUIRED)
 
 add_executable(my_app main.cpp)
 
-# ndarray::ndarray already includes HDF5, NetCDF, etc. if it was built with them
+# ndarray::ndarray automatically includes all dependencies it was built with
 target_link_libraries(my_app ndarray::ndarray)
 
-# Only add these if you need direct access to the libraries in your code:
-# find_package(HDF5 REQUIRED)
-# target_link_libraries(my_app ${HDF5_LIBRARIES})
+# No need for:
+# find_package(HDF5 REQUIRED)    # Already done by ndarrayConfig.cmake
+# find_package(NetCDF REQUIRED)  # Already done by ndarrayConfig.cmake
+# find_package(ADIOS2 REQUIRED)  # Already done by ndarrayConfig.cmake
+```
+
+**Version enforcement to avoid ABI mismatches:**
+
+The config file enforces **minimum** major.minor versions for critical dependencies to prevent linking against incompatible versions:
+
+- **HDF5**: Requires >= the version ndarray was built with (e.g., >= 1.12)
+- **ADIOS2**: Requires >= the version ndarray was built with (e.g., >= 2.9)
+- **VTK**: Requires exact major.minor match (e.g., 9.2)
+
+If you need a specific version, install ndarray built with that version:
+
+```bash
+# Example: Build ndarray with specific HDF5 version
+cmake .. -DCMAKE_PREFIX_PATH=/path/to/hdf5-1.12.2
+make install
+
+# Your project will automatically use HDF5 >= 1.12.2
+```
+
+**Direct access to dependency libraries:**
+
+Only add explicit `find_package` calls if you need **direct access** to dependency APIs in your code:
+
+```cmake
+find_package(ndarray REQUIRED)
+
+# Only needed if you call HDF5 functions directly (e.g., H5Fcreate)
+find_package(HDF5 REQUIRED)
+
+add_executable(my_app main.cpp)
+target_link_libraries(my_app
+  ndarray::ndarray
+  ${HDF5_LIBRARIES}  # For direct HDF5 API calls
+)
 ```
 
 ## Quick Start

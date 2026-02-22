@@ -14,12 +14,14 @@ set (NDARRAY_HAVE_HDF5 @NDARRAY_HAVE_HDF5@)
 set (NDARRAY_HAVE_METIS @NDARRAY_HAVE_METIS@)
 set (NDARRAY_HAVE_MPI @NDARRAY_HAVE_MPI@)
 set (NDARRAY_HAVE_NETCDF @NDARRAY_HAVE_NETCDF@)
+set (NDARRAY_HAVE_PNETCDF @NDARRAY_HAVE_PNETCDF@)
 set (NDARRAY_HAVE_VTK @NDARRAY_HAVE_VTK@)
 
 find_dependency (yaml-cpp REQUIRED)
 
 if (NDARRAY_HAVE_ADIOS2)
-  find_dependency (ADIOS2 REQUIRED)
+  # Require at least the version ndarray was built with to avoid ABI incompatibilities
+  find_dependency (ADIOS2 @ADIOS2_VERSION_MAJOR@.@ADIOS2_VERSION_MINOR@ REQUIRED)
 endif ()
 
 if (NDARRAY_HAVE_CUDA)
@@ -40,13 +42,25 @@ if (NDARRAY_HAVE_MPI)
 endif ()
 
 if (NDARRAY_HAVE_HDF5)
-  find_dependency (HDF5 REQUIRED)
+  # Require at least the version ndarray was built with to avoid ABI incompatibilities
+  find_dependency (HDF5 @HDF5_VERSION_MAJOR@.@HDF5_VERSION_MINOR@ REQUIRED)
   include_directories (${HDF5_INCLUDE_DIRS})
 endif ()
 
 if (NDARRAY_HAVE_NETCDF)
   find_dependency (netCDF REQUIRED)
   include_directories (${netCDF_INCLUDE_DIR})
+endif ()
+
+if (NDARRAY_HAVE_PNETCDF)
+  # PNetCDF typically uses pkg-config
+  find_package (PkgConfig QUIET)
+  if (PKG_CONFIG_FOUND)
+    pkg_check_modules (PNETCDF REQUIRED pnetcdf)
+    include_directories (${PNETCDF_INCLUDE_DIRS})
+  else ()
+    message (WARNING "PNetCDF was enabled but pkg-config not found. Set PNETCDF_INCLUDE_DIRS and PNETCDF_LIBRARIES manually.")
+  endif ()
 endif ()
 
 set (NDARRAY_INCLUDE_DIR "@NDARRAY_INCLUDE_DIR@")
