@@ -21,7 +21,7 @@ endfunction ()
 ndarray_option (ADIOS2 "Use ADIOS2" FALSE)
 ndarray_option (CUDA "Use CUDA" FALSE) # experimental
 ndarray_option (HIP "Use HIP" FALSE) # experimental, AMD GPUs
-ndarray_option (SYCL "Use SYCL" FALSE) # experimental, cross-platform acceleration
+ndarray_option (IntelSYCL "Use IntelSYCL" FALSE) # experimental, cross-platform acceleration
 ndarray_option (EIGEN "Use Eigen" FALSE) # Eigen backend for conversion/interop
 ndarray_option (HDF5 "Use HDF5" FALSE)
 ndarray_option (HENSON "Use HENSON" FALSE) # experimental
@@ -331,13 +331,13 @@ if (HIP_FOUND)
   set (NDARRAY_HAVE_HIP TRUE)
 endif ()
 
-if (NDARRAY_USE_SYCL STREQUAL AUTO)
-  find_package (SYCL QUIET)
-  if (SYCL_FOUND)
+if (NDARRAY_USE_IntelSYCL STREQUAL AUTO)
+  find_package (IntelSYCL QUIET)
+  if (IntelSYCL_FOUND)
     set (NDARRAY_HAVE_SYCL TRUE)
   endif ()
-elseif (NDARRAY_USE_SYCL)
-  find_package (SYCL REQUIRED)
+elseif (NDARRAY_USE_IntelSYCL)
+  find_package (IntelSYCL REQUIRED)
   set (NDARRAY_HAVE_SYCL TRUE)
 endif ()
 
@@ -487,9 +487,9 @@ if (${NDARRAY_HAVE_CUDA})
   message("      NVCC flags:         ${CMAKE_CUDA_FLAGS}")
   message("      Detected GPU count: ${DETECT_GPU_COUNT}")
 endif()
-message("    SYCL:        ${NDARRAY_USE_SYCL}")
+message("    IntelSYCL:   ${NDARRAY_USE_IntelSYCL}")
 if (${NDARRAY_HAVE_SYCL})
-  message("      SYCL implementation: ${SYCL_IMPLEMENTATION}")
+  message("      SYCL implementation: ${SYCL_IMPLEMENTATION_ID}")
   message("      SYCL compiler flags: ${SYCL_FLAGS}")
 endif()
 message("    HDF5:        ${NDARRAY_USE_HDF5} ${HDF5_FOUND}")

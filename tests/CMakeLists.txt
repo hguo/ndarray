@@ -79,13 +79,13 @@ if (NDARRAY_HAVE_ADIOS2)
   endif()
 endif()
 
-# GPU functionality tests (requires CUDA or SYCL support)
+# GPU functionality tests (requires CUDA or IntelSYCL support)
 if (NDARRAY_HAVE_CUDA OR NDARRAY_HAVE_SYCL)
   add_executable(test_gpu test_gpu.cpp)
   target_link_libraries(test_gpu ndarray)
 
   if (NDARRAY_HAVE_SYCL)
-    # Add SYCL-specific flags and libraries
+    # Add IntelSYCL-specific flags and libraries
     target_compile_options(test_gpu PRIVATE ${SYCL_FLAGS})
   endif()
 
@@ -146,7 +146,7 @@ if (NDARRAY_HAVE_CUDA OR NDARRAY_HAVE_SYCL)
     message("    + CUDA support enabled")
   endif()
   if (NDARRAY_HAVE_SYCL)
-    message("    + SYCL support enabled")
+    message("    + IntelSYCL support enabled")
   endif()
   message("  - test_gpu: GPU device memory management and transfers")
   message("  - test_gpu_kernels: GPU data management and kernel tests (fill, scale, add)")
