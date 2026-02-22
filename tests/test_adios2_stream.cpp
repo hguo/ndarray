@@ -38,79 +38,92 @@
 int main(int argc, char** argv) {
 #if NDARRAY_HAVE_MPI
   MPI_Init(&argc, &argv);
+  int rank = 0;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+#else
+  int rank = 0;
 #endif
 
-  std::cout << "=== Running ADIOS2 Stream Tests ===" << std::endl << std::endl;
+  if (rank == 0) {
+    std::cout << "=== Running ADIOS2 Stream Tests ===" << std::endl << std::endl;
+  }
 
 #if NDARRAY_HAVE_ADIOS2 && NDARRAY_HAVE_YAML
 
   // Test 1: ADIOS2 stream with time series (one variable per file)
   {
-    TEST_SECTION("ADIOS2 stream with time series data");
+    if (rank == 0) TEST_SECTION("ADIOS2 stream with time series data");
 
     try {
       const size_t nx = 10, ny = 12;
       const int num_files = 3;
 
+      // Only rank 0 creates test files
+      if (rank == 0) {
 #if NDARRAY_HAVE_MPI
-      // Use MPI_COMM_SELF for test file creation (each rank writes independently)
-      // This test is creating input files, not testing parallel I/O
-      adios2::ADIOS adios(MPI_COMM_SELF);
+        // Use MPI_COMM_SELF for test file creation (single rank writes)
+        adios2::ADIOS adios(MPI_COMM_SELF);
 #else
-      adios2::ADIOS adios;
+        adios2::ADIOS adios;
 #endif
 
-      // Create BP files for time series
-      for (int t = 0; t < num_files; t++) {
-        std::string filename = "test_stream_adios2_t" + std::to_string(t) + ".bp";
+        // Create BP files for time series
+        for (int t = 0; t < num_files; t++) {
+          std::string filename = "test_stream_adios2_t" + std::to_string(t) + ".bp";
 
-        adios2::IO io = adios.DeclareIO("TestIO_" + std::to_string(t));
-        io.SetEngine("BP4");
+          adios2::IO io = adios.DeclareIO("TestIO_" + std::to_string(t));
+          io.SetEngine("BP4");
 
-        adios2::Engine writer = io.Open(filename, adios2::Mode::Write);
+          adios2::Engine writer = io.Open(filename, adios2::Mode::Write);
 
-        // Create test data
-        std::vector<float> temperature(nx * ny);
-        for (size_t i = 0; i < nx * ny; i++) {
-          temperature[i] = t * 100.0f + i;
+          // Create test data
+          std::vector<float> temperature(nx * ny);
+          for (size_t i = 0; i < nx * ny; i++) {
+            temperature[i] = t * 100.0f + i;
+          }
+
+          // Define variable with global, offset, and local dimensions
+          // ADIOS2 uses C-order: ny, nx
+          auto var_temp = io.DefineVariable<float>("temperature",
+            {ny, nx},    // Global dimensions
+            {0, 0},      // Offset
+            {ny, nx});   // Local dimensions
+
+          writer.BeginStep();
+          writer.Put(var_temp, temperature.data());
+          writer.EndStep();
+
+          writer.Close();
         }
 
-        // Define variable with global, offset, and local dimensions
-        // ADIOS2 uses C-order: ny, nx
-        auto var_temp = io.DefineVariable<float>("temperature",
-          {ny, nx},    // Global dimensions
-          {0, 0},      // Offset
-          {ny, nx});   // Local dimensions
-
-        writer.BeginStep();
-        writer.Put(var_temp, temperature.data());
-        writer.EndStep();
-
-        writer.Close();
+        // Create YAML configuration
+        std::ofstream yaml("test_stream_adios2.yaml");
+        yaml << "stream:\n";
+        yaml << "  name: test_adios2\n";
+        yaml << "  substreams:\n";
+        yaml << "    - name: bp_data\n";
+        yaml << "      format: adios2\n";
+        yaml << "      filenames:\n";
+        for (int t = 0; t < num_files; t++) {
+          yaml << "        - test_stream_adios2_t" << t << ".bp\n";
+        }
+        yaml << "      vars:\n";
+        yaml << "        - name: temperature\n";
+        yaml << "          dtype: float32\n";
+        yaml.close();
       }
 
-      // Create YAML configuration
-      std::ofstream yaml("test_stream_adios2.yaml");
-      yaml << "stream:\n";
-      yaml << "  name: test_adios2\n";
-      yaml << "  substreams:\n";
-      yaml << "    - name: bp_data\n";
-      yaml << "      format: adios2\n";
-      yaml << "      filenames:\n";
-      for (int t = 0; t < num_files; t++) {
-        yaml << "        - test_stream_adios2_t" << t << ".bp\n";
-      }
-      yaml << "      vars:\n";
-      yaml << "        - name: temperature\n";
-      yaml << "          dtype: float32\n";
-      yaml.close();
+#if NDARRAY_HAVE_MPI
+      // Wait for rank 0 to finish creating files
+      MPI_Barrier(MPI_COMM_WORLD);
+#endif
 
       // Test reading via stream
       ftk::stream s;
       s.parse_yaml("test_stream_adios2.yaml");
 
       TEST_ASSERT(s.total_timesteps() == num_files, "Should have 3 timesteps");
-      std::cout << "    - Total timesteps: " << s.total_timesteps() << std::endl;
+      if (rank == 0) std::cout << "    - Total timesteps: " << s.total_timesteps() << std::endl;
 
       // Read first timestep
       auto g0 = s.read(0);
@@ -131,8 +144,10 @@ int main(int argc, char** argv) {
       auto temp2 = g2->get_arr<float>("temperature");
       TEST_ASSERT(std::abs(temp2[0] - 200.0f) < 1e-5f, "Wrong data at t=2");
 
-      std::cout << "    - Successfully read all timesteps with correct data values" << std::endl;
-      std::cout << "    PASSED" << std::endl;
+      if (rank == 0) {
+        std::cout << "    - Successfully read all timesteps with correct data values" << std::endl;
+        std::cout << "    PASSED" << std::endl;
+      }
 
       // Cleanup
       for (int t = 0; t < num_files; t++) {
@@ -149,59 +164,64 @@ int main(int argc, char** argv) {
 
   // Test 2: ADIOS2 stream with multiple variables
   {
-    TEST_SECTION("ADIOS2 stream with multiple variables");
+    if (rank == 0) TEST_SECTION("ADIOS2 stream with multiple variables");
 
     try {
       const size_t nx = 8, ny = 10;
 
+      // Only rank 0 creates test files
+      if (rank == 0) {
 #if NDARRAY_HAVE_MPI
-      // Use MPI_COMM_SELF for test file creation (each rank writes independently)
-      // This test is creating input files, not testing parallel I/O
-      adios2::ADIOS adios(MPI_COMM_SELF);
+        adios2::ADIOS adios(MPI_COMM_SELF);
 #else
-      adios2::ADIOS adios;
+        adios2::ADIOS adios;
 #endif
 
-      // Create BP file with multiple variables
-      adios2::IO io = adios.DeclareIO("TestIO_Multi");
-      io.SetEngine("BP4");
+        // Create BP file with multiple variables
+        adios2::IO io = adios.DeclareIO("TestIO_Multi");
+        io.SetEngine("BP4");
 
-      adios2::Engine writer = io.Open("test_stream_adios2_multi.bp", adios2::Mode::Write);
+        adios2::Engine writer = io.Open("test_stream_adios2_multi.bp", adios2::Mode::Write);
 
-      std::vector<float> temp(nx * ny);
-      std::vector<double> vel(nx * ny);
-      for (size_t i = 0; i < nx * ny; i++) {
-        temp[i] = 20.0f + i * 0.1f;
-        vel[i] = 5.0 + i * 0.01;
+        std::vector<float> temp(nx * ny);
+        std::vector<double> vel(nx * ny);
+        for (size_t i = 0; i < nx * ny; i++) {
+          temp[i] = 20.0f + i * 0.1f;
+          vel[i] = 5.0 + i * 0.01;
+        }
+
+        auto var_temp = io.DefineVariable<float>("temperature",
+          {ny, nx}, {0, 0}, {ny, nx});
+        auto var_vel = io.DefineVariable<double>("velocity",
+          {ny, nx}, {0, 0}, {ny, nx});
+
+        writer.BeginStep();
+        writer.Put(var_temp, temp.data());
+        writer.Put(var_vel, vel.data());
+        writer.EndStep();
+
+        writer.Close();
+
+        // Create YAML config
+        std::ofstream yaml("test_stream_adios2_multi.yaml");
+        yaml << "stream:\n";
+        yaml << "  name: test_multi\n";
+        yaml << "  substreams:\n";
+        yaml << "    - name: multi_vars\n";
+        yaml << "      format: adios2\n";
+        yaml << "      filenames:\n";
+        yaml << "        - test_stream_adios2_multi.bp\n";
+        yaml << "      vars:\n";
+        yaml << "        - name: temperature\n";
+        yaml << "          dtype: float32\n";
+        yaml << "        - name: velocity\n";
+        yaml << "          dtype: float64\n";
+        yaml.close();
       }
 
-      auto var_temp = io.DefineVariable<float>("temperature",
-        {ny, nx}, {0, 0}, {ny, nx});
-      auto var_vel = io.DefineVariable<double>("velocity",
-        {ny, nx}, {0, 0}, {ny, nx});
-
-      writer.BeginStep();
-      writer.Put(var_temp, temp.data());
-      writer.Put(var_vel, vel.data());
-      writer.EndStep();
-
-      writer.Close();
-
-      // Create YAML config
-      std::ofstream yaml("test_stream_adios2_multi.yaml");
-      yaml << "stream:\n";
-      yaml << "  name: test_multi\n";
-      yaml << "  substreams:\n";
-      yaml << "    - name: multi_vars\n";
-      yaml << "      format: adios2\n";
-      yaml << "      filenames:\n";
-      yaml << "        - test_stream_adios2_multi.bp\n";
-      yaml << "      vars:\n";
-      yaml << "        - name: temperature\n";
-      yaml << "          dtype: float32\n";
-      yaml << "        - name: velocity\n";
-      yaml << "          dtype: float64\n";
-      yaml.close();
+#if NDARRAY_HAVE_MPI
+      MPI_Barrier(MPI_COMM_WORLD);
+#endif
 
       // Test reading
       ftk::stream s;
@@ -219,8 +239,10 @@ int main(int argc, char** argv) {
       TEST_ASSERT(std::abs(temp_arr[0] - 20.0f) < 1e-5f, "Wrong temperature value");
       TEST_ASSERT(std::abs(vel_arr[0] - 5.0) < 1e-10, "Wrong velocity value");
 
-      std::cout << "    - Successfully read multiple variables" << std::endl;
-      std::cout << "    PASSED" << std::endl;
+      if (rank == 0) {
+        std::cout << "    - Successfully read multiple variables" << std::endl;
+        std::cout << "    PASSED" << std::endl;
+      }
 
       std::remove("test_stream_adios2_multi.bp");
       std::remove("test_stream_adios2_multi.yaml");
@@ -233,48 +255,53 @@ int main(int argc, char** argv) {
 
   // Test 3: Variable name aliasing
   {
-    TEST_SECTION("Variable name aliasing (possible_names)");
+    if (rank == 0) TEST_SECTION("Variable name aliasing (possible_names)");
 
     try {
       const size_t nx = 6, ny = 8;
 
+      // Only rank 0 creates test files
+      if (rank == 0) {
 #if NDARRAY_HAVE_MPI
-      // Use MPI_COMM_SELF for test file creation (each rank writes independently)
-      // This test is creating input files, not testing parallel I/O
-      adios2::ADIOS adios(MPI_COMM_SELF);
+        adios2::ADIOS adios(MPI_COMM_SELF);
 #else
-      adios2::ADIOS adios;
+        adios2::ADIOS adios;
 #endif
 
-      // Create BP file with variable "temperature"
-      adios2::IO io = adios.DeclareIO("TestIO_Alias");
-      io.SetEngine("BP4");
+        // Create BP file with variable "temperature"
+        adios2::IO io = adios.DeclareIO("TestIO_Alias");
+        io.SetEngine("BP4");
 
-      adios2::Engine writer = io.Open("test_stream_adios2_alias.bp", adios2::Mode::Write);
+        adios2::Engine writer = io.Open("test_stream_adios2_alias.bp", adios2::Mode::Write);
 
-      std::vector<float> data(nx * ny, 42.0f);
-      auto var = io.DefineVariable<float>("temperature",
-        {ny, nx}, {0, 0}, {ny, nx});
+        std::vector<float> data(nx * ny, 42.0f);
+        auto var = io.DefineVariable<float>("temperature",
+          {ny, nx}, {0, 0}, {ny, nx});
 
-      writer.BeginStep();
-      writer.Put(var, data.data());
-      writer.EndStep();
-      writer.Close();
+        writer.BeginStep();
+        writer.Put(var, data.data());
+        writer.EndStep();
+        writer.Close();
 
-      // Create YAML that looks for alternative names
-      std::ofstream yaml("test_stream_adios2_alias.yaml");
-      yaml << "stream:\n";
-      yaml << "  name: test_alias\n";
-      yaml << "  substreams:\n";
-      yaml << "    - name: alias_test\n";
-      yaml << "      format: adios2\n";
-      yaml << "      filenames:\n";
-      yaml << "        - test_stream_adios2_alias.bp\n";
-      yaml << "      vars:\n";
-      yaml << "        - name: temp\n";
-      yaml << "          possible_names: [TEMP, Temperature, temperature, temp]\n";
-      yaml << "          dtype: float32\n";
-      yaml.close();
+        // Create YAML that looks for alternative names
+        std::ofstream yaml("test_stream_adios2_alias.yaml");
+        yaml << "stream:\n";
+        yaml << "  name: test_alias\n";
+        yaml << "  substreams:\n";
+        yaml << "    - name: alias_test\n";
+        yaml << "      format: adios2\n";
+        yaml << "      filenames:\n";
+        yaml << "        - test_stream_adios2_alias.bp\n";
+        yaml << "      vars:\n";
+        yaml << "        - name: temp\n";
+        yaml << "          possible_names: [TEMP, Temperature, temperature, temp]\n";
+        yaml << "          dtype: float32\n";
+        yaml.close();
+      }
+
+#if NDARRAY_HAVE_MPI
+      MPI_Barrier(MPI_COMM_WORLD);
+#endif
 
       // Test reading
       ftk::stream s;
@@ -286,8 +313,10 @@ int main(int argc, char** argv) {
       auto arr = g->get_arr<float>("temp");
       TEST_ASSERT(std::abs(arr[0] - 42.0f) < 1e-5f, "Wrong aliased data value");
 
-      std::cout << "    - Variable aliasing works correctly" << std::endl;
-      std::cout << "    PASSED" << std::endl;
+      if (rank == 0) {
+        std::cout << "    - Variable aliasing works correctly" << std::endl;
+        std::cout << "    PASSED" << std::endl;
+      }
 
       std::remove("test_stream_adios2_alias.bp");
       std::remove("test_stream_adios2_alias.yaml");
@@ -300,52 +329,57 @@ int main(int argc, char** argv) {
 
   // Test 4: Static ADIOS2 substream
   {
-    TEST_SECTION("Static ADIOS2 substream");
+    if (rank == 0) TEST_SECTION("Static ADIOS2 substream");
 
     try {
       const size_t nx = 10, ny = 10;
 
+      // Only rank 0 creates test files
+      if (rank == 0) {
 #if NDARRAY_HAVE_MPI
-      // Use MPI_COMM_SELF for test file creation (each rank writes independently)
-      // This test is creating input files, not testing parallel I/O
-      adios2::ADIOS adios(MPI_COMM_SELF);
+        adios2::ADIOS adios(MPI_COMM_SELF);
 #else
-      adios2::ADIOS adios;
+        adios2::ADIOS adios;
 #endif
 
-      // Create static BP file (coordinates/mesh)
-      adios2::IO io = adios.DeclareIO("TestIO_Static");
-      io.SetEngine("BP4");
+        // Create static BP file (coordinates/mesh)
+        adios2::IO io = adios.DeclareIO("TestIO_Static");
+        io.SetEngine("BP4");
 
-      adios2::Engine writer = io.Open("test_stream_adios2_static.bp", adios2::Mode::Write);
+        adios2::Engine writer = io.Open("test_stream_adios2_static.bp", adios2::Mode::Write);
 
-      std::vector<float> coords(nx * ny);
-      for (size_t i = 0; i < nx * ny; i++) {
-        coords[i] = static_cast<float>(i);
+        std::vector<float> coords(nx * ny);
+        for (size_t i = 0; i < nx * ny; i++) {
+          coords[i] = static_cast<float>(i);
+        }
+
+        auto var = io.DefineVariable<float>("coordinates",
+          {ny, nx}, {0, 0}, {ny, nx});
+
+        writer.BeginStep();
+        writer.Put(var, coords.data());
+        writer.EndStep();
+        writer.Close();
+
+        // Create YAML with static substream
+        std::ofstream yaml("test_stream_adios2_static.yaml");
+        yaml << "stream:\n";
+        yaml << "  name: test_static\n";
+        yaml << "  substreams:\n";
+        yaml << "    - name: static_mesh\n";
+        yaml << "      format: adios2\n";
+        yaml << "      filenames:\n";
+        yaml << "        - test_stream_adios2_static.bp\n";
+        yaml << "      vars:\n";
+        yaml << "        - name: coordinates\n";
+        yaml << "          dtype: float32\n";
+        yaml << "      static: true\n";
+        yaml.close();
       }
 
-      auto var = io.DefineVariable<float>("coordinates",
-        {ny, nx}, {0, 0}, {ny, nx});
-
-      writer.BeginStep();
-      writer.Put(var, coords.data());
-      writer.EndStep();
-      writer.Close();
-
-      // Create YAML with static substream
-      std::ofstream yaml("test_stream_adios2_static.yaml");
-      yaml << "stream:\n";
-      yaml << "  name: test_static\n";
-      yaml << "  substreams:\n";
-      yaml << "    - name: static_mesh\n";
-      yaml << "      format: adios2\n";
-      yaml << "      filenames:\n";
-      yaml << "        - test_stream_adios2_static.bp\n";
-      yaml << "      vars:\n";
-      yaml << "        - name: coordinates\n";
-      yaml << "          dtype: float32\n";
-      yaml << "      static: true\n";
-      yaml.close();
+#if NDARRAY_HAVE_MPI
+      MPI_Barrier(MPI_COMM_WORLD);
+#endif
 
       // Test reading static data
       ftk::stream s;
@@ -360,8 +394,10 @@ int main(int argc, char** argv) {
       TEST_ASSERT(std::abs(coords_arr[0] - 0.0f) < 1e-5f, "Wrong static data[0]");
       TEST_ASSERT(std::abs(coords_arr[10] - 10.0f) < 1e-5f, "Wrong static data[10]");
 
-      std::cout << "    - Static substream works correctly" << std::endl;
-      std::cout << "    PASSED" << std::endl;
+      if (rank == 0) {
+        std::cout << "    - Static substream works correctly" << std::endl;
+        std::cout << "    PASSED" << std::endl;
+      }
 
       std::remove("test_stream_adios2_static.bp");
       std::remove("test_stream_adios2_static.yaml");
@@ -372,7 +408,9 @@ int main(int argc, char** argv) {
     }
   }
 
-  std::cout << std::endl << "=== All ADIOS2 Stream Tests Passed ===" << std::endl;
+  if (rank == 0) {
+    std::cout << std::endl << "=== All ADIOS2 Stream Tests Passed ===" << std::endl;
+  }
 
 #else
   std::cout << "ADIOS2 and/or YAML support not available - tests skipped" << std::endl;
