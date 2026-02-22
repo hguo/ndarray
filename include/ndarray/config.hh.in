@@ -9,6 +9,7 @@
 #cmakedefine NDARRAY_HAVE_HDF5 1
 #cmakedefine NDARRAY_HAVE_PARALLEL_HDF5 1
 #cmakedefine NDARRAY_HAVE_HIP 1
+#cmakedefine NDARRAY_HAVE_SYCL 1
 #cmakedefine NDARRAY_HAVE_MPI 1
 #cmakedefine NDARRAY_HAVE_NETCDF 1
 #cmakedefine NDARRAY_HAVE_NETCDF_PARALLEL 1
