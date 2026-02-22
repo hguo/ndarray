@@ -174,7 +174,7 @@ arr2.to_device(NDARRAY_DEVICE_CUDA, 1);
 For cross-platform GPU support:
 
 ```cpp
-#include <CL/sycl.hpp>
+#include <sycl/sycl.hpp>
 
 // Create SYCL queue
 sycl::queue q(sycl::default_selector{});

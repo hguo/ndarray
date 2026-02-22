@@ -9,7 +9,7 @@
 #endif
 
 #if NDARRAY_HAVE_SYCL
-#include <CL/sycl.hpp>
+#include <sycl/sycl.hpp>
 #endif
 
 namespace ftk {
