@@ -1456,7 +1456,238 @@ The critical analysis incorrectly stated "Parallel HDF5 (not implemented)". In r
 
 ---
 
-**Analysis Last Updated**: 2026-02-20 evening
-**Grade**: **B+** (was B, improved due to error handling, GPU, coverage, fixes)
-**Status**: Short+medium-term priorities complete, ready for v1.0 consideration
-**Recommendation**: Package as v1.0 release, signal production-readiness
+## v0.0.3 Release - 2026-02-21
+
+**Analyst**: Claude Sonnet 4.5
+**Date**: 2026-02-21
+**Status**: v0.0.3-alpha **RELEASED** (tagged and pushed)
+
+### Summary
+
+v0.0.3 focuses on **documentation improvements**, **dependency management**, and **API consistency**. This release makes the library more accessible to new users and fixes critical CMake configuration issues.
+
+### Major Changes
+
+#### 1. Documentation Expansion ✅
+
+**Getting Started Guide** (`docs/GETTING_STARTED.md` - NEW)
+- Comprehensive 15-minute tutorial
+- Installation, basic operations, file I/O examples
+- Time-series data handling
+- MPI distributed arrays
+- Working code examples for all major features
+- **Impact**: Lowers barrier to entry for new users
+
+**Documentation Index** (`docs/INDEX.md` - NEW)
+- Topic-based navigation for 39+ documentation files
+- Quick reference card with common operations
+- Organized by category (Basics, I/O, MPI, GPU, Design)
+- **Impact**: Improves documentation discoverability
+
+#### 2. API Nomenclature Corrections ✅
+
+**Problem**: Documentation referenced non-existent classes
+- `distributed_ndarray` (doesn't exist)
+- `distributed_stream` (doesn't exist)
+
+**Solution**: Fixed all references across documentation
+- `distributed_ndarray` → `ftk::ndarray` with `.decompose()`
+- `distributed_stream` → `ftk::stream`
+
+**Files Updated**:
+- `README.md` - Fixed examples
+- `docs/DISTRIBUTED_NDARRAY.md` - Corrected 6 code examples
+- `docs/UNIFIED_NDARRAY_DESIGN.md` - Added clarification note
+
+**Impact**: Documentation now matches actual API
+
+#### 3. README Improvements ✅
+
+**Indexing Convention Change**:
+- Changed all examples from `reshapef` (Fortran-order) to `reshapec` (C-order)
+- C-order is more familiar to most programmers (Python NumPy, C/C++ default)
+- **Example**:
+  ```cpp
+  ftk::ndarray<float> arr;
+  arr.reshapec(100, 200, 50);  // C-order (row-major)
+  ```
+
+**Dual-Indexing Documentation**:
+- Documented both indexing schemes:
+  ```cpp
+  arr.c(i, j, k)  // C-order indexing (last dim varies fastest)
+  arr.f(i, j, k)  // Fortran-order indexing (first dim varies fastest)
+  ```
+
+**CMake Integration Expansion**:
+- Recommended custom installation over system-wide:
+  ```bash
+  cmake .. -DCMAKE_INSTALL_PREFIX=$HOME/software/ndarray
+  ```
+- Added examples for finding ndarray:
+  ```bash
+  cmake .. -DCMAKE_PREFIX_PATH=$HOME/software/ndarray
+  ```
+- Documented Eigen/xtensor integration:
+  ```cmake
+  find_package(Eigen3 REQUIRED HINTS $ENV{HOME}/software/eigen)
+  target_link_libraries(my_app ndarray::ndarray Eigen3::Eigen)
+  ```
+- Clarified dependency auto-finding via `ndarrayConfig.cmake`
+
+**Impact**: Better user experience for CMake integration
+
+#### 4. Dependency Version Enforcement ✅
+
+**Problem**: ABI incompatibilities when user project links against different HDF5/ADIOS2 versions than ndarray was built with
+
+**Solution** (`cmake/ndarrayConfig.cmake.in`):
+- Added version enforcement with fallback for HDF5:
+  ```cmake
+  set (_HDF5_VERSION "@HDF5_VERSION_MAJOR@.@HDF5_VERSION_MINOR@")
+  if (_HDF5_VERSION MATCHES "^[0-9]+\\.[0-9]+")
+    find_dependency (HDF5 ${_HDF5_VERSION} REQUIRED)
+  else ()
+    find_dependency (HDF5 REQUIRED)  # Fallback if version unavailable
+  endif ()
+  ```
+- Same pattern for ADIOS2
+- Uses regex to validate version string before requiring specific version
+
+**Impact**: Prevents subtle runtime crashes from ABI mismatches
+
+#### 5. PNetCDF Support Added ✅
+
+**Added** to `cmake/ndarrayConfig.cmake.in`:
+```cmake
+if (NDARRAY_HAVE_PNETCDF)
+  find_package (PkgConfig QUIET)
+  if (PKG_CONFIG_FOUND)
+    pkg_check_modules (PNETCDF REQUIRED pnetcdf)
+    include_directories (${PNETCDF_INCLUDE_DIRS})
+  else ()
+    message (WARNING "PNetCDF was enabled but pkg-config not found.")
+  endif ()
+endif ()
+```
+
+**Impact**: Proper PNetCDF dependency propagation to downstream projects
+
+#### 6. CMake Configuration Fixes ✅
+
+**Problem**: CI failure when HDF5_VERSION_MAJOR/ADIOS2_VERSION_MAJOR were empty, generating invalid CMake like:
+```cmake
+find_dependency (HDF5 . REQUIRED)  # Invalid syntax
+```
+
+**Root Cause**: Version enforcement added empty variables to CMake config
+
+**Solution**:
+- Added regex validation before using version string
+- Fallback to version-less `find_dependency()` when version unavailable
+- Prevents CI failures in minimal builds
+
+**Commits**:
+- `998e5c1` - Added version enforcement (initial)
+- `473a1b4` - Fixed empty version handling (CI fix)
+
+**Impact**: Robust CMake configuration across all build configurations
+
+#### 7. CHANGELOG Updates ✅
+
+**Updated** `CHANGELOG.md` with v0.0.3 entry:
+- Added Getting Started Guide
+- Added Documentation Index
+- Fixed ADIOS2 data reading bug
+- Fixed ADIOS2 MPI deadlock
+- Fixed ADIOS2 stream test MPI (rank 0 file creation)
+- Documented API reference corrections
+- Added PNetCDF support
+- Added version enforcement
+
+### Files Modified
+
+**New Files**:
+- `docs/GETTING_STARTED.md` (450+ lines)
+- `docs/INDEX.md` (280+ lines)
+
+**Updated Files**:
+- `README.md` (reshapec examples, dual-indexing, CMake integration)
+- `CHANGELOG.md` (v0.0.3 entry)
+- `cmake/ndarrayConfig.cmake.in` (version enforcement, PNetCDF)
+- `CMakeLists.txt` (version extraction)
+- `docs/DISTRIBUTED_NDARRAY.md` (API corrections)
+- `docs/UNIFIED_NDARRAY_DESIGN.md` (clarification note)
+
+### Git Tag
+
+```bash
+git tag -a v0.0.3 -m "Release v0.0.3: Documentation, dependency management, API fixes"
+git push origin v0.0.3
+```
+
+**Status**: ✅ Tagged and pushed successfully
+
+### Grade Impact
+
+**Documentation**: A → **A** (remains excellent, now with comprehensive getting started)
+
+**Build System**: C+ → **B-** (version enforcement improves robustness)
+
+**Overall Grade**: Remains **B+**
+
+### Updated Change History
+
+| Date | Version | Grade | Key Changes |
+|------|---------|-------|-------------|
+| 2026-02-10 | - | B- | Initial stabilization |
+| 2026-02-14 | - | B | CI expansion, storage fixes |
+| 2026-02-18 | - | B+ | Distributed validation, bug fixes |
+| 2026-02-19 AM | - | B | Architectural deep-dive |
+| 2026-02-19 PM | - | B | NetCDF I/O fix, CUDA/GCC CI fix |
+| 2026-02-20 | - | B+ | Error handling, GPU RAII, coverage CI |
+| **2026-02-21** | **v0.0.3** | **B+** | **Documentation expansion, version enforcement, API corrections** |
+
+### Commits Since v0.0.2
+
+**Documentation**:
+- Getting Started guide created
+- Documentation index created
+- README improvements (reshapec, dual-indexing, CMake integration)
+- API nomenclature fixes (distributed_ndarray → ndarray::decompose)
+
+**CMake**:
+- Version enforcement for HDF5/ADIOS2
+- PNetCDF support added
+- Empty version handling fix
+
+**ADIOS2** (from previous work leading to v0.0.3):
+- Fixed data reading (all zeros bug)
+- Fixed multi-step reading
+- Fixed MPI deadlock (MPI_COMM_SELF vs MPI_COMM_WORLD)
+- Fixed stream reader (step=0)
+- Fixed test file creation (rank 0 only)
+
+### Path Forward
+
+**Immediate Next Steps**:
+1. Monitor CI for any version enforcement issues
+2. Gather user feedback on Getting Started guide
+3. Consider v1.0.0 after API stabilization period
+
+**Readiness Assessment**:
+- ✅ Core functionality stable
+- ✅ Documentation comprehensive
+- ✅ Error handling unified
+- ✅ Test coverage good (21K lines, 1.8:1 ratio)
+- ⚠️ Still in alpha (v0.0.3-alpha)
+- ⚠️ Limited production validation
+
+**Recommendation**: Continue alpha releases until production validation, then consider v1.0.0
+
+---
+
+**Analysis Last Updated**: 2026-02-21
+**Grade**: **B+** (documentation improvements, version enforcement, API corrections)
+**Status**: v0.0.3-alpha released, short+medium-term priorities complete
+**Recommendation**: Monitor for issues, gather feedback, prepare for v1.0.0
