@@ -109,11 +109,9 @@ int main(int argc, char** argv) {
     }
 #if NDARRAY_HAVE_MPI
     }
-    MPI_Barrier(MPI_COMM_SELF);  // Wait for rank 0 to finish writing
-
-    // All ranks read (using their own ADIOS context)
-    {
+    MPI_Barrier(MPI_COMM_WORLD);  // Wait for rank 0 to finish writing
 #endif
+
     // Read data using high-level API
     {
       ftk::ndarray<float> loaded = ftk::ndarray<float>::from_bp(
