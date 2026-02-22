@@ -53,7 +53,9 @@ int main(int argc, char** argv) {
       const int num_files = 3;
 
 #if NDARRAY_HAVE_MPI
-      adios2::ADIOS adios(MPI_COMM_WORLD);
+      // Use MPI_COMM_SELF for test file creation (each rank writes independently)
+      // This test is creating input files, not testing parallel I/O
+      adios2::ADIOS adios(MPI_COMM_SELF);
 #else
       adios2::ADIOS adios;
 #endif
@@ -153,7 +155,9 @@ int main(int argc, char** argv) {
       const size_t nx = 8, ny = 10;
 
 #if NDARRAY_HAVE_MPI
-      adios2::ADIOS adios(MPI_COMM_WORLD);
+      // Use MPI_COMM_SELF for test file creation (each rank writes independently)
+      // This test is creating input files, not testing parallel I/O
+      adios2::ADIOS adios(MPI_COMM_SELF);
 #else
       adios2::ADIOS adios;
 #endif
@@ -235,7 +239,9 @@ int main(int argc, char** argv) {
       const size_t nx = 6, ny = 8;
 
 #if NDARRAY_HAVE_MPI
-      adios2::ADIOS adios(MPI_COMM_WORLD);
+      // Use MPI_COMM_SELF for test file creation (each rank writes independently)
+      // This test is creating input files, not testing parallel I/O
+      adios2::ADIOS adios(MPI_COMM_SELF);
 #else
       adios2::ADIOS adios;
 #endif
@@ -300,7 +306,9 @@ int main(int argc, char** argv) {
       const size_t nx = 10, ny = 10;
 
 #if NDARRAY_HAVE_MPI
-      adios2::ADIOS adios(MPI_COMM_WORLD);
+      // Use MPI_COMM_SELF for test file creation (each rank writes independently)
+      // This test is creating input files, not testing parallel I/O
+      adios2::ADIOS adios(MPI_COMM_SELF);
 #else
       adios2::ADIOS adios;
 #endif
