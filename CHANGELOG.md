@@ -22,7 +22,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **ADIOS2 multi-step reading** - Properly reads all timesteps with correct 3D shape
 - **ADIOS2 MPI deadlock** - Use `MPI_COMM_SELF` for serial tests, `MPI_COMM_WORLD` for parallel
 - **ADIOS2 stream reader** - Pass `step=0` to read first timestep from BP files
+- **ADIOS2 stream test MPI** - Only rank 0 creates test files, preventing file corruption in multi-rank runs
 - **Mode::ReadRandomAccess** - All ADIOS2 file opens now use correct mode for BeginStep/EndStep files
+- **Documentation API references** - Corrected all references to non-existent `distributed_ndarray` and `distributed_stream` classes
 
 ### Changed
 - **Version badge** updated to 0.0.3-alpha
