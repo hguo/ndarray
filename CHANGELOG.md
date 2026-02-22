@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+---
+
+## [0.0.3] - 2026-02-21
+
+### Added
+- **Getting Started Guide** (`docs/GETTING_STARTED.md`) - Comprehensive 15-minute tutorial
+- **Documentation Index** (`docs/INDEX.md`) - Organized topic-based navigation
+- **ADIOS2 YAML stream tests** - Test suite for ADIOS2 time-series via YAML configuration
+- **ADIOS2 parallel tests** - MPI-parallel ADIOS2 I/O tests with domain decomposition
+- **ADIOS2 CI workflow** - GitHub Actions job with ADIOS2 caching
+- **PerformGets()** call after ADIOS2 Get() operations (fixes data reading)
+
+### Fixed
+- **ADIOS2 data reading** - All data was reading as zeros, now fixed
+- **ADIOS2 multi-step reading** - Properly reads all timesteps with correct 3D shape
+- **ADIOS2 MPI deadlock** - Use `MPI_COMM_SELF` for serial tests, `MPI_COMM_WORLD` for parallel
+- **ADIOS2 stream reader** - Pass `step=0` to read first timestep from BP files
+- **Mode::ReadRandomAccess** - All ADIOS2 file opens now use correct mode for BeginStep/EndStep files
+
+### Changed
+- **Version badge** updated to 0.0.3-alpha
+- **Documentation organization** - Moved internal/progress docs to subdirectories
+- **README** - Added Quick Start section with example code
+- **ADIOS2 workflow** - Enabled MPI support (`NDARRAY_USE_MPI=ON`)
+
+### Documentation
+- Reorganized docs directory with clear user/developer separation
+- Created archive for historical/internal documentation
+- Updated all documentation links and cross-references
+- Added quick reference card to INDEX.md
+
+---
+
 ## [Unreleased]
 
 **Major focus**: Stabilization, distributed computing, and GPU support. This release completes GPU-aware MPI features, removes misleading performance claims, expands CI coverage from 5 to 14 configurations, and fixes numerous compilation issues across platforms and storage backends. The library is now reliably buildable on Linux (GCC, Clang), macOS, with C++17/C++20, and properly handles all optional dependencies.

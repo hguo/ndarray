@@ -1,116 +1,91 @@
-# Documentation Index
+# ndarray Documentation
 
-This directory contains documentation for the ndarray library. Documentation is organized into user guides, developer notes, and planning/historical documents.
+**Version**: 0.0.3
+
+👉 **[Start Here: Getting Started Guide](GETTING_STARTED.md)** - Complete tutorial for new users
+📚 **[Documentation Index](INDEX.md)** - Browse all documentation by topic
 
 ---
 
-## User Guides
+## Quick Links
 
-**Start here if you're using the library:**
+### For New Users
+- **[Getting Started](GETTING_STARTED.md)** - 15-minute tutorial with examples
+- **[Installation Guide](GETTING_STARTED.md#installation)** - Build from source
+- **[Your First Program](GETTING_STARTED.md#your-first-program)** - Hello World
 
 ### Core Concepts
-- **[MAINTENANCE-MODE.md](MAINTENANCE-MODE.md)** - Library status, features, and roadmap
-- **[STORAGE_BACKENDS.md](STORAGE_BACKENDS.md)** - Storage policy system (native, xtensor, Eigen)
-- **[EXCEPTION_HANDLING.md](EXCEPTION_HANDLING.md)** - Error handling and exceptions
-
-### Array Operations
-- **[ARRAY_ACCESS.md](ARRAY_ACCESS.md)** - Accessing array elements (row-major vs column-major)
-- **[ARRAY_INDEXING.md](ARRAY_INDEXING.md)** - Indexing conventions and patterns
-- **[FORTRAN_C_CONVENTIONS.md](FORTRAN_C_CONVENTIONS.md)** - Row-major (C) vs column-major (Fortran)
-- **[ZERO_COPY_OPTIMIZATION.md](ZERO_COPY_OPTIMIZATION.md)** - Using `get_ref()` for zero-copy access
-- **[VECTOR_CONVERSION.md](VECTOR_CONVERSION.md)** - Converting between ndarrays and std::vector
-
-### Distributed Computing
-- **[DISTRIBUTED_NDARRAY.md](DISTRIBUTED_NDARRAY.md)** - MPI domain decomposition and ghost cells ⭐
-- **[DISTRIBUTED_INDEXING_CLARIFICATION.md](DISTRIBUTED_INDEXING_CLARIFICATION.md)** - Global/local index conversion
-- **[MULTICOMPONENT_ARRAYS_DISTRIBUTED.md](MULTICOMPONENT_ARRAYS_DISTRIBUTED.md)** - Vector/tensor fields in distributed memory
-
-### GPU Support
-- **[GPU_SUPPORT.md](GPU_SUPPORT.md)** - CUDA/HIP GPU acceleration ⭐
-- **[GPU_AWARE_MPI_SUMMARY.md](GPU_AWARE_MPI_SUMMARY.md)** - GPU-direct MPI (experimental)
+- **[Array Indexing](ARRAY_INDEXING.md)** - Fortran vs C order
+- **[Dimension Ordering](DIMENSION_ORDERING.md)** - Understanding conventions
+- **[Storage Backends](STORAGE_BACKENDS.md)** - Native, xtensor, Eigen
 
 ### I/O Formats
-- **[HDF5_TIMESTEPS_PER_FILE.md](HDF5_TIMESTEPS_PER_FILE.md)** - Time-series data in HDF5
-- **[PNG_SUPPORT.md](PNG_SUPPORT.md)** - Reading/writing PNG images
-- **[OPTIONAL_YAML.md](OPTIONAL_YAML.md)** - YAML stream configuration
+- **[Parallel HDF5](PARALLEL_HDF5.md)** - MPI-parallel HDF5 I/O
+- **[GPU Support](GPU_SUPPORT.md)** - CUDA, HIP, SYCL
+- **[ADIOS2](archive/ADIOS2_TESTS.md)** - High-performance I/O
 
-### Advanced Topics
-- **[MULTICOMPONENT_ARRAYS.md](MULTICOMPONENT_ARRAYS.md)** - Vector/tensor fields
-- **[TIME_DIMENSION.md](TIME_DIMENSION.md)** - Time-varying data conventions
-- **[VARIABLE_NAMING_BEST_PRACTICES.md](VARIABLE_NAMING_BEST_PRACTICES.md)** - Format-specific variable names
-
----
-
-## Developer Notes
-
-**Internal documentation for contributors:**
-
-- **[BACKEND_DESIGN.md](BACKEND_DESIGN.md)** - Storage backend architecture
-- **[BACKENDS.md](BACKENDS.md)** - I/O backend system design
-- **[IO_BACKEND_AGNOSTIC.md](IO_BACKEND_AGNOSTIC.md)** - Format-agnostic I/O design
-- **[ERROR_HANDLING.md](ERROR_HANDLING.md)** - Error handling implementation
-- **[CI_FIXES.md](CI_FIXES.md)** - CI/CD troubleshooting notes
-- **[CMAKE_SIMPLIFICATION.md](CMAKE_SIMPLIFICATION.md)** - Build system documentation
-- **[VARIABLE_NAMING_PROBLEMS.md](VARIABLE_NAMING_PROBLEMS.md)** - Variable name resolution issues
+### Parallel Computing
+- **[Distributed Arrays](DISTRIBUTED_NDARRAY.md)** - MPI domain decomposition
+- **[Multi-component Arrays](MULTICOMPONENT_ARRAYS.md)** - Vector fields
 
 ---
 
-## Testing Documentation
+## Documentation Organization
 
-- **[ADIOS2_TESTS.md](ADIOS2_TESTS.md)** - ADIOS2 I/O testing notes
-- **[PNETCDF_TESTS.md](PNETCDF_TESTS.md)** - Parallel NetCDF testing notes
-- **[VTK_TESTS.md](VTK_TESTS.md)** - VTK I/O testing notes
-
----
-
-## Planning & Historical Documents
-
-**Archived documentation from development phases:**
-
-- **[VALIDATION_PLAN.md](VALIDATION_PLAN.md)** - Testing roadmap (2-3 month plan)
-- **[WEEK1_TASKS.md](WEEK1_TASKS.md)** - Week 1 implementation tasks (completed)
-- **[GPU_AWARE_MPI_PLAN.md](GPU_AWARE_MPI_PLAN.md)** - GPU-aware MPI implementation plan
-- **[UNIFIED_NDARRAY_DESIGN.md](UNIFIED_NDARRAY_DESIGN.md)** - Unified distributed design document
-- **[UNIFIED_NDARRAY_PROGRESS.md](UNIFIED_NDARRAY_PROGRESS.md)** - Implementation progress tracking
-- **[DISTRIBUTED_STREAM_REDESIGN.md](DISTRIBUTED_STREAM_REDESIGN.md)** - Stream redesign document
-- **[PHASE3_IO_AUTO_DETECTION.md](PHASE3_IO_AUTO_DETECTION.md)** - Phase 3 implementation plan
-- **[PHASE4_STREAM_INTEGRATION.md](PHASE4_STREAM_INTEGRATION.md)** - Phase 4 implementation plan
-
----
-
-## Obsolete/Legacy Documents
-
-**These documents reference outdated features or are superseded by newer docs:**
-
-- **[FDPOOL.md](FDPOOL.md)** - Old distributed array design (superseded by DISTRIBUTED_NDARRAY.md)
-- **[STUDENT_ISSUES.md](STUDENT_ISSUES.md)** - Student project notes
-
----
-
-## Quick Start
-
-**New to the library?** Read these in order:
-
-1. [MAINTENANCE-MODE.md](MAINTENANCE-MODE.md) - Understand library status and features
-2. [STORAGE_BACKENDS.md](STORAGE_BACKENDS.md) - Choose your storage backend
-3. [ARRAY_ACCESS.md](ARRAY_ACCESS.md) - Learn array indexing
-4. [DISTRIBUTED_NDARRAY.md](DISTRIBUTED_NDARRAY.md) - Use MPI (if needed)
-5. [GPU_SUPPORT.md](GPU_SUPPORT.md) - Use GPUs (if needed)
-
-**Looking for examples?** See `../examples/` directory.
+```
+docs/
+├── GETTING_STARTED.md       ⭐ Start here!
+├── INDEX.md                  📚 Complete documentation index
+│
+├── Core Concepts
+│   ├── ARRAY_INDEXING.md
+│   ├── DIMENSION_ORDERING.md
+│   ├── MULTICOMPONENT_ARRAYS.md
+│   └── STORAGE_BACKENDS.md
+│
+├── I/O & Formats
+│   ├── PARALLEL_HDF5.md
+│   ├── GPU_SUPPORT.md
+│   ├── IO_BACKEND_AGNOSTIC.md
+│   └── PNG_SUPPORT.md
+│
+├── Parallel Computing
+│   ├── DISTRIBUTED_NDARRAY.md
+│   ├── DISTRIBUTED_INDEXING_CLARIFICATION.md
+│   └── MULTICOMPONENT_ARRAYS_DISTRIBUTED.md
+│
+├── Advanced
+│   ├── ERROR_HANDLING.md
+│   ├── EXCEPTION_HANDLING.md
+│   └── ZERO_COPY_OPTIMIZATION.md
+│
+├── progress/                 📊 Development progress
+│   ├── CRITICAL_ANALYSIS.md
+│   └── IMPROVEMENTS_SUMMARY_2026-02-20.md
+│
+└── archive/                  🗄️  Older/internal docs
+    ├── ADIOS2_TESTS.md
+    ├── VTK_TESTS.md
+    └── ...
+```
 
 ---
 
-## Contributing
+## Getting Help
 
-When adding new documentation:
-
-1. **Place it in the appropriate category above**
-2. **Update this README.md with a link**
-3. **Use descriptive filenames** (e.g., `FEATURE_NAME.md`)
-4. **Include examples and code snippets**
-5. **Keep planning docs in "Planning & Historical" section**
+- **New users**: Start with [GETTING_STARTED.md](GETTING_STARTED.md)
+- **Specific topics**: Check [INDEX.md](INDEX.md)
+- **Examples**: See `../tests/` directory
+- **Issues**: https://github.com/hguo/ndarray/issues
 
 ---
 
-**Last updated**: 2026-02-14
+## Contributing to Documentation
+
+Documentation improvements are welcome! Please:
+1. Follow Markdown best practices
+2. Include code examples that compile
+3. Update INDEX.md when adding new docs
+4. Test examples before submitting
+
+See [CONTRIBUTING.md](../CONTRIBUTING.md) for details.

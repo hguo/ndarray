@@ -2,15 +2,38 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![C++17](https://img.shields.io/badge/C%2B%2B-17-blue.svg)](https://isocpp.org/std/the-standard)
-[![Version](https://img.shields.io/badge/version-0.0.1--alpha-orange.svg)](https://github.com/hguo/ndarray/releases)
+[![Version](https://img.shields.io/badge/version-0.0.3--alpha-orange.svg)](https://github.com/hguo/ndarray/releases)
 
-> **⚠️ Alpha Release**: This is an early pre-release version (v0.0.1). Core features are functional but the API may change. Not recommended for production use.
+> **⚠️ Alpha Release**: This is an early pre-release version (v0.0.3). Core features are functional but the API may change. Not recommended for production use.
 
 > **🤖 AI-Assisted Development**: Significant portions of this project's code, documentation, examples, and tests have been generated or enhanced with AI assistance (starting 2026). While functional, the code should be thoroughly reviewed and tested before use in critical applications.
 
 > **📋 Maintenance Mode**: This library is in maintenance mode. Critical bugs will be fixed, but new features are limited. See [docs/MAINTENANCE-MODE.md](docs/MAINTENANCE-MODE.md) for details and alternative recommendations.
 
 NDArray is a **unified I/O abstraction library for time-varying scientific data** designed for HPC systems. It provides a consistent C++ interface for reading and writing multidimensional arrays across diverse scientific data formats (NetCDF, HDF5, ADIOS2, VTK). The library is header-only when used without external dependencies, but requires linking against third-party libraries when using features like NetCDF, HDF5, or ADIOS2.
+
+## Quick Start
+
+**New to ndarray?** Start with the **[Getting Started Guide](docs/GETTING_STARTED.md)** - get up and running in 15 minutes!
+
+```cpp
+#include <ndarray/ndarray.hh>
+
+int main() {
+  // Create and fill a 3D array
+  ftk::ndarray<float> arr;
+  arr.reshapef(100, 200, 50);
+  // ... fill with data ...
+
+  // Write to HDF5
+  arr.to_h5("data.h5", "temperature");
+
+  // Read back
+  ftk::ndarray<float> loaded;
+  loaded.read_h5("data.h5", "temperature");
+  return 0;
+}
+```
 
 ## Key Features
 
