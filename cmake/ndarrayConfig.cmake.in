@@ -21,7 +21,13 @@ find_dependency (yaml-cpp REQUIRED)
 
 if (NDARRAY_HAVE_ADIOS2)
   # Require at least the version ndarray was built with to avoid ABI incompatibilities
-  find_dependency (ADIOS2 @ADIOS2_VERSION_MAJOR@.@ADIOS2_VERSION_MINOR@ REQUIRED)
+  set (_ADIOS2_VERSION "@ADIOS2_VERSION_MAJOR@.@ADIOS2_VERSION_MINOR@")
+  if (_ADIOS2_VERSION MATCHES "^[0-9]+\\.[0-9]+")
+    find_dependency (ADIOS2 ${_ADIOS2_VERSION} REQUIRED)
+  else ()
+    find_dependency (ADIOS2 REQUIRED)
+  endif ()
+  unset (_ADIOS2_VERSION)
 endif ()
 
 if (NDARRAY_HAVE_CUDA)
@@ -43,7 +49,13 @@ endif ()
 
 if (NDARRAY_HAVE_HDF5)
   # Require at least the version ndarray was built with to avoid ABI incompatibilities
-  find_dependency (HDF5 @HDF5_VERSION_MAJOR@.@HDF5_VERSION_MINOR@ REQUIRED)
+  set (_HDF5_VERSION "@HDF5_VERSION_MAJOR@.@HDF5_VERSION_MINOR@")
+  if (_HDF5_VERSION MATCHES "^[0-9]+\\.[0-9]+")
+    find_dependency (HDF5 ${_HDF5_VERSION} REQUIRED)
+  else ()
+    find_dependency (HDF5 REQUIRED)
+  endif ()
+  unset (_HDF5_VERSION)
   include_directories (${HDF5_INCLUDE_DIRS})
 endif ()
 
