@@ -363,7 +363,324 @@ int main(int argc, char** argv) {
     }
   }
 
-  // Test 10: MPI communicator (if MPI is available)
+  // Test 10: Synthetic moving_extremum stream
+  {
+    TEST_SECTION("Synthetic moving_extremum (moving maximum) stream");
+
+    std::ofstream f("test_stream_moving_max.yaml");
+    f << "stream:\n";
+    f << "  name: test_moving_max\n";
+    f << "  substreams:\n";
+    f << "    - name: moving_maximum\n";
+    f << "      format: synthetic\n";
+    f << "      dimensions: [32, 32]\n";
+    f << "      timesteps: 5\n";
+    f << "      x0: [16, 16]\n";
+    f << "      dir: [1.0, 0.5]\n";
+    f << "      delta: 0.5\n";
+    f << "      sign: -1\n";  // -1 for maximum
+    f << "      vars:\n";
+    f << "        - name: scalar\n";
+    f << "          dtype: float64\n";
+    f.close();
+
+    try {
+      ftk::stream s;
+      s.parse_yaml("test_stream_moving_max.yaml");
+
+      TEST_ASSERT(s.total_timesteps() == 5, "Should have 5 timesteps");
+
+      // Read first and last timesteps
+      auto g0 = s.read(0);
+      auto g4 = s.read(4);
+      TEST_ASSERT(g0 != nullptr && g4 != nullptr, "Should read timesteps");
+      TEST_ASSERT(g0->has("scalar") && g4->has("scalar"), "Should have scalar variable");
+
+      auto data0 = g0->get_arr<double>("scalar");
+      auto data4 = g4->get_arr<double>("scalar");
+      TEST_ASSERT(data0.size() == 32*32, "Data size should be 32*32");
+      TEST_ASSERT(data4.size() == 32*32, "Data size should be 32*32");
+
+      // The maximum should be negative quadratic distance, max value near center
+      // Values should be different at different timesteps (extremum moves)
+      bool values_differ = false;
+      for (size_t i = 0; i < data0.size(); i++) {
+        if (std::abs(data0[i] - data4[i]) > 1e-5) {
+          values_differ = true;
+          break;
+        }
+      }
+      TEST_ASSERT(values_differ, "Moving maximum should have different values at different timesteps");
+
+      std::cout << "    - Generated moving maximum field correctly" << std::endl;
+      std::cout << "    PASSED" << std::endl;
+    } catch (const std::exception& e) {
+      std::cerr << "    ERROR: " << e.what() << std::endl;
+      return 1;
+    }
+
+    std::remove("test_stream_moving_max.yaml");
+  }
+
+  // Test 11: Synthetic double_gyre stream
+  {
+    TEST_SECTION("Synthetic double_gyre flow stream");
+
+    std::ofstream f("test_stream_double_gyre.yaml");
+    f << "stream:\n";
+    f << "  name: test_double_gyre\n";
+    f << "  substreams:\n";
+    f << "    - name: double_gyre\n";
+    f << "      format: synthetic\n";
+    f << "      dimensions: [64, 32]\n";  // 2:1 aspect ratio for double gyre domain
+    f << "      timesteps: 10\n";
+    f << "      A: 0.1\n";
+    f << "      omega: 0.628318\n";  // ~2*pi*0.1
+    f << "      epsilon: 0.25\n";
+    f << "      t0: 0.0\n";
+    f << "      delta: 0.1\n";
+    f << "      vars:\n";
+    f << "        - name: velocity\n";
+    f << "          dtype: float64\n";
+    f.close();
+
+    try {
+      ftk::stream s;
+      s.parse_yaml("test_stream_double_gyre.yaml");
+
+      TEST_ASSERT(s.total_timesteps() == 10, "Should have 10 timesteps");
+
+      auto g0 = s.read(0);
+      TEST_ASSERT(g0 != nullptr, "Should read timestep");
+      TEST_ASSERT(g0->has("velocity"), "Should have velocity variable");
+
+      auto vel = g0->get_arr<double>("velocity");
+      // Double gyre produces 2D vector field, so it should be multicomponent
+      // The array should have first dimension = 2 for (u, v) components
+      TEST_ASSERT(vel.dimf(0) == 2, "Double gyre should have 2 velocity components");
+      TEST_ASSERT(vel.dimf(1) == 64, "X dimension should be 64");
+      TEST_ASSERT(vel.dimf(2) == 32, "Y dimension should be 32");
+
+      std::cout << "    - Generated double gyre flow field correctly" << std::endl;
+      std::cout << "    - Velocity shape: [" << vel.dimf(0) << ", "
+                << vel.dimf(1) << ", " << vel.dimf(2) << "]" << std::endl;
+      std::cout << "    PASSED" << std::endl;
+    } catch (const std::exception& e) {
+      std::cerr << "    ERROR: " << e.what() << std::endl;
+      return 1;
+    }
+
+    std::remove("test_stream_double_gyre.yaml");
+  }
+
+  // Test 12: Synthetic merger stream
+  {
+    TEST_SECTION("Synthetic merger pattern stream");
+
+    std::ofstream f("test_stream_merger.yaml");
+    f << "stream:\n";
+    f << "  name: test_merger\n";
+    f << "  substreams:\n";
+    f << "    - name: merger\n";
+    f << "      format: synthetic\n";
+    f << "      dimensions: [48, 48]\n";
+    f << "      timesteps: 8\n";
+    f << "      t0: 0.0\n";
+    f << "      delta: 0.2\n";
+    f << "      vars:\n";
+    f << "        - name: density\n";
+    f << "          dtype: float64\n";
+    f.close();
+
+    try {
+      ftk::stream s;
+      s.parse_yaml("test_stream_merger.yaml");
+
+      TEST_ASSERT(s.total_timesteps() == 8, "Should have 8 timesteps");
+
+      // Read multiple timesteps to verify time-varying behavior
+      auto g0 = s.read(0);
+      auto g4 = s.read(4);
+      auto g7 = s.read(7);
+
+      TEST_ASSERT(g0 != nullptr && g4 != nullptr && g7 != nullptr, "Should read all timesteps");
+      TEST_ASSERT(g0->has("density"), "Should have density variable");
+
+      auto data0 = g0->get_arr<double>("density");
+      auto data4 = g4->get_arr<double>("density");
+
+      TEST_ASSERT(data0.size() == 48*48, "Data size should be 48*48");
+
+      // Verify values change over time (blobs merge)
+      bool time_varies = false;
+      for (size_t i = 0; i < data0.size(); i++) {
+        if (std::abs(data0[i] - data4[i]) > 1e-5) {
+          time_varies = true;
+          break;
+        }
+      }
+      TEST_ASSERT(time_varies, "Merger pattern should vary over time");
+
+      std::cout << "    - Generated merger pattern correctly" << std::endl;
+      std::cout << "    PASSED" << std::endl;
+    } catch (const std::exception& e) {
+      std::cerr << "    ERROR: " << e.what() << std::endl;
+      return 1;
+    }
+
+    std::remove("test_stream_merger.yaml");
+  }
+
+  // Test 13: Synthetic moving_ramp stream
+  {
+    TEST_SECTION("Synthetic moving_ramp stream");
+
+    std::ofstream f("test_stream_moving_ramp.yaml");
+    f << "stream:\n";
+    f << "  name: test_ramp\n";
+    f << "  substreams:\n";
+    f << "    - name: moving_ramp\n";
+    f << "      format: synthetic\n";
+    f << "      dimensions: [40, 30]\n";
+    f << "      timesteps: 6\n";
+    f << "      x0: 10.0\n";
+    f << "      rate: 2.0\n";
+    f << "      delta: 0.5\n";
+    f << "      vars:\n";
+    f << "        - name: height\n";
+    f << "          dtype: float64\n";
+    f.close();
+
+    try {
+      ftk::stream s;
+      s.parse_yaml("test_stream_moving_ramp.yaml");
+
+      TEST_ASSERT(s.total_timesteps() == 6, "Should have 6 timesteps");
+
+      auto g0 = s.read(0);
+      auto g5 = s.read(5);
+
+      TEST_ASSERT(g0 != nullptr && g5 != nullptr, "Should read timesteps");
+      TEST_ASSERT(g0->has("height"), "Should have height variable");
+
+      auto data0 = g0->get_arr<double>("height");
+      auto data5 = g5->get_arr<double>("height");
+
+      TEST_ASSERT(data0.size() == 40*30, "Data size should be 40*30");
+      TEST_ASSERT(data5.size() == 40*30, "Data size should be 40*30");
+
+      // Ramp moves, so values should differ
+      bool ramp_moves = false;
+      for (size_t i = 0; i < data0.size(); i++) {
+        if (std::abs(data0[i] - data5[i]) > 1e-5) {
+          ramp_moves = true;
+          break;
+        }
+      }
+      TEST_ASSERT(ramp_moves, "Moving ramp should change over time");
+
+      std::cout << "    - Generated moving ramp correctly" << std::endl;
+      std::cout << "    PASSED" << std::endl;
+    } catch (const std::exception& e) {
+      std::cerr << "    ERROR: " << e.what() << std::endl;
+      return 1;
+    }
+
+    std::remove("test_stream_moving_ramp.yaml");
+  }
+
+  // Test 14: Synthetic tornado stream (3D)
+  {
+    TEST_SECTION("Synthetic tornado flow stream (3D)");
+
+    std::ofstream f("test_stream_tornado.yaml");
+    f << "stream:\n";
+    f << "  name: test_tornado\n";
+    f << "  substreams:\n";
+    f << "    - name: tornado\n";
+    f << "      format: synthetic\n";
+    f << "      dimensions: [32, 32, 32]\n";  // Must be 3D
+    f << "      timesteps: 5\n";
+    f << "      time_start: 0\n";
+    f << "      vars:\n";
+    f << "        - name: wind\n";
+    f << "          dtype: float64\n";
+    f.close();
+
+    try {
+      ftk::stream s;
+      s.parse_yaml("test_stream_tornado.yaml");
+
+      TEST_ASSERT(s.total_timesteps() == 5, "Should have 5 timesteps");
+
+      auto g0 = s.read(0);
+      TEST_ASSERT(g0 != nullptr, "Should read timestep");
+      TEST_ASSERT(g0->has("wind"), "Should have wind variable");
+
+      auto wind = g0->get_arr<double>("wind");
+      // Tornado produces 3D vector field with 3 components (u, v, w)
+      TEST_ASSERT(wind.dimf(0) == 3, "Tornado should have 3 velocity components");
+      TEST_ASSERT(wind.dimf(1) == 32, "X dimension should be 32");
+      TEST_ASSERT(wind.dimf(2) == 32, "Y dimension should be 32");
+      TEST_ASSERT(wind.dimf(3) == 32, "Z dimension should be 32");
+
+      std::cout << "    - Generated tornado flow field correctly" << std::endl;
+      std::cout << "    - Wind shape: [" << wind.dimf(0) << ", "
+                << wind.dimf(1) << ", " << wind.dimf(2) << ", "
+                << wind.dimf(3) << "]" << std::endl;
+      std::cout << "    PASSED" << std::endl;
+    } catch (const std::exception& e) {
+      std::cerr << "    ERROR: " << e.what() << std::endl;
+      return 1;
+    }
+
+    std::remove("test_stream_tornado.yaml");
+  }
+
+  // Test 15: Test moving_minimum alias
+  {
+    TEST_SECTION("Synthetic moving_minimum (alias test)");
+
+    std::ofstream f("test_stream_moving_min.yaml");
+    f << "stream:\n";
+    f << "  name: test_moving_min\n";
+    f << "  substreams:\n";
+    f << "    - name: moving_minimum\n";
+    f << "      format: synthetic\n";
+    f << "      dimensions: [16, 16]\n";
+    f << "      timesteps: 3\n";
+    f << "      x0: [8, 8]\n";
+    f << "      dir: [0.5, 0.5]\n";
+    f << "      sign: 1\n";  // 1 for minimum
+    f << "      vars:\n";
+    f << "        - name: field\n";
+    f << "          dtype: float64\n";
+    f.close();
+
+    try {
+      ftk::stream s;
+      s.parse_yaml("test_stream_moving_min.yaml");
+
+      auto g = s.read(0);
+      TEST_ASSERT(g != nullptr, "Should read timestep");
+      TEST_ASSERT(g->has("field"), "Should have field variable");
+
+      auto data = g->get_arr<double>("field");
+      TEST_ASSERT(data.size() == 16*16, "Data size should be 16*16");
+
+      // For minimum (sign=1), values are positive quadratic distance
+      // Center should have minimum value (near 0)
+      std::cout << "    - Moving minimum alias works correctly" << std::endl;
+      std::cout << "    PASSED" << std::endl;
+    } catch (const std::exception& e) {
+      std::cerr << "    ERROR: " << e.what() << std::endl;
+      return 1;
+    }
+
+    std::remove("test_stream_moving_min.yaml");
+  }
+
+  // Test 16: MPI communicator (if MPI is available)
 #if NDARRAY_HAVE_MPI
   {
     TEST_SECTION("MPI communicator initialization");
@@ -388,7 +705,7 @@ int main(int argc, char** argv) {
   std::cout << "  MPI tests SKIPPED (MPI not available)" << std::endl;
 #endif
 
-  // Optional: Test NetCDF streams if data files exist
+  // Test 17: Test NetCDF streams if data files exist
   {
     TEST_SECTION("NetCDF stream (optional - requires data files)");
 
@@ -428,7 +745,7 @@ int main(int argc, char** argv) {
   }
 
 #if NDARRAY_HAVE_NETCDF
-  // Test 11: NetCDF stream with actual data files
+  // Test 18: NetCDF stream with actual data files
   {
     TEST_SECTION("NetCDF stream with generated data");
 
@@ -546,7 +863,7 @@ int main(int argc, char** argv) {
     }
   }
 
-  // Test 12: NetCDF stream with multiple variables
+  // Test 19: NetCDF stream with multiple variables
   {
     TEST_SECTION("NetCDF stream with multiple variables");
 
@@ -632,7 +949,7 @@ int main(int argc, char** argv) {
 #endif
 
 #if NDARRAY_HAVE_HDF5
-  // Test 13: HDF5 stream with time series (multiple timesteps per file)
+  // Test 20: HDF5 stream with time series (multiple timesteps per file)
   {
     TEST_SECTION("HDF5 stream with time series data");
 
@@ -732,7 +1049,7 @@ int main(int argc, char** argv) {
     }
   }
 
-  // Test 14: HDF5 static data stream
+  // Test 21: HDF5 static data stream
   {
     TEST_SECTION("HDF5 static data stream");
 
@@ -803,7 +1120,7 @@ int main(int argc, char** argv) {
 #endif
 
 #if NDARRAY_HAVE_NETCDF
-  // Test 15: Mixed static and dynamic substreams in same YAML
+  // Test 22: Mixed static and dynamic substreams in same YAML
   {
     TEST_SECTION("Mixed static and dynamic substreams");
 
@@ -924,7 +1241,7 @@ int main(int argc, char** argv) {
 #endif
 
 #if NDARRAY_HAVE_NETCDF
-  // Test 16: One static + two time-varying substreams
+  // Test 23: One static + two time-varying substreams
   {
     TEST_SECTION("1 static + 2 time-varying substreams");
 
@@ -1113,6 +1430,250 @@ int main(int argc, char** argv) {
   }
 #else
   std::cout << "  Multi-substream test SKIPPED (not built with NetCDF)" << std::endl;
+#endif
+
+  // Test 24: Integration test - write synthetic to binary, read back and verify
+  {
+    TEST_SECTION("Integration: synthetic -> binary files -> stream read");
+
+    try {
+      const size_t nx = 20, ny = 16, nt = 3;
+      const double scaling_factor = 15.0, t0 = 1e-4, delta = 0.1;
+
+      // Generate ground truth using synthetic function directly
+      std::vector<ftk::ndarray<double>> ground_truth(nt);
+      for (int t = 0; t < nt; t++) {
+        ground_truth[t] = ftk::synthetic_woven_2D<double>(nx, ny, t0 + delta * t, scaling_factor);
+
+        // Write to binary file
+        std::string filename = "test_syn_binary_t" + std::to_string(t) + ".bin";
+        ground_truth[t].to_binary_file(filename);
+      }
+
+      // Create YAML to read from binary files
+      std::ofstream yaml("test_stream_binary_verify.yaml");
+      yaml << "stream:\n";
+      yaml << "  name: test_binary_verify\n";
+      yaml << "  substreams:\n";
+      yaml << "    - name: binary_data\n";
+      yaml << "      format: binary\n";
+      yaml << "      dimensions: [" << nx << ", " << ny << "]\n";
+      yaml << "      filenames:\n";
+      for (int t = 0; t < nt; t++) {
+        yaml << "        - test_syn_binary_t" << t << ".bin\n";
+      }
+      yaml << "      vars:\n";
+      yaml << "        - name: scalar\n";
+      yaml << "          dtype: float64\n";
+      yaml.close();
+
+      // Read back via stream
+      ftk::stream s;
+      s.parse_yaml("test_stream_binary_verify.yaml");
+
+      TEST_ASSERT(s.total_timesteps() == nt, "Should have correct number of timesteps");
+
+      // Verify each timestep matches ground truth
+      for (int t = 0; t < nt; t++) {
+        auto g = s.read(t);
+        TEST_ASSERT(g != nullptr, "Should read timestep");
+        TEST_ASSERT(g->has("scalar"), "Should have scalar variable");
+
+        auto data = g->get_arr<double>("scalar");
+        TEST_ASSERT(data.size() == ground_truth[t].size(), "Size should match");
+
+        // Compare values
+        double max_error = 0.0;
+        for (size_t i = 0; i < data.size(); i++) {
+          double error = std::abs(data[i] - ground_truth[t][i]);
+          max_error = std::max(max_error, error);
+        }
+        TEST_ASSERT(max_error < 1e-10, "Values should match ground truth");
+      }
+
+      std::cout << "    - Wrote synthetic data to " << nt << " binary files" << std::endl;
+      std::cout << "    - Read back via stream and verified against ground truth" << std::endl;
+      std::cout << "    PASSED" << std::endl;
+
+      // Cleanup
+      for (int t = 0; t < nt; t++) {
+        std::remove(("test_syn_binary_t" + std::to_string(t) + ".bin").c_str());
+      }
+      std::remove("test_stream_binary_verify.yaml");
+
+    } catch (const std::exception& e) {
+      std::cerr << "    ERROR: " << e.what() << std::endl;
+      return 1;
+    }
+  }
+
+#if NDARRAY_HAVE_NETCDF
+  // Test 25: Integration test - write synthetic to NetCDF, read back and verify
+  {
+    TEST_SECTION("Integration: synthetic -> NetCDF -> stream read");
+
+    try {
+      const size_t nx = 24, ny = 18, nt = 4;
+      const double t0 = 0.0, delta = 0.2;
+
+      // Generate ground truth - merger pattern
+      std::vector<ftk::ndarray<double>> ground_truth(nt);
+      for (int t = 0; t < nt; t++) {
+        ground_truth[t] = ftk::synthetic_merger_2D<double>(nx, ny, t0 + delta * t);
+      }
+
+      // Write to NetCDF file
+      int ncid, dimids[3], varid;
+      NC_SAFE_CALL( nc_create("test_syn_merger.nc", NC_CLOBBER, &ncid) );
+      NC_SAFE_CALL( nc_def_dim(ncid, "time", NC_UNLIMITED, &dimids[0]) );
+      NC_SAFE_CALL( nc_def_dim(ncid, "y", ny, &dimids[1]) );
+      NC_SAFE_CALL( nc_def_dim(ncid, "x", nx, &dimids[2]) );
+      NC_SAFE_CALL( nc_def_var(ncid, "density", NC_DOUBLE, 3, dimids, &varid) );
+      NC_SAFE_CALL( nc_enddef(ncid) );
+
+      for (size_t t = 0; t < nt; t++) {
+        size_t start[3] = {t, 0, 0};
+        size_t count[3] = {1, ny, nx};
+        NC_SAFE_CALL( nc_put_vara_double(ncid, varid, start, count, ground_truth[t].data()) );
+      }
+      NC_SAFE_CALL( nc_close(ncid) );
+
+      // Create YAML to read from NetCDF
+      std::ofstream yaml("test_stream_nc_verify.yaml");
+      yaml << "stream:\n";
+      yaml << "  name: test_nc_verify\n";
+      yaml << "  substreams:\n";
+      yaml << "    - name: nc_data\n";
+      yaml << "      format: netcdf\n";
+      yaml << "      filenames:\n";
+      yaml << "        - test_syn_merger.nc\n";
+      yaml << "      vars:\n";
+      yaml << "        - name: density\n";
+      yaml << "          dtype: float64\n";
+      yaml.close();
+
+      // Read back via stream
+      ftk::stream s;
+      s.parse_yaml("test_stream_nc_verify.yaml");
+
+      TEST_ASSERT(s.total_timesteps() == nt, "Should have correct number of timesteps");
+
+      // Verify each timestep
+      for (int t = 0; t < nt; t++) {
+        auto g = s.read(t);
+        auto data = g->get_arr<double>("density");
+
+        double max_error = 0.0;
+        for (size_t i = 0; i < data.size(); i++) {
+          double error = std::abs(data[i] - ground_truth[t][i]);
+          max_error = std::max(max_error, error);
+        }
+        TEST_ASSERT(max_error < 1e-10, "NetCDF values should match ground truth");
+      }
+
+      std::cout << "    - Wrote merger synthetic data to NetCDF file" << std::endl;
+      std::cout << "    - Read back via stream and verified against ground truth" << std::endl;
+      std::cout << "    PASSED" << std::endl;
+
+      std::remove("test_syn_merger.nc");
+      std::remove("test_stream_nc_verify.yaml");
+
+    } catch (const std::exception& e) {
+      std::cerr << "    ERROR: " << e.what() << std::endl;
+      return 1;
+    }
+  }
+#endif
+
+#if NDARRAY_HAVE_HDF5
+  // Test 26: Integration test - write synthetic to HDF5, read back and verify
+  {
+    TEST_SECTION("Integration: synthetic -> HDF5 -> stream read");
+
+    try {
+      const size_t nx = 16, ny = 20, nt = 3;
+
+      // Generate ground truth - moving extremum (2D)
+      std::vector<ftk::ndarray<double>> ground_truth(nt);
+      double x0[2] = {8.0, 10.0};
+      double dir[2] = {1.0, 0.5};
+      double delta = 0.5;
+      std::vector<size_t> shape = {nx, ny};
+
+      for (int t = 0; t < nt; t++) {
+        ground_truth[t] = ftk::synthetic_moving_extremum<double, 2>(shape, x0, dir, delta * t);
+        // Negate for maximum
+        for (size_t i = 0; i < ground_truth[t].nelem(); i++) {
+          ground_truth[t][i] = -ground_truth[t][i];
+        }
+      }
+
+      // Write to HDF5 file
+      hid_t file_id = H5Fcreate("test_syn_extremum.h5", H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+
+      for (size_t t = 0; t < nt; t++) {
+        std::string dset_name = "field_t" + std::to_string(t);
+        hsize_t dims[2] = {ny, nx};
+
+        hid_t dataspace_id = H5Screate_simple(2, dims, NULL);
+        hid_t dataset_id = H5Dcreate2(file_id, dset_name.c_str(), H5T_IEEE_F64LE,
+                                      dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+        H5Dwrite(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, ground_truth[t].data());
+
+        H5Dclose(dataset_id);
+        H5Sclose(dataspace_id);
+      }
+
+      H5Fclose(file_id);
+
+      // Create YAML to read from HDF5
+      std::ofstream yaml("test_stream_h5_verify.yaml");
+      yaml << "stream:\n";
+      yaml << "  name: test_h5_verify\n";
+      yaml << "  substreams:\n";
+      yaml << "    - name: h5_data\n";
+      yaml << "      format: h5\n";
+      yaml << "      filenames:\n";
+      yaml << "        - test_syn_extremum.h5\n";
+      yaml << "      timesteps_per_file: " << nt << "\n";
+      yaml << "      vars:\n";
+      yaml << "        - name: field\n";
+      yaml << "          h5_name: field_t%d\n";
+      yaml << "          dtype: float64\n";
+      yaml.close();
+
+      // Read back via stream
+      ftk::stream s;
+      s.parse_yaml("test_stream_h5_verify.yaml");
+
+      TEST_ASSERT(s.total_timesteps() == nt, "Should have correct number of timesteps");
+
+      // Verify each timestep
+      for (int t = 0; t < nt; t++) {
+        auto g = s.read(t);
+        auto data = g->get_arr<double>("field");
+
+        double max_error = 0.0;
+        for (size_t i = 0; i < data.size(); i++) {
+          double error = std::abs(data[i] - ground_truth[t][i]);
+          max_error = std::max(max_error, error);
+        }
+        TEST_ASSERT(max_error < 1e-10, "HDF5 values should match ground truth");
+      }
+
+      std::cout << "    - Wrote moving extremum synthetic data to HDF5 file" << std::endl;
+      std::cout << "    - Read back via stream and verified against ground truth" << std::endl;
+      std::cout << "    PASSED" << std::endl;
+
+      std::remove("test_syn_extremum.h5");
+      std::remove("test_stream_h5_verify.yaml");
+
+    } catch (const std::exception& e) {
+      std::cerr << "    ERROR: " << e.what() << std::endl;
+      return 1;
+    }
+  }
 #endif
 
   // Cleanup test files

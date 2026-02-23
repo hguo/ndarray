@@ -292,11 +292,14 @@ inline void substream_synthetic_moving_extremum<StoragePolicy>::read(int i, std:
   for (const auto &var : this->variables) {
     const int ndims = this->dimensions.size();
 
+    // Convert dimensions from vector<int> to vector<size_t>
+    std::vector<size_t> dims_size_t(this->dimensions.begin(), this->dimensions.end());
+
     if (ndims == 2) {
       double x0_arr[2] = {x0[0], x0[1]};
       double dir_arr[2] = {dir[0], dir[1]};
       auto arr = synthetic_moving_extremum<double, 2>(
-          this->dimensions, x0_arr, dir_arr, delta * i);
+          dims_size_t, x0_arr, dir_arr, delta * i);
       if (sign == -1) {
         for (size_t j = 0; j < arr.nelem(); j++) arr[j] = -arr[j];
       }
@@ -305,7 +308,7 @@ inline void substream_synthetic_moving_extremum<StoragePolicy>::read(int i, std:
       double x0_arr[3] = {x0[0], x0[1], x0[2]};
       double dir_arr[3] = {dir[0], dir[1], dir[2]};
       auto arr = synthetic_moving_extremum<double, 3>(
-          this->dimensions, x0_arr, dir_arr, delta * i);
+          dims_size_t, x0_arr, dir_arr, delta * i);
       if (sign == -1) {
         for (size_t j = 0; j < arr.nelem(); j++) arr[j] = -arr[j];
       }
@@ -403,13 +406,16 @@ inline void substream_synthetic_moving_ramp<StoragePolicy>::read(int i, std::sha
   for (const auto &var : this->variables) {
     const int ndims = this->dimensions.size();
 
+    // Convert dimensions from vector<int> to vector<size_t>
+    std::vector<size_t> dims_size_t(this->dimensions.begin(), this->dimensions.end());
+
     if (ndims == 2) {
       auto arr = synthetic_moving_ramp<double, 2>(
-          this->dimensions, x0, rate, delta * i);
+          dims_size_t, x0, rate, delta * i);
       g->set(var.name, arr);
     } else if (ndims == 3) {
       auto arr = synthetic_moving_ramp<double, 3>(
-          this->dimensions, x0, rate, delta * i);
+          dims_size_t, x0, rate, delta * i);
       g->set(var.name, arr);
     } else {
       fatal("moving_ramp only supports 2D and 3D");
