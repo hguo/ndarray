@@ -122,7 +122,15 @@ int main(int argc, char** argv) {
 
   if (rank == 0) {
     std::cout << "=== Running Parallel ADIOS2 Tests ===" << std::endl;
-    std::cout << "Running with " << nprocs << " MPI ranks" << std::endl << std::endl;
+    std::cout << "Running with " << nprocs << " MPI ranks" << std::endl;
+
+    // Diagnostic: Detect if MPI is misconfigured (multiple single-rank processes)
+    if (nprocs == 1) {
+      std::cerr << "WARNING: MPI reported nprocs=1. If this test was launched with " << std::endl;
+      std::cerr << "         mpirun -np N where N>1, then MPI is misconfigured." << std::endl;
+      std::cerr << "         Check: MPI environment, mpirun path, or hydra configuration." << std::endl;
+    }
+    std::cout << std::endl;
   }
 
   // Test 1: Parallel write - each rank writes its portion
