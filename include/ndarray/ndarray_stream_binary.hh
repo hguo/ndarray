@@ -52,17 +52,33 @@ inline void substream_binary<StoragePolicy>::read(int i, std::shared_ptr<group_t
   for (const auto &var : this->variables) {
     auto p = ndarray_base::new_by_dtype(var.dtype);
 
+    // Get dimensions: use variable dimensions if specified, otherwise use substream dimensions
+    const std::vector<int>& dims = var.dimensions.empty() ? this->dimensions : var.dimensions;
+
 #if NDARRAY_HAVE_MPI
     // Configure distribution
     if (var.dist_type == VariableDistType::DISTRIBUTED) {
       std::vector<size_t> yaml_dims_c_order;
-      for (int d : var.dimensions) yaml_dims_c_order.push_back(static_cast<size_t>(d));
+      for (int d : dims) yaml_dims_c_order.push_back(static_cast<size_t>(d));
 
       // YAML dimensions are C-order, ndarray now stores C-order - direct use!
       if (var.has_custom_decomposition) p->decompose(this->comm, yaml_dims_c_order, 0, var.custom_decomp.dims, var.custom_decomp.ghost);
       else p->decompose(this->comm, yaml_dims_c_order);
     } else {
+      // Replicated mode: reshape with YAML dimensions
       p->set_replicated(this->comm);
+      if (!dims.empty()) {
+        std::vector<size_t> yaml_dims_c_order;
+        for (int d : dims) yaml_dims_c_order.push_back(static_cast<size_t>(d));
+        p->reshapef(yaml_dims_c_order);
+      }
+    }
+#else
+    // Non-MPI mode: reshape array with YAML dimensions before reading
+    if (!dims.empty()) {
+      std::vector<size_t> yaml_dims_c_order;
+      for (int d : dims) yaml_dims_c_order.push_back(static_cast<size_t>(d));
+      p->reshapef(yaml_dims_c_order);
     }
 #endif
 
