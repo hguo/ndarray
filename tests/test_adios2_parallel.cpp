@@ -231,13 +231,18 @@ int main(int argc, char** argv) {
 
   if (rank == 0) {
     std::cout << std::endl << "=== All Parallel ADIOS2 Tests Passed ===" << std::endl;
-
-    // Cleanup: Remove ADIOS2 directories to avoid conflicts when test is run multiple times
-    // (e.g., CI runs with different rank counts: mpirun -np 2, then mpirun -np 4)
-    // BP4 format creates directories, not files
-    std::filesystem::remove_all("test_parallel_write.bp");
-    std::filesystem::remove_all("test_parallel_timeseries.bp");
   }
+
+  // Cleanup: Only rank 0 removes ADIOS2 directories to avoid conflicts when test
+  // is run multiple times (e.g., CI runs with different rank counts: mpirun -np 2, then -np 4)
+  // BP4 format creates directories. Use error_code to avoid throwing if files don't exist.
+  if (rank == 0) {
+    std::error_code ec;
+    std::filesystem::remove_all("test_parallel_write.bp", ec);
+    std::filesystem::remove_all("test_parallel_timeseries.bp", ec);
+  }
+
+  MPI_Barrier(MPI_COMM_WORLD);  // Wait for rank 0 to finish cleanup before finalize
 
   MPI_Finalize();
   return 0;
