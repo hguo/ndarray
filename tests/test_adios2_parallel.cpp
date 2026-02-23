@@ -243,6 +243,9 @@ int main(int argc, char** argv) {
     std::cout << std::endl << "=== All Parallel ADIOS2 Tests Passed ===" << std::endl;
   }
 
+  // Extra barrier to ensure all ADIOS2 cleanup is complete before finalize
+  MPI_Barrier(MPI_COMM_WORLD);
+
   MPI_Finalize();
   return 0;
 }

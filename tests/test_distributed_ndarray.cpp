@@ -408,6 +408,12 @@ int test_parallel_binary_read() {
     std::cout << "\n=== Test 7: Parallel Binary Read ===" << std::endl;
   }
 
+  // Cleanup old test file from previous runs (if any)
+  if (rank == 0) {
+    std::remove("test_distributed.bin");
+  }
+  MPI_Barrier(MPI_COMM_WORLD);
+
   TEST_SECTION("Create test binary file (rank 0)");
   const size_t global_nx = 100;
   const size_t global_ny = 80;
