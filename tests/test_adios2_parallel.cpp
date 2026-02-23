@@ -90,6 +90,7 @@ int main(int argc, char** argv) {
 
     writer.BeginStep();
     writer.Put(var, local_data.data());
+    writer.PerformPuts();  // Ensure deferred writes are completed
     writer.EndStep();
     writer.Close();
 
@@ -185,6 +186,7 @@ int main(int argc, char** argv) {
 
       writer.BeginStep();
       writer.Put(var, data.data());
+      writer.PerformPuts();  // Ensure deferred writes are completed
       writer.EndStep();
     }
 
