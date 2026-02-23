@@ -13,6 +13,7 @@
 #include <ndarray/ndarray.hh>
 #include <iostream>
 #include <cassert>
+#include <filesystem>
 
 #if NDARRAY_HAVE_ADIOS2 && NDARRAY_HAVE_MPI
 #include <adios2.h>
@@ -230,6 +231,12 @@ int main(int argc, char** argv) {
 
   if (rank == 0) {
     std::cout << std::endl << "=== All Parallel ADIOS2 Tests Passed ===" << std::endl;
+
+    // Cleanup: Remove ADIOS2 directories to avoid conflicts when test is run multiple times
+    // (e.g., CI runs with different rank counts: mpirun -np 2, then mpirun -np 4)
+    // BP4 format creates directories, not files
+    std::filesystem::remove_all("test_parallel_write.bp");
+    std::filesystem::remove_all("test_parallel_timeseries.bp");
   }
 
   MPI_Finalize();
