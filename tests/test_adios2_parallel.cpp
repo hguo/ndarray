@@ -106,13 +106,17 @@ int main(int argc, char** argv) {
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
 
-  // Cleanup: Remove old ADIOS2 files BEFORE tests to avoid conflicts when test
-  // is run multiple times with different rank counts (e.g., CI: mpirun -np 2, then -np 4)
+  // Use unique output paths per MPI world size to prevent interference
+  // when multiple test instances run concurrently on CI
+  std::string write_file = "test_parallel_write_np" + std::to_string(nprocs) + ".bp";
+  std::string timeseries_file = "test_parallel_timeseries_np" + std::to_string(nprocs) + ".bp";
+
+  // Cleanup: Remove old ADIOS2 files BEFORE tests to avoid conflicts
   // BP4 format creates directories. Use error_code to avoid throwing if files don't exist.
   if (rank == 0) {
     std::error_code ec;
-    std::filesystem::remove_all("test_parallel_write.bp", ec);
-    std::filesystem::remove_all("test_parallel_timeseries.bp", ec);
+    std::filesystem::remove_all(write_file, ec);
+    std::filesystem::remove_all(timeseries_file, ec);
   }
   MPI_Barrier(MPI_COMM_WORLD);  // Ensure cleanup completes before tests start
 
@@ -148,7 +152,7 @@ int main(int argc, char** argv) {
       adios2::IO io = adios.DeclareIO("ParallelWrite");
       io.SetEngine("BP4");
 
-      adios2::Engine writer = io.Open("test_parallel_write.bp", adios2::Mode::Write);
+      adios2::Engine writer = io.Open(write_file, adios2::Mode::Write);
 
       // Define variable with global dimensions
       size_t offset_x = rank * local_nx;
@@ -193,7 +197,7 @@ int main(int argc, char** argv) {
       adios2::ADIOS adios(MPI_COMM_WORLD);
       adios2::IO io = adios.DeclareIO("ParallelRead");
 
-      adios2::Engine reader = open_with_retry(io, "test_parallel_write.bp", adios2::Mode::ReadRandomAccess, rank);
+      adios2::Engine reader = open_with_retry(io, write_file, adios2::Mode::ReadRandomAccess, rank);
 
       auto var = io.InquireVariable<float>("data");
       TEST_ASSERT(var, "Variable should exist");
@@ -243,7 +247,7 @@ int main(int argc, char** argv) {
       adios2::IO io = adios.DeclareIO("ParallelTimeSeries");
       io.SetEngine("BP4");
 
-      adios2::Engine writer = io.Open("test_parallel_timeseries.bp", adios2::Mode::Write);
+      adios2::Engine writer = io.Open(timeseries_file, adios2::Mode::Write);
 
       size_t offset_x = rank * local_nx;
       auto var = io.DefineVariable<double>("field",
@@ -301,7 +305,7 @@ int main(int argc, char** argv) {
       adios2::IO io = adios.DeclareIO("ParallelReadTimestep");
 
       // Use streaming Mode::Read for better CI compatibility with timesteps
-      adios2::Engine reader = open_with_retry(io, "test_parallel_timeseries.bp", adios2::Mode::Read, rank);
+      adios2::Engine reader = open_with_retry(io, timeseries_file, adios2::Mode::Read, rank);
 
       // Advance to desired timestep
       for (int step = 0; step <= read_step; step++) {
