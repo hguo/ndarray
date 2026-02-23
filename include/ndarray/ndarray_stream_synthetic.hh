@@ -298,20 +298,26 @@ inline void substream_synthetic_moving_extremum<StoragePolicy>::read(int i, std:
     if (ndims == 2) {
       double x0_arr[2] = {x0[0], x0[1]};
       double dir_arr[2] = {dir[0], dir[1]};
-      auto arr = synthetic_moving_extremum<double, 2>(
+      auto arr_native = synthetic_moving_extremum<double, 2>(
           dims_size_t, x0_arr, dir_arr, delta * i);
       if (sign == -1) {
-        for (size_t j = 0; j < arr.nelem(); j++) arr[j] = -arr[j];
+        for (size_t j = 0; j < arr_native.nelem(); j++) arr_native[j] = -arr_native[j];
       }
+      // Convert to target storage policy
+      ndarray<double, StoragePolicy> arr;
+      arr.from_array(arr_native);
       g->set(var.name, arr);
     } else if (ndims == 3) {
       double x0_arr[3] = {x0[0], x0[1], x0[2]};
       double dir_arr[3] = {dir[0], dir[1], dir[2]};
-      auto arr = synthetic_moving_extremum<double, 3>(
+      auto arr_native = synthetic_moving_extremum<double, 3>(
           dims_size_t, x0_arr, dir_arr, delta * i);
       if (sign == -1) {
-        for (size_t j = 0; j < arr.nelem(); j++) arr[j] = -arr[j];
+        for (size_t j = 0; j < arr_native.nelem(); j++) arr_native[j] = -arr_native[j];
       }
+      // Convert to target storage policy
+      ndarray<double, StoragePolicy> arr;
+      arr.from_array(arr_native);
       g->set(var.name, arr);
     } else {
       fatal("moving_extremum only supports 2D and 3D");
@@ -347,11 +353,14 @@ template <typename StoragePolicy>
 inline void substream_synthetic_double_gyre<StoragePolicy>::read(int i, std::shared_ptr<group_type> g)
 {
   for (const auto &var : this->variables) {
-    const auto arr = synthetic_double_gyre<double>(
+    auto arr_native = synthetic_double_gyre<double>(
         this->dimensions[0],
         this->dimensions[1],
         t0 + delta * i,
         false, A, omega, epsilon);
+    // Convert to target storage policy
+    ndarray<double, StoragePolicy> arr;
+    arr.from_array(arr_native);
     g->set(var.name, arr);
   }
 }
@@ -375,10 +384,13 @@ template <typename StoragePolicy>
 inline void substream_synthetic_merger<StoragePolicy>::read(int i, std::shared_ptr<group_type> g)
 {
   for (const auto &var : this->variables) {
-    const auto arr = synthetic_merger_2D<double>(
+    auto arr_native = synthetic_merger_2D<double>(
         this->dimensions[0],
         this->dimensions[1],
         t0 + delta * i);
+    // Convert to target storage policy
+    ndarray<double, StoragePolicy> arr;
+    arr.from_array(arr_native);
     g->set(var.name, arr);
   }
 }
@@ -410,12 +422,18 @@ inline void substream_synthetic_moving_ramp<StoragePolicy>::read(int i, std::sha
     std::vector<size_t> dims_size_t(this->dimensions.begin(), this->dimensions.end());
 
     if (ndims == 2) {
-      auto arr = synthetic_moving_ramp<double, 2>(
+      auto arr_native = synthetic_moving_ramp<double, 2>(
           dims_size_t, x0, rate, delta * i);
+      // Convert to target storage policy
+      ndarray<double, StoragePolicy> arr;
+      arr.from_array(arr_native);
       g->set(var.name, arr);
     } else if (ndims == 3) {
-      auto arr = synthetic_moving_ramp<double, 3>(
+      auto arr_native = synthetic_moving_ramp<double, 3>(
           dims_size_t, x0, rate, delta * i);
+      // Convert to target storage policy
+      ndarray<double, StoragePolicy> arr;
+      arr.from_array(arr_native);
       g->set(var.name, arr);
     } else {
       fatal("moving_ramp only supports 2D and 3D");
@@ -439,11 +457,14 @@ template <typename StoragePolicy>
 inline void substream_synthetic_tornado<StoragePolicy>::read(int i, std::shared_ptr<group_type> g)
 {
   for (const auto &var : this->variables) {
-    const auto arr = synthetic_tornado<double>(
+    auto arr_native = synthetic_tornado<double>(
         this->dimensions[0],
         this->dimensions[1],
         this->dimensions[2],
         time_start + i);
+    // Convert to target storage policy
+    ndarray<double, StoragePolicy> arr;
+    arr.from_array(arr_native);
     g->set(var.name, arr);
   }
 }
