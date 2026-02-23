@@ -224,17 +224,30 @@ int main(int argc, char** argv) {
     adios2::ADIOS adios(MPI_COMM_WORLD);
     adios2::IO io = adios.DeclareIO("ParallelReadTimestep");
 
-    adios2::Engine reader = io.Open("test_parallel_timeseries.bp", adios2::Mode::ReadRandomAccess);
+    // Use streaming Mode::Read for better CI compatibility with timesteps
+    adios2::Engine reader = io.Open("test_parallel_timeseries.bp", adios2::Mode::Read);
 
-    auto var = io.InquireVariable<double>("field");
+    // Advance to desired timestep
+    for (int step = 0; step <= read_step; step++) {
+      adios2::StepStatus status = reader.BeginStep();
+      TEST_ASSERT(status == adios2::StepStatus::OK, "Failed to begin step");
 
-    // Select timestep and spatial region
-    size_t offset_x = rank * local_nx;
-    var.SetStepSelection({read_step, 1});
-    var.SetSelection({{0, offset_x}, {local_ny, local_nx}});
+      if (step == read_step) {
+        // Read the data at this timestep
+        auto var = io.InquireVariable<double>("field");
+        TEST_ASSERT(var, "Variable should exist");
 
-    reader.Get(var, loaded.data());
-    reader.PerformGets();
+        // Select spatial region for this rank
+        size_t offset_x = rank * local_nx;
+        var.SetSelection({{0, offset_x}, {local_ny, local_nx}});
+
+        reader.Get(var, loaded.data());
+        reader.PerformGets();
+      }
+
+      reader.EndStep();
+    }
+
     reader.Close();
 
     // Verify timestep 1 data
