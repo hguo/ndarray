@@ -33,6 +33,24 @@
 #define TEST_SECTION(name) \
   if (rank == 0) std::cout << "  Testing: " << name << std::endl
 
+// Helper to open ADIOS2 file with retries for slow CI filesystems
+template<typename IOType>
+adios2::Engine open_with_retry(IOType& io, const std::string& filename, adios2::Mode mode, int max_retries = 10) {
+  for (int attempt = 0; attempt < max_retries; attempt++) {
+    try {
+      return io.Open(filename, mode);
+    } catch (const std::ios_base::failure& e) {
+      if (attempt == max_retries - 1) {
+        throw;  // Rethrow on final attempt
+      }
+      // Exponential backoff: 50ms, 100ms, 200ms, 400ms, ...
+      int delay_ms = 50 * (1 << attempt);
+      std::this_thread::sleep_for(std::chrono::milliseconds(delay_ms));
+    }
+  }
+  throw std::runtime_error("Failed to open file after retries");
+}
+
 int main(int argc, char** argv) {
   MPI_Init(&argc, &argv);
 
@@ -110,10 +128,6 @@ int main(int argc, char** argv) {
   // Barrier before read to ensure write is fully complete across all ranks
   MPI_Barrier(MPI_COMM_WORLD);
 
-  // Add small delay for slow CI filesystems to sync metadata files
-  std::this_thread::sleep_for(std::chrono::milliseconds(100));
-  MPI_Barrier(MPI_COMM_WORLD);
-
   // Test 2: Parallel read - each rank reads its portion back
   {
     TEST_SECTION("Parallel read with domain decomposition");
@@ -129,7 +143,7 @@ int main(int argc, char** argv) {
     adios2::ADIOS adios(MPI_COMM_WORLD);
     adios2::IO io = adios.DeclareIO("ParallelRead");
 
-    adios2::Engine reader = io.Open("test_parallel_write.bp", adios2::Mode::ReadRandomAccess);
+    adios2::Engine reader = open_with_retry(io, "test_parallel_write.bp", adios2::Mode::ReadRandomAccess);
 
     auto var = io.InquireVariable<float>("data");
     TEST_ASSERT(var, "Variable should exist");
@@ -214,10 +228,6 @@ int main(int argc, char** argv) {
   // Barrier before read to ensure write is fully complete across all ranks
   MPI_Barrier(MPI_COMM_WORLD);
 
-  // Add small delay for slow CI filesystems to sync metadata files
-  std::this_thread::sleep_for(std::chrono::milliseconds(100));
-  MPI_Barrier(MPI_COMM_WORLD);
-
   // Test 4: Parallel read of specific timestep
   {
     TEST_SECTION("Parallel read of specific timestep");
@@ -235,7 +245,7 @@ int main(int argc, char** argv) {
     adios2::IO io = adios.DeclareIO("ParallelReadTimestep");
 
     // Use streaming Mode::Read for better CI compatibility with timesteps
-    adios2::Engine reader = io.Open("test_parallel_timeseries.bp", adios2::Mode::Read);
+    adios2::Engine reader = open_with_retry(io, "test_parallel_timeseries.bp", adios2::Mode::Read);
 
     // Advance to desired timestep
     for (int step = 0; step <= read_step; step++) {
