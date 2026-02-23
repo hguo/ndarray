@@ -536,6 +536,7 @@ inline void ndarray_base::to_binary_file(const std::string& f)
 {
   FILE *fp = fopen(f.c_str(), "wb");
   to_binary_file(fp);
+  fflush(fp);  // Ensure data is written to disk before closing (prevents race conditions)
   fclose(fp);
 }
 

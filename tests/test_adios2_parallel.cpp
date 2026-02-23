@@ -82,12 +82,13 @@ int main(int argc, char** argv) {
     writer.EndStep();
     writer.Close();
 
-    MPI_Barrier(MPI_COMM_WORLD);
     if (rank == 0) {
       std::cout << "    - Each rank wrote " << local_nx << "x" << local_ny
                 << " (global: " << global_nx << "x" << global_ny << ")" << std::endl;
     }
   }
+
+  MPI_Barrier(MPI_COMM_WORLD);  // Ensure all ranks finish write before read
 
   // Test 2: Parallel read - each rank reads its portion back
   {
@@ -131,6 +132,8 @@ int main(int argc, char** argv) {
       std::cout << "    - Each rank read and verified its portion" << std::endl;
     }
   }
+
+  MPI_Barrier(MPI_COMM_WORLD);  // Ensure all ranks finish read before next test
 
   // Test 3: Parallel write with multiple timesteps
   {
@@ -176,6 +179,8 @@ int main(int argc, char** argv) {
       std::cout << "    - Wrote " << nsteps << " timesteps in parallel" << std::endl;
     }
   }
+
+  MPI_Barrier(MPI_COMM_WORLD);  // Ensure all ranks finish write before read
 
   // Test 4: Parallel read of specific timestep
   {
