@@ -93,13 +93,16 @@ int main(int argc, char** argv) {
     writer.EndStep();
     writer.Close();
 
-    if (rank == 0) {
-      std::cout << "    - Each rank wrote " << local_nx << "x" << local_ny
-                << " (global: " << global_nx << "x" << global_ny << ")" << std::endl;
-    }
-  }
+    // Ensure ADIOS2 destructors complete and all I/O is flushed before proceeding
+    MPI_Barrier(MPI_COMM_WORLD);
+  }  // ADIOS and engine destructors called here
 
-  MPI_Barrier(MPI_COMM_WORLD);  // Ensure all ranks finish write before read
+  // Additional barrier to ensure all metadata files are written to disk
+  MPI_Barrier(MPI_COMM_WORLD);
+
+  if (rank == 0) {
+    std::cout << "    - Each rank wrote and flushed data" << std::endl;
+  }
 
   // Test 2: Parallel read - each rank reads its portion back
   {
@@ -186,12 +189,16 @@ int main(int argc, char** argv) {
 
     writer.Close();
 
-    if (rank == 0) {
-      std::cout << "    - Wrote " << nsteps << " timesteps in parallel" << std::endl;
-    }
-  }
+    // Ensure ADIOS2 destructors complete and all I/O is flushed before proceeding
+    MPI_Barrier(MPI_COMM_WORLD);
+  }  // ADIOS and engine destructors called here
 
-  MPI_Barrier(MPI_COMM_WORLD);  // Ensure all ranks finish write before read
+  // Additional barrier to ensure all metadata files are written to disk
+  MPI_Barrier(MPI_COMM_WORLD);
+
+  if (rank == 0) {
+    std::cout << "    - Wrote and flushed " << nsteps << " timesteps" << std::endl;
+  }
 
   // Test 4: Parallel read of specific timestep
   {
