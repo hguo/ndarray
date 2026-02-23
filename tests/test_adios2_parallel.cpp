@@ -74,36 +74,38 @@ int main(int argc, char** argv) {
       }
     }
 
-    // Parallel write
-    adios2::ADIOS adios(MPI_COMM_WORLD);
-    adios2::IO io = adios.DeclareIO("ParallelWrite");
-    io.SetEngine("BP4");
+    // Parallel write - use nested scope to ensure complete cleanup
+    {
+      adios2::ADIOS adios(MPI_COMM_WORLD);
+      adios2::IO io = adios.DeclareIO("ParallelWrite");
+      io.SetEngine("BP4");
 
-    adios2::Engine writer = io.Open("test_parallel_write.bp", adios2::Mode::Write);
+      adios2::Engine writer = io.Open("test_parallel_write.bp", adios2::Mode::Write);
 
-    // Define variable with global dimensions
-    size_t offset_x = rank * local_nx;
-    auto var = io.DefineVariable<float>("data",
-      {global_ny, global_nx},           // Global dimensions (C-order)
-      {0, offset_x},                     // Offset for this rank
-      {local_ny, local_nx});             // Local dimensions
+      // Define variable with global dimensions
+      size_t offset_x = rank * local_nx;
+      auto var = io.DefineVariable<float>("data",
+        {global_ny, global_nx},           // Global dimensions (C-order)
+        {0, offset_x},                     // Offset for this rank
+        {local_ny, local_nx});             // Local dimensions
 
-    writer.BeginStep();
-    writer.Put(var, local_data.data());
-    writer.PerformPuts();  // Ensure deferred writes are completed
-    writer.EndStep();
-    writer.Close();
+      writer.BeginStep();
+      writer.Put(var, local_data.data());
+      writer.PerformPuts();  // Ensure deferred writes are completed
+      writer.EndStep();
+      writer.Close();
+    }  // ADIOS, IO, and engine objects destroyed here
+
+    // Barrier after ADIOS2 cleanup
+    MPI_Barrier(MPI_COMM_WORLD);
 
     if (rank == 0) {
       std::cout << "    - Each rank wrote " << local_nx << "x" << local_ny
                 << " (global: " << global_nx << "x" << global_ny << ")" << std::endl;
     }
+  }
 
-    // Ensure ADIOS2 destructors complete and all I/O is flushed before proceeding
-    MPI_Barrier(MPI_COMM_WORLD);
-  }  // ADIOS and engine destructors called here
-
-  // Additional barrier to ensure all metadata files are written to disk
+  // Barrier before read to ensure write is fully complete across all ranks
   MPI_Barrier(MPI_COMM_WORLD);
 
   // Test 2: Parallel read - each rank reads its portion back
@@ -161,46 +163,49 @@ int main(int argc, char** argv) {
     const size_t local_ny = global_ny;
     const int nsteps = 3;
 
-    adios2::ADIOS adios(MPI_COMM_WORLD);
-    adios2::IO io = adios.DeclareIO("ParallelTimeSeries");
-    io.SetEngine("BP4");
+    // Parallel write - use nested scope to ensure complete cleanup
+    {
+      adios2::ADIOS adios(MPI_COMM_WORLD);
+      adios2::IO io = adios.DeclareIO("ParallelTimeSeries");
+      io.SetEngine("BP4");
 
-    adios2::Engine writer = io.Open("test_parallel_timeseries.bp", adios2::Mode::Write);
+      adios2::Engine writer = io.Open("test_parallel_timeseries.bp", adios2::Mode::Write);
 
-    size_t offset_x = rank * local_nx;
-    auto var = io.DefineVariable<double>("field",
-      {global_ny, global_nx},
-      {0, offset_x},
-      {local_ny, local_nx});
+      size_t offset_x = rank * local_nx;
+      auto var = io.DefineVariable<double>("field",
+        {global_ny, global_nx},
+        {0, offset_x},
+        {local_ny, local_nx});
 
-    for (int step = 0; step < nsteps; step++) {
-      ftk::ndarray<double> data;
-      data.reshapef(local_nx, local_ny);
+      for (int step = 0; step < nsteps; step++) {
+        ftk::ndarray<double> data;
+        data.reshapef(local_nx, local_ny);
 
-      for (size_t j = 0; j < local_ny; j++) {
-        for (size_t i = 0; i < local_nx; i++) {
-          size_t global_i = rank * local_nx + i;
-          data.f(i, j) = step * 1000.0 + global_i * 10.0 + j;
+        for (size_t j = 0; j < local_ny; j++) {
+          for (size_t i = 0; i < local_nx; i++) {
+            size_t global_i = rank * local_nx + i;
+            data.f(i, j) = step * 1000.0 + global_i * 10.0 + j;
+          }
         }
+
+        writer.BeginStep();
+        writer.Put(var, data.data());
+        writer.PerformPuts();  // Ensure deferred writes are completed
+        writer.EndStep();
       }
 
-      writer.BeginStep();
-      writer.Put(var, data.data());
-      writer.PerformPuts();  // Ensure deferred writes are completed
-      writer.EndStep();
-    }
+      writer.Close();
+    }  // ADIOS, IO, and engine objects destroyed here
 
-    writer.Close();
+    // Barrier after ADIOS2 cleanup
+    MPI_Barrier(MPI_COMM_WORLD);
 
     if (rank == 0) {
       std::cout << "    - Wrote " << nsteps << " timesteps in parallel" << std::endl;
     }
+  }
 
-    // Ensure ADIOS2 destructors complete and all I/O is flushed before proceeding
-    MPI_Barrier(MPI_COMM_WORLD);
-  }  // ADIOS and engine destructors called here
-
-  // Additional barrier to ensure all metadata files are written to disk
+  // Barrier before read to ensure write is fully complete across all ranks
   MPI_Barrier(MPI_COMM_WORLD);
 
   // Test 4: Parallel read of specific timestep
