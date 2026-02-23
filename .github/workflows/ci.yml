@@ -447,9 +447,7 @@ jobs:
           libmpich-dev \
           libyaml-cpp-dev \
           libhdf5-dev \
-          libblosc-dev \
-          libpython3-dev \
-          python3-numpy
+          libblosc-dev
 
     - name: Cache ADIOS2
       id: cache-adios2
