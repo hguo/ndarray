@@ -10,6 +10,7 @@ __pycache__
 .vscode
 CRITICAL_ANALYSIS.md
 .ci/
+.cache/
 
 # CMake build artifacts
 CMakeFiles/
