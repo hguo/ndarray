@@ -14,6 +14,8 @@
 #include <iostream>
 #include <cassert>
 #include <filesystem>
+#include <chrono>
+#include <thread>
 
 #if NDARRAY_HAVE_ADIOS2 && NDARRAY_HAVE_MPI
 #include <adios2.h>
@@ -106,6 +108,10 @@ int main(int argc, char** argv) {
   }
 
   // Barrier before read to ensure write is fully complete across all ranks
+  MPI_Barrier(MPI_COMM_WORLD);
+
+  // Add small delay for slow CI filesystems to sync metadata files
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
   MPI_Barrier(MPI_COMM_WORLD);
 
   // Test 2: Parallel read - each rank reads its portion back
@@ -206,6 +212,10 @@ int main(int argc, char** argv) {
   }
 
   // Barrier before read to ensure write is fully complete across all ranks
+  MPI_Barrier(MPI_COMM_WORLD);
+
+  // Add small delay for slow CI filesystems to sync metadata files
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
   MPI_Barrier(MPI_COMM_WORLD);
 
   // Test 4: Parallel read of specific timestep
