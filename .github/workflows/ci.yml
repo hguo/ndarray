@@ -207,6 +207,8 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
+        # Explicitly remove OpenMPI to avoid mpirun conflicts with MPICH
+        sudo apt-get remove -y openmpi-bin libopenmpi-dev || true
         sudo apt-get install -y \
           cmake \
           libyaml-cpp-dev \
@@ -249,10 +251,21 @@ jobs:
       working-directory: build
       run: |
         echo "Running MPI tests with MPICH..."
+
+        # Prefer MPICH-specific mpirun to avoid OpenMPI conflicts
+        if [ -x /usr/bin/mpirun.mpich ]; then
+          MPIRUN=/usr/bin/mpirun.mpich
+        elif [ -x /usr/bin/mpiexec.mpich ]; then
+          MPIRUN=/usr/bin/mpiexec.mpich
+        else
+          MPIRUN=mpirun
+        fi
+        echo "Using: $MPIRUN"
+
         # Run distributed tests with different rank counts
         for np in 2 4; do
           echo "Testing with $np ranks..."
-          mpirun -np $np bin/test_distributed_ndarray || {
+          $MPIRUN -np $np bin/test_distributed_ndarray || {
             echo "MPI test with $np ranks failed"
             exit 1
           }
@@ -441,6 +454,8 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
+        # Explicitly remove OpenMPI to avoid mpirun conflicts with MPICH
+        sudo apt-get remove -y openmpi-bin libopenmpi-dev || true
         sudo apt-get install -y \
           cmake \
           mpich \
@@ -511,13 +526,29 @@ jobs:
 
         # Diagnose MPI environment
         echo "=== MPI Environment Diagnostics ==="
-        which mpirun
-        mpirun --version || true
-        echo "MPI compiler: $(which mpicc || echo 'mpicc not found')"
+        which mpirun || echo "mpirun not found"
+        which mpirun.mpich || echo "mpirun.mpich not found"
+        which mpiexec.mpich || echo "mpiexec.mpich not found"
+
+        # Check for OpenMPI (should not be present)
+        if which mpirun.openmpi 2>/dev/null; then
+          echo "WARNING: OpenMPI found - this may cause conflicts with MPICH"
+        fi
+
+        # Prefer MPICH-specific mpirun
+        if [ -x /usr/bin/mpirun.mpich ]; then
+          MPIRUN=/usr/bin/mpirun.mpich
+        elif [ -x /usr/bin/mpiexec.mpich ]; then
+          MPIRUN=/usr/bin/mpiexec.mpich
+        else
+          MPIRUN=mpirun
+        fi
+        echo "Using: $MPIRUN"
+        $MPIRUN --version || true
 
         # Test basic MPI functionality
         echo "=== Testing basic MPI spawn ==="
-        cat > /tmp/mpi_test.c << 'EOF'
+        mpicc.mpich -o /tmp/mpi_test - << 'EOF'
 #include <mpi.h>
 #include <stdio.h>
 int main(int argc, char** argv) {
@@ -525,20 +556,19 @@ int main(int argc, char** argv) {
     int rank, size;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
-    printf("Rank %d of %d on host %s\n", rank, size, getenv("HOSTNAME") ?: "unknown");
+    printf("Rank %d of %d\n", rank, size);
     MPI_Finalize();
     return 0;
 }
 EOF
-        mpicc -o /tmp/mpi_test /tmp/mpi_test.c
-        echo "Testing: mpirun -np 2 /tmp/mpi_test"
-        mpirun -np 2 /tmp/mpi_test
+        echo "Testing: $MPIRUN -np 2 /tmp/mpi_test"
+        $MPIRUN -np 2 /tmp/mpi_test
 
         echo "=== Running ADIOS2 parallel tests ==="
         if [ -f bin/test_adios2_parallel ]; then
           for np in 2 4; do
             echo "Testing test_adios2_parallel with $np MPI ranks..."
-            mpirun -np $np bin/test_adios2_parallel || {
+            $MPIRUN -np $np bin/test_adios2_parallel || {
               echo "Parallel ADIOS2 test with $np ranks failed"
               exit 1
             }
