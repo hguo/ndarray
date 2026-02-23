@@ -35,16 +35,38 @@
 
 // Helper to open ADIOS2 file with retries for slow CI filesystems
 template<typename IOType>
-adios2::Engine open_with_retry(IOType& io, const std::string& filename, adios2::Mode mode, int max_retries = 10) {
+adios2::Engine open_with_retry(IOType& io, const std::string& filename, adios2::Mode mode, int rank, int max_retries = 10) {
   for (int attempt = 0; attempt < max_retries; attempt++) {
     try {
       return io.Open(filename, mode);
-    } catch (const std::ios_base::failure& e) {
+    } catch (const std::exception& e) {
       if (attempt == max_retries - 1) {
+        if (rank == 0) {
+          std::cerr << "Failed to open " << filename << " after " << max_retries
+                    << " attempts. Last error: " << e.what() << std::endl;
+        }
         throw;  // Rethrow on final attempt
       }
       // Exponential backoff: 50ms, 100ms, 200ms, 400ms, ...
       int delay_ms = 50 * (1 << attempt);
+      if (rank == 0) {
+        std::cerr << "Attempt " << (attempt + 1) << " to open " << filename
+                  << " failed, retrying in " << delay_ms << "ms..." << std::endl;
+      }
+      std::this_thread::sleep_for(std::chrono::milliseconds(delay_ms));
+    } catch (...) {
+      if (attempt == max_retries - 1) {
+        if (rank == 0) {
+          std::cerr << "Failed to open " << filename << " after " << max_retries
+                    << " attempts with unknown exception" << std::endl;
+        }
+        throw;  // Rethrow on final attempt
+      }
+      int delay_ms = 50 * (1 << attempt);
+      if (rank == 0) {
+        std::cerr << "Attempt " << (attempt + 1) << " to open " << filename
+                  << " failed (unknown exception), retrying in " << delay_ms << "ms..." << std::endl;
+      }
       std::this_thread::sleep_for(std::chrono::milliseconds(delay_ms));
     }
   }
@@ -140,21 +162,27 @@ int main(int argc, char** argv) {
     ftk::ndarray<float> loaded;
     loaded.reshapef(local_nx, local_ny);
 
-    adios2::ADIOS adios(MPI_COMM_WORLD);
-    adios2::IO io = adios.DeclareIO("ParallelRead");
+    // Parallel read - use nested scope to ensure complete cleanup
+    {
+      adios2::ADIOS adios(MPI_COMM_WORLD);
+      adios2::IO io = adios.DeclareIO("ParallelRead");
 
-    adios2::Engine reader = open_with_retry(io, "test_parallel_write.bp", adios2::Mode::ReadRandomAccess);
+      adios2::Engine reader = open_with_retry(io, "test_parallel_write.bp", adios2::Mode::ReadRandomAccess, rank);
 
-    auto var = io.InquireVariable<float>("data");
-    TEST_ASSERT(var, "Variable should exist");
+      auto var = io.InquireVariable<float>("data");
+      TEST_ASSERT(var, "Variable should exist");
 
-    // Each rank reads its portion
-    size_t offset_x = rank * local_nx;
-    var.SetSelection({{0, offset_x}, {local_ny, local_nx}});
+      // Each rank reads its portion
+      size_t offset_x = rank * local_nx;
+      var.SetSelection({{0, offset_x}, {local_ny, local_nx}});
 
-    reader.Get(var, loaded.data());
-    reader.PerformGets();
-    reader.Close();
+      reader.Get(var, loaded.data());
+      reader.PerformGets();
+      reader.Close();
+    }  // ADIOS, IO, and engine objects destroyed here
+
+    // Barrier after ADIOS2 cleanup
+    MPI_Barrier(MPI_COMM_WORLD);
 
     // Verify data
     for (size_t j = 0; j < local_ny; j++) {
@@ -241,34 +269,40 @@ int main(int argc, char** argv) {
     ftk::ndarray<double> loaded;
     loaded.reshapef(local_nx, local_ny);
 
-    adios2::ADIOS adios(MPI_COMM_WORLD);
-    adios2::IO io = adios.DeclareIO("ParallelReadTimestep");
+    // Parallel read - use nested scope to ensure complete cleanup
+    {
+      adios2::ADIOS adios(MPI_COMM_WORLD);
+      adios2::IO io = adios.DeclareIO("ParallelReadTimestep");
 
-    // Use streaming Mode::Read for better CI compatibility with timesteps
-    adios2::Engine reader = open_with_retry(io, "test_parallel_timeseries.bp", adios2::Mode::Read);
+      // Use streaming Mode::Read for better CI compatibility with timesteps
+      adios2::Engine reader = open_with_retry(io, "test_parallel_timeseries.bp", adios2::Mode::Read, rank);
 
-    // Advance to desired timestep
-    for (int step = 0; step <= read_step; step++) {
-      adios2::StepStatus status = reader.BeginStep();
-      TEST_ASSERT(status == adios2::StepStatus::OK, "Failed to begin step");
+      // Advance to desired timestep
+      for (int step = 0; step <= read_step; step++) {
+        adios2::StepStatus status = reader.BeginStep();
+        TEST_ASSERT(status == adios2::StepStatus::OK, "Failed to begin step");
 
-      if (step == read_step) {
-        // Read the data at this timestep
-        auto var = io.InquireVariable<double>("field");
-        TEST_ASSERT(var, "Variable should exist");
+        if (step == read_step) {
+          // Read the data at this timestep
+          auto var = io.InquireVariable<double>("field");
+          TEST_ASSERT(var, "Variable should exist");
 
-        // Select spatial region for this rank
-        size_t offset_x = rank * local_nx;
-        var.SetSelection({{0, offset_x}, {local_ny, local_nx}});
+          // Select spatial region for this rank
+          size_t offset_x = rank * local_nx;
+          var.SetSelection({{0, offset_x}, {local_ny, local_nx}});
 
-        reader.Get(var, loaded.data());
-        reader.PerformGets();
+          reader.Get(var, loaded.data());
+          reader.PerformGets();
+        }
+
+        reader.EndStep();
       }
 
-      reader.EndStep();
-    }
+      reader.Close();
+    }  // ADIOS, IO, and engine objects destroyed here
 
-    reader.Close();
+    // Barrier after ADIOS2 cleanup
+    MPI_Barrier(MPI_COMM_WORLD);
 
     // Verify timestep 1 data
     for (size_t j = 0; j < local_ny; j++) {
