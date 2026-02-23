@@ -53,7 +53,13 @@ namespace ftk {
  * the "format" field in the YAML configuration.
  *
  * Supported formats:
- * - "synthetic" - Synthetic data generation (name: "woven")
+ * - "synthetic" - Synthetic data generation
+ *   - name: "woven" - 2D woven pattern
+ *   - name: "moving_extremum" / "moving_maximum" / "moving_minimum" - Moving critical point
+ *   - name: "double_gyre" - 2D double gyre flow
+ *   - name: "merger" - 2D merging blobs
+ *   - name: "moving_ramp" - Moving linear ramp
+ *   - name: "tornado" - 3D tornado flow
  * - "binary" - Raw binary files
  * - "netcdf" - NetCDF files (requires NDARRAY_HAVE_NETCDF)
  * - "h5" - HDF5 files (requires NDARRAY_HAVE_HDF5)
@@ -76,6 +82,16 @@ inline void stream<StoragePolicy>::new_substream_from_yaml(YAML::Node y)
     if (format == "synthetic") {
       if (name == "woven")
         sub.reset(new substream_synthetic_woven<StoragePolicy>(*this));
+      else if (name == "moving_extremum" || name == "moving_maximum" || name == "moving_minimum")
+        sub.reset(new substream_synthetic_moving_extremum<StoragePolicy>(*this));
+      else if (name == "double_gyre")
+        sub.reset(new substream_synthetic_double_gyre<StoragePolicy>(*this));
+      else if (name == "merger")
+        sub.reset(new substream_synthetic_merger<StoragePolicy>(*this));
+      else if (name == "moving_ramp")
+        sub.reset(new substream_synthetic_moving_ramp<StoragePolicy>(*this));
+      else if (name == "tornado")
+        sub.reset(new substream_synthetic_tornado<StoragePolicy>(*this));
       else
         fatal(ERR_STREAM_FORMAT);
     }
