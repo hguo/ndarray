@@ -4233,9 +4233,16 @@ void ndarray<T, StoragePolicy>::read_binary_auto(const std::string& filename)
     }
 
     MPI_File fh;
-    int err = MPI_File_open(dist_->comm, filename.c_str(), MPI_MODE_RDONLY, MPI_INFO_NULL, &fh);
+    // MPI_File_open may modify the filename in some implementations, so use a mutable copy
+    std::vector<char> filename_buf(filename.begin(), filename.end());
+    filename_buf.push_back('\0');
+    int err = MPI_File_open(dist_->comm, filename_buf.data(), MPI_MODE_RDONLY, MPI_INFO_NULL, &fh);
     if (err != MPI_SUCCESS) {
-      throw std::runtime_error("Failed to open file for parallel read: " + filename);
+      char err_string[MPI_MAX_ERROR_STRING];
+      int err_len;
+      MPI_Error_string(err, err_string, &err_len);
+      throw std::runtime_error("Failed to open file for parallel read: " + filename +
+                               " (MPI error: " + std::string(err_string) + ")");
     }
 
     // For simplicity, read column-by-column for 2D
@@ -4333,8 +4340,18 @@ void ndarray<T, StoragePolicy>::write_binary_auto(const std::string& filename)
     const size_t nd = this->nd();
 
     MPI_File fh;
-    MPI_File_open(dist_->comm, filename.c_str(),
+    // MPI_File_open may modify the filename in some implementations, so use a mutable copy
+    std::vector<char> filename_buf(filename.begin(), filename.end());
+    filename_buf.push_back('\0');
+    int err = MPI_File_open(dist_->comm, filename_buf.data(),
                   MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &fh);
+    if (err != MPI_SUCCESS) {
+      char err_string[MPI_MAX_ERROR_STRING];
+      int err_len;
+      MPI_Error_string(err, err_string, &err_len);
+      throw std::runtime_error("Failed to open file for parallel write: " + filename +
+                               " (MPI error: " + std::string(err_string) + ")");
+    }
 
     // Calculate offset for column-major order
     MPI_Offset offset = 0;
