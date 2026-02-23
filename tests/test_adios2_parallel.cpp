@@ -36,36 +36,62 @@
 // Helper to open ADIOS2 file with retries for slow CI filesystems
 template<typename IOType>
 adios2::Engine open_with_retry(IOType& io, const std::string& filename, adios2::Mode mode, int rank, int max_retries = 10) {
+  if (rank == 0) {
+    std::cout << "    [DEBUG] Attempting to open " << filename << " with retry mechanism" << std::endl;
+    std::cout.flush();
+  }
+
   for (int attempt = 0; attempt < max_retries; attempt++) {
     try {
-      return io.Open(filename, mode);
+      if (rank == 0 && attempt > 0) {
+        std::cout << "    [DEBUG] Retry attempt " << attempt << " for " << filename << std::endl;
+        std::cout.flush();
+      }
+      auto engine = io.Open(filename, mode);
+      if (rank == 0 && attempt > 0) {
+        std::cout << "    [DEBUG] Successfully opened " << filename << " on attempt " << attempt << std::endl;
+        std::cout.flush();
+      }
+      return engine;
     } catch (const std::exception& e) {
+      if (rank == 0) {
+        std::cerr << "    [ERROR] Attempt " << (attempt + 1) << " to open " << filename
+                  << " failed: " << e.what() << std::endl;
+        std::cerr.flush();
+      }
       if (attempt == max_retries - 1) {
         if (rank == 0) {
-          std::cerr << "Failed to open " << filename << " after " << max_retries
-                    << " attempts. Last error: " << e.what() << std::endl;
+          std::cerr << "    [FATAL] Failed to open " << filename << " after " << max_retries
+                    << " attempts" << std::endl;
+          std::cerr.flush();
         }
         throw;  // Rethrow on final attempt
       }
       // Exponential backoff: 50ms, 100ms, 200ms, 400ms, ...
       int delay_ms = 50 * (1 << attempt);
       if (rank == 0) {
-        std::cerr << "Attempt " << (attempt + 1) << " to open " << filename
-                  << " failed, retrying in " << delay_ms << "ms..." << std::endl;
+        std::cerr << "    [RETRY] Waiting " << delay_ms << "ms before retry..." << std::endl;
+        std::cerr.flush();
       }
       std::this_thread::sleep_for(std::chrono::milliseconds(delay_ms));
     } catch (...) {
+      if (rank == 0) {
+        std::cerr << "    [ERROR] Attempt " << (attempt + 1) << " to open " << filename
+                  << " failed with unknown exception" << std::endl;
+        std::cerr.flush();
+      }
       if (attempt == max_retries - 1) {
         if (rank == 0) {
-          std::cerr << "Failed to open " << filename << " after " << max_retries
-                    << " attempts with unknown exception" << std::endl;
+          std::cerr << "    [FATAL] Failed to open " << filename << " after " << max_retries
+                    << " attempts (unknown exception)" << std::endl;
+          std::cerr.flush();
         }
         throw;  // Rethrow on final attempt
       }
       int delay_ms = 50 * (1 << attempt);
       if (rank == 0) {
-        std::cerr << "Attempt " << (attempt + 1) << " to open " << filename
-                  << " failed (unknown exception), retrying in " << delay_ms << "ms..." << std::endl;
+        std::cerr << "    [RETRY] Waiting " << delay_ms << "ms before retry (unknown exception)..." << std::endl;
+        std::cerr.flush();
       }
       std::this_thread::sleep_for(std::chrono::milliseconds(delay_ms));
     }
