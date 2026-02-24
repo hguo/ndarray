@@ -469,7 +469,7 @@ jobs:
       uses: actions/cache@v3
       with:
         path: ~/adios2
-        key: adios2-2.10.1-mpich-${{ runner.os }}
+        key: adios2-2.10.1-mpich-compilers-${{ runner.os }}
 
     - name: Build and install ADIOS2
       if: steps.cache-adios2.outputs.cache-hit != 'true'
@@ -480,10 +480,13 @@ jobs:
         cd ADIOS2-2.10.1
 
         # Configure and build (install to ~/adios2 for caching)
+        # Explicitly specify MPICH compilers to avoid MPI library mismatch
         mkdir build && cd build
         cmake .. \
           -DCMAKE_INSTALL_PREFIX=$HOME/adios2 \
           -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_C_COMPILER=mpicc.mpich \
+          -DCMAKE_CXX_COMPILER=mpicxx.mpich \
           -DBUILD_SHARED_LIBS=ON \
           -DADIOS2_USE_MPI=ON \
           -DADIOS2_USE_HDF5=ON \
@@ -505,6 +508,8 @@ jobs:
       run: |
         cmake -B build \
           -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_C_COMPILER=mpicc.mpich \
+          -DCMAKE_CXX_COMPILER=mpicxx.mpich \
           -DCMAKE_PREFIX_PATH=$HOME/adios2 \
           -DNDARRAY_BUILD_TESTS=ON \
           -DNDARRAY_BUILD_EXAMPLES=OFF \
