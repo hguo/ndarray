@@ -299,10 +299,10 @@ inline void substream_synthetic_woven<StoragePolicy>::read(int i, std::shared_pt
       }
     }
 
-    // Store in group
-    if (p_float) g->set(var.name, *p_float);
-    else if (p_int) g->set(var.name, *p_int);
-    else g->set(var.name, *p_double);
+    // Store in group (use shared_ptr directly to preserve distribution metadata)
+    if (p_float) g->set(var.name, p_float);
+    else if (p_int) g->set(var.name, p_int);
+    else g->set(var.name, p_double);
 
 #else
     // Non-MPI mode: generate full data
@@ -454,7 +454,7 @@ inline void substream_synthetic_moving_extremum<StoragePolicy>::read(int i, std:
       }
     }
 
-    g->set(var.name, arr);
+    g->set(var.name, std::move(arr));  // Use move to preserve distribution metadata
 
 #else
     // Non-MPI mode: generate full data
