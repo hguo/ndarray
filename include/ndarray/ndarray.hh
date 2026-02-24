@@ -3851,9 +3851,21 @@ void ndarray<T, StoragePolicy>::read_pnetcdf_auto(
       PNC_SAFE_CALL(ncmpi_close(ncid));
     }
 
+    // Broadcast dims from rank 0 (read_pnetcdf_all may have changed ordering)
+    size_t ndims = this->dims.size();
+    MPI_Bcast(&ndims, 1, MPI_UNSIGNED_LONG, 0, dist_->comm);
+    if (dist_->rank != 0) this->dims.resize(ndims);
+    MPI_Bcast(this->dims.data(), static_cast<int>(ndims), MPI_UNSIGNED_LONG, 0, dist_->comm);
+
+    // Broadcast strides to ensure same memory layout
+    MPI_Bcast(this->s.data(), static_cast<int>(ndims), MPI_UNSIGNED_LONG, 0, dist_->comm);
+
+    // Reshape non-zero ranks to match rank 0's layout
     size_t total_size = this->size();
     MPI_Bcast(&total_size, 1, MPI_UNSIGNED_LONG, 0, dist_->comm);
-    if (dist_->rank != 0) this->reshapef(this->dims);
+    if (dist_->rank != 0) this->storage_.resize(total_size);
+
+    // Broadcast data
     MPI_Bcast(this->data(), static_cast<int>(total_size), mpi_datatype(), 0, dist_->comm);
 
     // Propagate flags
