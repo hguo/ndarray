@@ -6,14 +6,17 @@
 #
 # Run with: mpirun -np 4 <your_program>
 
-substreams:
+stream:
+  name: distributed_synthetic
+  substreams:
   # Example 1: Distributed woven pattern
-  - format: synthetic_woven
+  - format: synthetic
+    name: woven
     dimensions: [1024, 2048]  # Global dimensions
     timesteps: 10
     scaling_factor: 15.0
     delta: 0.1
-    variables:
+    vars:
       - name: velocity
         dtype: double
         distribution: distributed  # Domain-decomposed across ranks
@@ -22,13 +25,14 @@ substreams:
           ghost: [1, 1]    # Ghost layers for each dimension
 
   # Example 2: Moving extremum with custom decomposition
-  - format: synthetic_moving_extremum
+  - format: synthetic
+    name: moving_extremum
     dimensions: [512, 512]
     timesteps: 5
     x0: [0.5, 0.5]      # Starting position (normalized coordinates)
     dir: [0.1, 0.1]     # Movement direction
     sign: -1            # -1 for maximum, 1 for minimum
-    variables:
+    vars:
       - name: scalar_field
         dtype: float
         distribution: distributed
@@ -37,10 +41,11 @@ substreams:
           ghost: [2, 2]    # 2 ghost layers
 
   # Example 3: Replicated data (full data on all ranks)
-  - format: synthetic_woven
+  - format: synthetic
+    name: woven
     dimensions: [64, 64]  # Small data, replicate on all ranks
     timesteps: 10
-    variables:
+    vars:
       - name: metadata
         dtype: double
         distribution: replicated  # Full copy on each rank

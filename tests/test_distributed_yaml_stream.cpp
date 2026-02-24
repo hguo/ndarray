@@ -50,14 +50,17 @@ int main(int argc, char** argv) {
     if (rank == 0) {
       std::ofstream yaml_file("test_distributed_woven.yaml");
       yaml_file << R"(
-substreams:
-  - format: synthetic_woven
-    dimensions: [128, 256]
-    timesteps: 5
-    variables:
-      - name: temperature
-        dtype: double
-        distribution: distributed
+stream:
+  name: test_distributed
+  substreams:
+    - format: synthetic
+      name: woven
+      dimensions: [128, 256]
+      timesteps: 5
+      vars:
+        - name: temperature
+          dtype: double
+          distribution: distributed
 )";
       yaml_file.close();
     }
@@ -100,20 +103,23 @@ substreams:
     if (rank == 0) {
       std::ofstream yaml_file("test_distributed_extremum.yaml");
       yaml_file << R"(
-substreams:
-  - format: synthetic_moving_extremum
-    dimensions: [100, 200]
-    timesteps: 3
-    x0: [0.3, 0.3]
-    dir: [0.1, 0.1]
-    sign: -1
-    variables:
-      - name: scalar_field
-        dtype: double
-        distribution: distributed
-        decomposition:
-          pattern: [0, 0]  # Auto decompose both dimensions
-          ghost: [2, 2]    # 2 ghost layers per dimension
+stream:
+  name: test_extremum
+  substreams:
+    - format: synthetic
+      name: moving_extremum
+      dimensions: [100, 200]
+      timesteps: 3
+      x0: [0.3, 0.3]
+      dir: [0.1, 0.1]
+      sign: -1
+      vars:
+        - name: scalar_field
+          dtype: double
+          distribution: distributed
+          decomposition:
+            pattern: [0, 0]  # Auto decompose both dimensions
+            ghost: [2, 2]    # 2 ghost layers per dimension
 )";
       yaml_file.close();
     }
@@ -149,14 +155,17 @@ substreams:
     if (rank == 0) {
       std::ofstream yaml_file("test_replicated.yaml");
       yaml_file << R"(
-substreams:
-  - format: synthetic_woven
-    dimensions: [50, 50]
-    timesteps: 2
-    variables:
-      - name: shared_data
-        dtype: float
-        distribution: replicated
+stream:
+  name: test_replicated
+  substreams:
+    - format: synthetic
+      name: woven
+      dimensions: [50, 50]
+      timesteps: 2
+      vars:
+        - name: shared_data
+          dtype: float
+          distribution: replicated
 )";
       yaml_file.close();
     }
