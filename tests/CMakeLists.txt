@@ -208,6 +208,13 @@ if (NDARRAY_HAVE_MPI)
   target_link_libraries(test_arbitrary_ghosts ndarray)
   message("  - test_arbitrary_ghosts: Ghost exchange with non-uniform widths (run with: mpirun -np 4 ./bin/test_arbitrary_ghosts)")
 
+  # Distributed YAML streams (require MPI and YAML)
+  if (NDARRAY_HAVE_YAML)
+    add_executable(test_distributed_yaml_stream test_distributed_yaml_stream.cpp)
+    target_link_libraries(test_distributed_yaml_stream ndarray)
+    message("  - test_distributed_yaml_stream: Distributed synthetic streams with domain decomposition (run with: mpirun -np 4 ./bin/test_distributed_yaml_stream)")
+  endif()
+
   if (NDARRAY_HAVE_PNETCDF)
     add_executable(test_pnetcdf_auto test_pnetcdf_auto.cpp)
     target_link_libraries(test_pnetcdf_auto ndarray)

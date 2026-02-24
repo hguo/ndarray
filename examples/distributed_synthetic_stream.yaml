@@ -1,0 +1,61 @@
+# Example: Distributed Synthetic Data Stream
+#
+# This configuration generates synthetic data with MPI domain decomposition.
+# Each MPI rank generates only its local portion of the data, making it
+# efficient for large-scale simulations.
+#
+# Run with: mpirun -np 4 <your_program>
+
+substreams:
+  # Example 1: Distributed woven pattern
+  - format: synthetic_woven
+    dimensions: [1024, 2048]  # Global dimensions
+    timesteps: 10
+    scaling_factor: 15.0
+    delta: 0.1
+    variables:
+      - name: velocity
+        dtype: double
+        distribution: distributed  # Domain-decomposed across ranks
+        decomposition:
+          pattern: [0, 0]  # Auto-split both dimensions (or specify like [2, 2])
+          ghost: [1, 1]    # Ghost layers for each dimension
+
+  # Example 2: Moving extremum with custom decomposition
+  - format: synthetic_moving_extremum
+    dimensions: [512, 512]
+    timesteps: 5
+    x0: [0.5, 0.5]      # Starting position (normalized coordinates)
+    dir: [0.1, 0.1]     # Movement direction
+    sign: -1            # -1 for maximum, 1 for minimum
+    variables:
+      - name: scalar_field
+        dtype: float
+        distribution: distributed
+        decomposition:
+          pattern: [2, 2]  # 2x2 decomposition grid
+          ghost: [2, 2]    # 2 ghost layers
+
+  # Example 3: Replicated data (full data on all ranks)
+  - format: synthetic_woven
+    dimensions: [64, 64]  # Small data, replicate on all ranks
+    timesteps: 10
+    variables:
+      - name: metadata
+        dtype: double
+        distribution: replicated  # Full copy on each rank
+
+# Distribution types:
+# - distributed: Domain-decomposed, each rank has a portion
+# - replicated:  Full data on all ranks
+# - auto:        Automatically choose based on size
+
+# Decomposition pattern:
+# - [0, 0]:  Auto-decompose all dimensions
+# - [2, 3]:  2-way split in dim 0, 3-way split in dim 1
+# - [0, 1]:  Auto-split dim 0, no split in dim 1
+
+# Ghost layers:
+# - [1, 1]:  1 layer on each side of each dimension
+# - [2, 2]:  2 layers on each side
+# - Useful for stencil operations and neighbor communication
