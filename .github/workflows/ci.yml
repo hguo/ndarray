@@ -540,18 +540,12 @@ jobs:
           echo "WARNING: OpenMPI found - this may cause conflicts with MPICH"
         fi
 
-        # Prefer MPICH-specific mpirun
-        if [ -x /usr/bin/mpirun.mpich ]; then
-          MPIRUN=/usr/bin/mpirun.mpich
-        elif [ -x /usr/bin/mpiexec.mpich ]; then
-          MPIRUN=/usr/bin/mpiexec.mpich
-        else
-          MPIRUN=mpirun
-        fi
+        # Use mpiexec.mpich (more reliable than mpirun.mpich on CI)
+        MPIRUN="mpiexec.mpich"
         echo "Using: $MPIRUN"
         $MPIRUN --version || true
 
-        # Test basic MPI functionality
+        # Test basic MPI functionality with different launchers
         echo "=== Testing basic MPI spawn ==="
         cat > /tmp/mpi_test.c << 'EOFTEST'
         #include <mpi.h>
@@ -562,13 +556,27 @@ jobs:
             MPI_Comm_rank(MPI_COMM_WORLD, &rank);
             MPI_Comm_size(MPI_COMM_WORLD, &size);
             printf("Rank %d of %d\n", rank, size);
+            fflush(stdout);
             MPI_Finalize();
             return 0;
         }
         EOFTEST
         mpicc.mpich -o /tmp/mpi_test /tmp/mpi_test.c
-        echo "Testing: $MPIRUN -np 2 /tmp/mpi_test"
-        $MPIRUN -np 2 /tmp/mpi_test
+
+        echo "Testing with default launcher:"
+        $MPIRUN -np 2 /tmp/mpi_test || echo "Default launcher failed"
+
+        echo "Testing with fork launcher:"
+        $MPIRUN -launcher fork -np 2 /tmp/mpi_test || echo "Fork launcher failed"
+
+        # Use whichever works
+        if $MPIRUN -launcher fork -np 2 /tmp/mpi_test 2>&1 | grep -q "Rank 1 of 2"; then
+          echo "Fork launcher works - using it for tests"
+          MPIRUN="mpiexec.mpich -launcher fork"
+        else
+          echo "Using default launcher"
+          MPIRUN="mpiexec.mpich"
+        fi
 
         echo "=== Running ADIOS2 parallel tests ==="
         if [ -f bin/test_adios2_parallel ]; then
