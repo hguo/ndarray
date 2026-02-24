@@ -132,6 +132,8 @@ int main(int argc, char** argv) {
         float expected = static_cast<float>(gi * 100 + gj);
         if (std::abs(rarray.f(gi, gj) - expected) > 1e-5f) {
           correct = false;
+          std::cerr << "[Rank " << rank << "] Replicated read mismatch at (" << gi << "," << gj
+                    << "): expected " << expected << ", got " << rarray.f(gi, gj) << std::endl;
         }
       }
     }
