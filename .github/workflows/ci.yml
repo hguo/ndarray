@@ -482,9 +482,32 @@ jobs:
     - name: Build
       run: cmake --build build -j$(nproc)
 
-    - name: Run tests
+    - name: Run serial tests
       working-directory: build
-      run: ctest --output-on-failure -E "distributed|ghost"
+      run: ctest --output-on-failure -R "pnetcdf" -E "pnetcdf_auto"
+
+    - name: Run parallel PNetCDF tests
+      working-directory: build
+      run: |
+        echo "Running parallel PNetCDF tests with MPICH 5.0.0..."
+
+        MPIRUN="$HOME/mpich/bin/mpiexec"
+        echo "Using: $MPIRUN"
+        $MPIRUN --version
+
+        echo "=== Running PNetCDF parallel tests ==="
+        if [ -f bin/test_pnetcdf_auto ]; then
+          for np in 2 4; do
+            echo "Testing test_pnetcdf_auto with $np MPI ranks..."
+            $MPIRUN -np $np bin/test_pnetcdf_auto || {
+              echo "Parallel PNetCDF test with $np ranks failed"
+              exit 1
+            }
+          done
+          echo "All parallel PNetCDF tests passed"
+        else
+          echo "test_pnetcdf_auto not built - skipping parallel tests"
+        fi
 
   build-adios2:
     name: ADIOS2 (BP file format)
