@@ -207,21 +207,43 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        # Explicitly remove OpenMPI to avoid mpirun conflicts with MPICH
-        sudo apt-get remove -y openmpi-bin libopenmpi-dev || true
         sudo apt-get install -y \
           cmake \
           libyaml-cpp-dev \
           libnetcdf-dev \
           libhdf5-dev \
-          libhdf5-mpich-dev \
-          mpich \
-          libmpich-dev
+          gfortran \
+          make
+
+    - name: Cache MPICH
+      id: cache-mpich
+      uses: actions/cache@v3
+      with:
+        path: ~/mpich
+        key: mpich-5.0.0-${{ runner.os }}
+
+    - name: Build and install MPICH 5.0.0
+      if: steps.cache-mpich.outputs.cache-hit != 'true'
+      run: |
+        wget https://www.mpich.org/static/downloads/5.0.0/mpich-5.0.0.tar.gz
+        tar -xzf mpich-5.0.0.tar.gz
+        cd mpich-5.0.0
+        ./configure --prefix=$HOME/mpich --disable-fortran
+        make -j$(nproc)
+        make install
+        cd ..
+
+    - name: Set up MPICH environment
+      run: |
+        echo "$HOME/mpich/bin" >> $GITHUB_PATH
+        echo "LD_LIBRARY_PATH=$HOME/mpich/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
 
     - name: Configure CMake (MPI)
       run: |
         cmake -B build \
           -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_C_COMPILER=$HOME/mpich/bin/mpicc \
+          -DCMAKE_CXX_COMPILER=$HOME/mpich/bin/mpicxx \
           -DNDARRAY_BUILD_TESTS=ON \
           -DNDARRAY_BUILD_EXAMPLES=OFF \
           -DNDARRAY_USE_MPI=ON \
@@ -250,17 +272,11 @@ jobs:
       if: steps.check_mpi_tests.outputs.has_mpi_tests == 'true'
       working-directory: build
       run: |
-        echo "Running MPI tests with MPICH..."
+        echo "Running MPI tests with MPICH 5.0.0..."
 
-        # Prefer MPICH-specific mpirun to avoid OpenMPI conflicts
-        if [ -x /usr/bin/mpirun.mpich ]; then
-          MPIRUN=/usr/bin/mpirun.mpich
-        elif [ -x /usr/bin/mpiexec.mpich ]; then
-          MPIRUN=/usr/bin/mpiexec.mpich
-        else
-          MPIRUN=mpirun
-        fi
+        MPIRUN="$HOME/mpich/bin/mpiexec"
         echo "Using: $MPIRUN"
+        $MPIRUN --version
 
         # Run distributed tests with different rank counts
         for np in 2 4; do
@@ -393,19 +409,42 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y \
           cmake \
-          mpich \
-          libmpich-dev \
+          gfortran \
+          make \
           m4 \
           automake \
           autoconf \
           libtool
+
+    - name: Cache MPICH
+      id: cache-mpich
+      uses: actions/cache@v3
+      with:
+        path: ~/mpich
+        key: mpich-5.0.0-${{ runner.os }}
+
+    - name: Build and install MPICH 5.0.0
+      if: steps.cache-mpich.outputs.cache-hit != 'true'
+      run: |
+        wget https://www.mpich.org/static/downloads/5.0.0/mpich-5.0.0.tar.gz
+        tar -xzf mpich-5.0.0.tar.gz
+        cd mpich-5.0.0
+        ./configure --prefix=$HOME/mpich --disable-fortran
+        make -j$(nproc)
+        make install
+        cd ..
+
+    - name: Set up MPICH environment
+      run: |
+        echo "$HOME/mpich/bin" >> $GITHUB_PATH
+        echo "LD_LIBRARY_PATH=$HOME/mpich/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
 
     - name: Cache PNetCDF
       id: cache-pnetcdf
       uses: actions/cache@v3
       with:
         path: ~/pnetcdf
-        key: pnetcdf-1.12.3-${{ runner.os }}
+        key: pnetcdf-1.12.3-mpich-5.0.0-${{ runner.os }}
 
     - name: Build and install PNetCDF
       if: steps.cache-pnetcdf.outputs.cache-hit != 'true'
@@ -415,7 +454,9 @@ jobs:
         tar -xzf pnetcdf-1.12.3.tar.gz
         cd pnetcdf-1.12.3
 
-        # Configure and build (install to ~/pnetcdf for caching)
+        # Configure and build with MPICH 5.0.0
+        export CC=$HOME/mpich/bin/mpicc
+        export CXX=$HOME/mpich/bin/mpicxx
         ./configure --prefix=$HOME/pnetcdf --enable-shared
         make -j$(nproc)
         make install
@@ -430,6 +471,8 @@ jobs:
       run: |
         cmake -B build \
           -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_C_COMPILER=$HOME/mpich/bin/mpicc \
+          -DCMAKE_CXX_COMPILER=$HOME/mpich/bin/mpicxx \
           -DCMAKE_PREFIX_PATH=$HOME/pnetcdf \
           -DNDARRAY_BUILD_TESTS=ON \
           -DNDARRAY_BUILD_EXAMPLES=OFF \
@@ -454,22 +497,43 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        # Explicitly remove OpenMPI to avoid mpirun conflicts with MPICH
-        sudo apt-get remove -y openmpi-bin libopenmpi-dev || true
         sudo apt-get install -y \
           cmake \
-          mpich \
-          libmpich-dev \
+          gfortran \
+          make \
           libyaml-cpp-dev \
           libhdf5-dev \
           libblosc-dev
+
+    - name: Cache MPICH
+      id: cache-mpich
+      uses: actions/cache@v3
+      with:
+        path: ~/mpich
+        key: mpich-5.0.0-${{ runner.os }}
+
+    - name: Build and install MPICH 5.0.0
+      if: steps.cache-mpich.outputs.cache-hit != 'true'
+      run: |
+        wget https://www.mpich.org/static/downloads/5.0.0/mpich-5.0.0.tar.gz
+        tar -xzf mpich-5.0.0.tar.gz
+        cd mpich-5.0.0
+        ./configure --prefix=$HOME/mpich --disable-fortran
+        make -j$(nproc)
+        make install
+        cd ..
+
+    - name: Set up MPICH environment
+      run: |
+        echo "$HOME/mpich/bin" >> $GITHUB_PATH
+        echo "LD_LIBRARY_PATH=$HOME/mpich/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
 
     - name: Cache ADIOS2
       id: cache-adios2
       uses: actions/cache@v3
       with:
         path: ~/adios2
-        key: adios2-2.10.1-mpich-compilers-${{ runner.os }}
+        key: adios2-2.10.1-mpich-5.0.0-${{ runner.os }}
 
     - name: Build and install ADIOS2
       if: steps.cache-adios2.outputs.cache-hit != 'true'
@@ -479,14 +543,13 @@ jobs:
         tar -xzf v2.10.1.tar.gz
         cd ADIOS2-2.10.1
 
-        # Configure and build (install to ~/adios2 for caching)
-        # Explicitly specify MPICH compilers to avoid MPI library mismatch
+        # Configure and build with MPICH 5.0.0
         mkdir build && cd build
         cmake .. \
           -DCMAKE_INSTALL_PREFIX=$HOME/adios2 \
           -DCMAKE_BUILD_TYPE=Release \
-          -DCMAKE_C_COMPILER=mpicc.mpich \
-          -DCMAKE_CXX_COMPILER=mpicxx.mpich \
+          -DCMAKE_C_COMPILER=$HOME/mpich/bin/mpicc \
+          -DCMAKE_CXX_COMPILER=$HOME/mpich/bin/mpicxx \
           -DBUILD_SHARED_LIBS=ON \
           -DADIOS2_USE_MPI=ON \
           -DADIOS2_USE_HDF5=ON \
@@ -508,8 +571,8 @@ jobs:
       run: |
         cmake -B build \
           -DCMAKE_BUILD_TYPE=Release \
-          -DCMAKE_C_COMPILER=mpicc.mpich \
-          -DCMAKE_CXX_COMPILER=mpicxx.mpich \
+          -DCMAKE_C_COMPILER=$HOME/mpich/bin/mpicc \
+          -DCMAKE_CXX_COMPILER=$HOME/mpich/bin/mpicxx \
           -DCMAKE_PREFIX_PATH=$HOME/adios2 \
           -DNDARRAY_BUILD_TESTS=ON \
           -DNDARRAY_BUILD_EXAMPLES=OFF \
@@ -527,56 +590,11 @@ jobs:
     - name: Run parallel ADIOS2 tests
       working-directory: build
       run: |
-        echo "Running parallel ADIOS2 tests with MPI..."
+        echo "Running parallel ADIOS2 tests with MPICH 5.0.0..."
 
-        # Diagnose MPI environment
-        echo "=== MPI Environment Diagnostics ==="
-        which mpirun || echo "mpirun not found"
-        which mpirun.mpich || echo "mpirun.mpich not found"
-        which mpiexec.mpich || echo "mpiexec.mpich not found"
-
-        # Check for OpenMPI (should not be present)
-        if which mpirun.openmpi 2>/dev/null; then
-          echo "WARNING: OpenMPI found - this may cause conflicts with MPICH"
-        fi
-
-        # Use mpiexec.mpich (more reliable than mpirun.mpich on CI)
-        MPIRUN="mpiexec.mpich"
+        MPIRUN="$HOME/mpich/bin/mpiexec"
         echo "Using: $MPIRUN"
-        $MPIRUN --version || true
-
-        # Test basic MPI functionality with different launchers
-        echo "=== Testing basic MPI spawn ==="
-        cat > /tmp/mpi_test.c << 'EOFTEST'
-        #include <mpi.h>
-        #include <stdio.h>
-        int main(int argc, char** argv) {
-            MPI_Init(&argc, &argv);
-            int rank, size;
-            MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-            MPI_Comm_size(MPI_COMM_WORLD, &size);
-            printf("Rank %d of %d\n", rank, size);
-            fflush(stdout);
-            MPI_Finalize();
-            return 0;
-        }
-        EOFTEST
-        mpicc.mpich -o /tmp/mpi_test /tmp/mpi_test.c
-
-        echo "Testing with default launcher:"
-        $MPIRUN -np 2 /tmp/mpi_test || echo "Default launcher failed"
-
-        echo "Testing with fork launcher:"
-        $MPIRUN -launcher fork -np 2 /tmp/mpi_test || echo "Fork launcher failed"
-
-        # Use whichever works
-        if $MPIRUN -launcher fork -np 2 /tmp/mpi_test 2>&1 | grep -q "Rank 1 of 2"; then
-          echo "Fork launcher works - using it for tests"
-          MPIRUN="mpiexec.mpich -launcher fork"
-        else
-          echo "Using default launcher"
-          MPIRUN="mpiexec.mpich"
-        fi
+        $MPIRUN --version
 
         echo "=== Running ADIOS2 parallel tests ==="
         if [ -f bin/test_adios2_parallel ]; then
