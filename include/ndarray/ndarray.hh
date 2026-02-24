@@ -69,12 +69,31 @@ struct ndarray : public ndarray_base {
   template <typename T1> ndarray(const ndarray<T1>& array1) { from_array<T1>(array1); }
   template <typename T1, typename OtherPolicy> ndarray(const ndarray<T1, OtherPolicy>& array1) { from_array<T1, OtherPolicy>(array1); }
   ndarray(const ndarray<T, StoragePolicy>& a) { dims = a.dims; s = a.s; n_component_dims = a.n_component_dims; is_time_varying = a.is_time_varying; storage_ = a.storage_; }
-  ndarray(ndarray<T, StoragePolicy>&& a) noexcept { dims = std::move(a.dims); s = std::move(a.s); n_component_dims = a.n_component_dims; is_time_varying = a.is_time_varying; storage_ = std::move(a.storage_); dist_ = std::move(a.dist_); }
+  ndarray(ndarray<T, StoragePolicy>&& a) noexcept {
+    dims = std::move(a.dims);
+    s = std::move(a.s);
+    n_component_dims = a.n_component_dims;
+    is_time_varying = a.is_time_varying;
+    storage_ = std::move(a.storage_);
+#if NDARRAY_HAVE_MPI
+    dist_ = std::move(a.dist_);
+#endif
+  }
 
   template <typename T1> ndarray<T, StoragePolicy>& operator=(const ndarray<T1>& array1) { from_array<T1>(array1); return *this; }
   template <typename T1, typename OtherPolicy> ndarray<T, StoragePolicy>& operator=(const ndarray<T1, OtherPolicy>& array1) { from_array<T1, OtherPolicy>(array1); return *this; }
   ndarray<T, StoragePolicy>& operator=(const ndarray<T, StoragePolicy>& a) { dims = a.dims; s = a.s; n_component_dims = a.n_component_dims; is_time_varying = a.is_time_varying; storage_ = a.storage_; return *this; }
-  ndarray<T, StoragePolicy>& operator=(ndarray<T, StoragePolicy>&& a) noexcept { dims = std::move(a.dims); s = std::move(a.s); n_component_dims = a.n_component_dims; is_time_varying = a.is_time_varying; storage_ = std::move(a.storage_); dist_ = std::move(a.dist_); return *this; }
+  ndarray<T, StoragePolicy>& operator=(ndarray<T, StoragePolicy>&& a) noexcept {
+    dims = std::move(a.dims);
+    s = std::move(a.s);
+    n_component_dims = a.n_component_dims;
+    is_time_varying = a.is_time_varying;
+    storage_ = std::move(a.storage_);
+#if NDARRAY_HAVE_MPI
+    dist_ = std::move(a.dist_);
+#endif
+    return *this;
+  }
 
   std::ostream& print(std::ostream& os) const;
 
