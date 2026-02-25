@@ -16,6 +16,10 @@
 #include <ndarray/transpose_cuda.hh>
 #endif
 
+#if NDARRAY_HAVE_MPI && NDARRAY_HAVE_CUDA
+#include <ndarray/transpose_distributed_gpu.hh>
+#endif
+
 namespace ftk {
 
 // Tunable block size for cache-friendly transpose
@@ -271,15 +275,24 @@ ndarray<T, StoragePolicy> transpose(const ndarray<T, StoragePolicy>& input,
 
   detail::validate_transpose_axes(nd, axes);
 
+#if NDARRAY_HAVE_MPI && NDARRAY_HAVE_CUDA
+  // Dispatch to GPU+MPI implementation if array is both distributed and on GPU
+  if (input.is_distributed() &&
+      input.is_on_device() &&
+      input.get_device_type() == NDARRAY_DEVICE_CUDA) {
+    return detail::transpose_distributed_gpu(input, axes);
+  }
+#endif
+
 #if NDARRAY_HAVE_CUDA
-  // Dispatch to CUDA implementation if array is on CUDA device
+  // Dispatch to CUDA implementation if array is on CUDA device (single GPU)
   if (input.is_on_device() && input.get_device_type() == NDARRAY_DEVICE_CUDA) {
     return detail::transpose_cuda(input, axes);
   }
 #endif
 
 #if NDARRAY_HAVE_MPI
-  // Dispatch to distributed implementation if array is distributed
+  // Dispatch to distributed implementation if array is distributed (CPU)
   if (input.is_distributed()) {
     return detail::transpose_distributed(input, axes);
   }
@@ -336,6 +349,15 @@ ndarray<T, StoragePolicy> transpose(const ndarray<T, StoragePolicy>& input) {
     throw invalid_operation("transpose() without axes requires 2D array (got " +
                        std::to_string(input.nd()) + "D)");
   }
+
+#if NDARRAY_HAVE_MPI && NDARRAY_HAVE_CUDA
+  // Dispatch to GPU+MPI implementation if distributed and on GPU
+  if (input.is_distributed() &&
+      input.is_on_device() &&
+      input.get_device_type() == NDARRAY_DEVICE_CUDA) {
+    return detail::transpose_distributed_gpu(input, {1, 0});
+  }
+#endif
 
 #if NDARRAY_HAVE_CUDA
   // Dispatch to CUDA implementation if array is on CUDA device
