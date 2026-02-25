@@ -106,6 +106,35 @@ auto VTt = ftk::transpose(VT, {0, 2, 1, 3});  // [3, ny, nx, nt]
 //                          comp         time
 ```
 
+## 🌐 Distributed Arrays (MPI)
+
+### ❌ CRITICAL: Stricter Rules for Distributed Arrays
+
+For arrays created with `decompose()`:
+- Component and time dimensions **CANNOT** be moved (throws error, not warning)
+- Only spatial dimensions can be transposed
+- Data is automatically redistributed across ranks
+
+### Examples
+
+**✅ Valid**:
+```cpp
+// Vector field distributed: [3, 1000, 800]
+V.decompose(comm, {3, 1000, 800}, nprocs, {0, 4, 2}, {0, 1, 1});
+V.set_multicomponents(1);
+
+auto Vt = ftk::transpose(V, {0, 2, 1});  // ✓ Spatial only
+// Decomposition automatically updated: {0, 2, 4}
+```
+
+**❌ Invalid**:
+```cpp
+auto Vbad = ftk::transpose(V, {1, 0, 2});  // ✗ THROWS ERROR
+// Cannot move component dimension in distributed array
+```
+
+### See Also: `docs/TRANSPOSE_DISTRIBUTED.md` for full details
+
 ## Performance Tips
 
 | Size | Use | Speed |
@@ -114,6 +143,7 @@ auto VTt = ftk::transpose(VT, {0, 2, 1, 3});  // [3, ny, nx, nt]
 | 100-1000 | Out-of-place | ~2x speedup (blocked) |
 | > 1000 (square) | In-place | Saves memory |
 | > 1000 (rect) | Out-of-place | ~3-5x speedup (blocked) |
+| **Distributed** | Auto-distributed | All-to-all MPI communication |
 
 ## Error Messages
 
@@ -124,14 +154,19 @@ auto VTt = ftk::transpose(VT, {0, 2, 1, 3});  // [3, ny, nx, nt]
 | "axis N out of range" | Invalid axis index | Use axes in [0, nd-1] |
 | "requires 2D array" | Called 2D version on 3D+ | Specify axes explicitly |
 | "requires square matrix" | In-place on non-square | Use out-of-place |
-| "WARNING: moves component/time" | Unsafe permutation | See metadata handling above |
+| "WARNING: moves component/time" | Unsafe permutation (serial) | See metadata handling above |
+| "Cannot move component dimension" | Tried to move component (distributed) | Only transpose spatial dims |
+| "Cannot move time dimension" | Tried to move time (distributed) | Keep time at end |
 
 ## See Also
 
 - **Full Guide**: `docs/TRANSPOSE_METADATA_HANDLING.md`
+- **Distributed Guide**: `docs/TRANSPOSE_DISTRIBUTED.md`
 - **Design Doc**: `docs/TRANSPOSE_DESIGN.md`
 - **Examples**: `examples/transpose_example.cpp`
-- **Tests**: `tests/test_transpose_metadata.cpp`
+- **Tests**: `tests/test_transpose_metadata.cpp`, `tests/test_transpose_distributed.cpp`
 
 ---
-**TL;DR**: If your array has components or time, **only transpose the spatial dimensions** to avoid metadata issues!
+**TL;DR**:
+- Serial arrays: **Only transpose spatial dimensions** to avoid metadata issues (warning if violated)
+- Distributed arrays: **Must** only transpose spatial dimensions (error if violated)

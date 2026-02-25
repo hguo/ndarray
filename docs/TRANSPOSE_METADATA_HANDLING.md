@@ -233,19 +233,94 @@ The test file `tests/test_transpose_metadata.cpp` verifies:
 - Warning generation for unsafe permutations
 - Correct behavior for vector fields, time-varying fields, and combined cases
 
+## Distributed Arrays
+
+### Additional Constraints for MPI-Distributed Arrays
+
+When working with distributed arrays (created via `decompose()`), transpose has **stricter requirements**:
+
+1. **Component dimensions MUST NOT be decomposed** (always use `decomp[i]=0`)
+2. **Time dimension MUST NOT be decomposed** (always use `decomp[last]=0`)
+3. **Transpose CANNOT move component or time dimensions** (throws error, not just warning)
+
+### Why These Constraints?
+
+Only spatial dimensions can be partitioned across MPI ranks. Component and time dimensions are replicated on all ranks. Moving these dimensions would require decomposing them, which violates the distribution model.
+
+### Error vs. Warning
+
+- **Serial arrays**: Moving component/time dims produces a **warning** (allowed but discouraged)
+- **Distributed arrays**: Moving component/time dims throws an **error** (not allowed)
+
+### Examples with Distributed Arrays
+
+#### ✅ Valid: Transpose spatial dimensions
+```cpp
+// Vector field: [3, 1000, 800] decomposed on spatial dims
+ftk::ndarray<double> V;
+V.decompose(comm, {3, 1000, 800}, nprocs,
+            {0, 4, 2},   // Component not decomposed, spatial 4×2
+            {0, 1, 1});  // No ghosts on component dim
+
+// Transpose spatial dims: {0, 2, 1} - VALID
+auto Vt = ftk::transpose(V, {0, 2, 1});  // Shape: [3, 800, 1000]
+// Decomposition updated automatically: {0, 2, 4}
+```
+
+#### ❌ Invalid: Move component dimension
+```cpp
+ftk::ndarray<double> V;
+V.decompose(comm, {3, 1000, 800}, nprocs, {0, 4, 2}, {0, 1, 1});
+V.set_multicomponents(1);
+
+// Try to move component dim - THROWS ERROR
+try {
+  auto Vbad = ftk::transpose(V, {1, 0, 2});
+} catch (const ftk::invalid_operation& e) {
+  // ERROR: "Cannot move component dimension to position outside component region"
+}
+```
+
+#### ❌ Invalid: Move time dimension
+```cpp
+// Time-varying field: [1000, 800, 50] (spatial, time)
+ftk::ndarray<double> T;
+T.decompose(comm, {1000, 800, 50}, nprocs,
+            {4, 2, 0},   // Time not decomposed
+            {1, 1, 0});
+T.set_has_time(true);
+
+// Try to move time dim - THROWS ERROR
+try {
+  auto Tbad = ftk::transpose(T, {2, 0, 1});
+} catch (const ftk::invalid_operation& e) {
+  // ERROR: "Cannot move time dimension from last position"
+}
+```
+
+### Data Redistribution
+
+When transposing distributed arrays:
+1. **Decomposition pattern is permuted** to match new dimension order
+2. **Data is redistributed** via MPI all-to-all communication
+3. **Ghost layers are updated** to reflect new decomposition
+4. **Partitioning is recalculated** for the transposed layout
+
+See `docs/TRANSPOSE_DISTRIBUTED.md` for detailed implementation and performance characteristics.
+
 ## Summary
 
-| Scenario | Behavior | Metadata Correctness |
-|----------|----------|---------------------|
-| Transpose spatial dims only | ✅ No warning | ✅ Correct |
-| Move component dimensions | ⚠️ Warning | ❌ Incorrect |
-| Move time dimension | ⚠️ Warning | ❌ Incorrect |
-| Complex permutation | ⚠️ Warning | ❌ Incorrect |
+| Scenario | Serial Array | Distributed Array |
+|----------|--------------|-------------------|
+| Transpose spatial dims only | ✅ No warning | ✅ Allowed (data redistributed) |
+| Move component dimensions | ⚠️ Warning | ❌ Error (throws exception) |
+| Move time dimension | ⚠️ Warning | ❌ Error (throws exception) |
+| Complex permutation | ⚠️ Warning | ❌ Error if moves comp/time |
 
-**Key Takeaway**: Transpose is safest when only permuting spatial dimensions, keeping component dimensions at the beginning and time at the end.
+**Key Takeaway**: Transpose is safest when only permuting spatial dimensions, keeping component dimensions at the beginning and time at the end. This is **required** for distributed arrays and **recommended** for serial arrays.
 
 ---
 
-**Document Version**: 1.0
+**Document Version**: 2.0
 **Date**: 2026-02-25
-**Related**: `TRANSPOSE_DESIGN.md`, `transpose.hh`
+**Related**: `TRANSPOSE_DESIGN.md`, `TRANSPOSE_DISTRIBUTED.md`, `transpose.hh`, `transpose_distributed.hh`

@@ -629,6 +629,9 @@ public: // MPI and distributed memory support
   const lattice& global_lattice() const;
   const lattice& local_core() const;
   const lattice& local_extent() const;
+  const std::vector<size_t>& decomp_pattern() const;
+  const std::vector<size_t>& ghost_widths() const;
+  const lattice_partitioner& partitioner() const;
   ndarray<T, StoragePolicy>& local_array() { return *this; }
   const ndarray<T, StoragePolicy>& local_array() const { return *this; }
 
@@ -2564,6 +2567,33 @@ const lattice& ndarray<T, StoragePolicy>::local_extent() const
     throw std::runtime_error("Array is not distributed");
   }
   return dist_->local_extent_;
+}
+
+template <typename T, typename StoragePolicy>
+const std::vector<size_t>& ndarray<T, StoragePolicy>::decomp_pattern() const
+{
+  if (!is_distributed()) {
+    throw std::runtime_error("Array is not distributed");
+  }
+  return dist_->decomp_pattern_;
+}
+
+template <typename T, typename StoragePolicy>
+const std::vector<size_t>& ndarray<T, StoragePolicy>::ghost_widths() const
+{
+  if (!is_distributed()) {
+    throw std::runtime_error("Array is not distributed");
+  }
+  return dist_->ghost_widths_;
+}
+
+template <typename T, typename StoragePolicy>
+const lattice_partitioner& ndarray<T, StoragePolicy>::partitioner() const
+{
+  if (!is_distributed()) {
+    throw std::runtime_error("Array is not distributed");
+  }
+  return *dist_->partitioner_;
 }
 
 template <typename T, typename StoragePolicy>

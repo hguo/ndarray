@@ -8,6 +8,10 @@
 #include <set>
 #include <cstring>
 
+#if NDARRAY_HAVE_MPI
+#include <ndarray/transpose_distributed.hh>
+#endif
+
 namespace ftk {
 
 // Tunable block size for cache-friendly transpose
@@ -262,6 +266,13 @@ ndarray<T, StoragePolicy> transpose(const ndarray<T, StoragePolicy>& input,
   }
 
   detail::validate_transpose_axes(nd, axes);
+
+#if NDARRAY_HAVE_MPI
+  // Dispatch to distributed implementation if array is distributed
+  if (input.is_distributed()) {
+    return detail::transpose_distributed(input, axes);
+  }
+#endif
 
   // Check if this is actually an identity permutation
   bool is_identity = true;
