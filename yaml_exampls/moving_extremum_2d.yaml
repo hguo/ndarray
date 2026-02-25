@@ -1,0 +1,17 @@
+# Synthetic 2D Moving Extremum Stream
+# Single moving critical point (minimum or maximum)
+# Useful for testing critical point tracking algorithms
+
+stream:
+  name: moving_extremum_2d
+  substreams:
+    - name: moving_min
+      format: synthetic
+      dimensions: [64, 64]
+      timesteps: 100
+      x0: [32.0, 32.0]      # Initial position
+      dir: [0.2, 0.15]      # Movement direction and speed
+      sign: 1               # 1 for minimum, -1 for maximum
+      vars:
+        - name: scalar_field
+          dtype: float32

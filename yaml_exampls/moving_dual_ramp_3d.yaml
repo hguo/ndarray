@@ -1,0 +1,17 @@
+# Synthetic 3D Moving Dual Ramp Stream
+# Two parallel planes moving through space
+# Tests multi-surface tracking and collision detection
+
+stream:
+  name: moving_dual_ramp_3d
+  substreams:
+    - name: dual_planes
+      format: synthetic
+      dimensions: [64, 64, 64]
+      timesteps: 60
+      x0: 32.0              # Center position
+      rate: 0.4             # Movement rate
+      offset: 5.0           # Distance between planes
+      vars:
+        - name: dual_levelset
+          dtype: float64

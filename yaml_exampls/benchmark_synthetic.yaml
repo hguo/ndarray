@@ -1,0 +1,46 @@
+# Benchmark Synthetic Stream
+# Standard configuration for performance benchmarking
+# Balanced dimensions and timesteps for consistent timing
+
+stream:
+  name: benchmark
+  substreams:
+    # 2D Woven benchmark
+    - name: woven_2d_bench
+      format: synthetic
+      dimensions: [256, 256]
+      timesteps: 100
+      scaling_factor: 15.0
+      vars:
+        - name: scalar_2d
+          dtype: float32
+
+    # 2D Vector field benchmark
+    - name: double_gyre_bench
+      format: synthetic
+      dimensions: [256, 128]
+      timesteps: 100
+      time_scale: 0.1
+      vars:
+        - name: velocity_2d
+          dtype: float32
+
+    # 3D Scalar benchmark
+    - name: moving_extremum_3d_bench
+      format: synthetic
+      dimensions: [64, 64, 64]
+      timesteps: 50
+      x0: [32.0, 32.0, 32.0]
+      dir: [0.2, 0.2, 0.2]
+      vars:
+        - name: scalar_3d
+          dtype: float64
+
+    # 3D Vector field benchmark
+    - name: abc_flow_bench
+      format: synthetic
+      dimensions: [64, 64, 64]
+      timesteps: 50
+      vars:
+        - name: velocity_3d
+          dtype: float32

@@ -1,0 +1,46 @@
+# Multiple Synthetic Streams Combined
+# Demonstrates multiple synthetic data sources in one stream
+# Useful for multi-field analysis and feature correlation
+
+stream:
+  name: multi_synthetic
+  substreams:
+    # Scalar field 1: Woven pattern
+    - name: woven_scalar
+      format: synthetic
+      dimensions: [64, 64]
+      timesteps: 20
+      scaling_factor: 12.0
+      vars:
+        - name: temperature
+          dtype: float32
+
+    # Scalar field 2: Merger pattern
+    - name: merger_scalar
+      format: synthetic
+      dimensions: [64, 64]
+      timesteps: 20
+      vars:
+        - name: density
+          dtype: float32
+
+    # Vector field: Double gyre
+    - name: flow_field
+      format: synthetic
+      dimensions: [128, 64]
+      timesteps: 20
+      time_scale: 0.15
+      vars:
+        - name: velocity
+          dtype: float32
+
+    # Moving critical point
+    - name: tracer
+      format: synthetic
+      dimensions: [64, 64]
+      timesteps: 20
+      x0: [32.0, 32.0]
+      dir: [0.3, 0.2]
+      vars:
+        - name: concentration
+          dtype: float32

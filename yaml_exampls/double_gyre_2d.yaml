@@ -1,0 +1,16 @@
+# Synthetic 2D Double Gyre Stream
+# Classic double-gyre flow for testing Lagrangian coherent structures (LCS)
+# Used for analyzing transport barriers and vortex detection
+
+stream:
+  name: double_gyre
+  substreams:
+    - name: double_gyre_flow
+      format: synthetic
+      dimensions: [256, 128]
+      timesteps: 50
+      time_scale: 0.1
+      perturbation: 0.25
+      vars:
+        - name: velocity
+          dtype: float32

@@ -1,0 +1,19 @@
+# Distributed 3D Tornado Stream
+# Domain-decomposed tornado vortex for parallel processing
+# Tests distributed vortex core line detection
+
+stream:
+  name: distributed_tornado
+  substreams:
+    - format: synthetic
+      name: tornado
+      dimensions: [96, 96, 96]
+      timesteps: 80
+      time_param: 0.0
+      vars:
+        - name: wind_field
+          dtype: float32
+          distribution: distributed
+          decomposition:
+            pattern: [0, 0, 2]  # Auto-decompose X and Y, split Z into 2
+            ghost: [2, 2, 2]    # Larger ghost for vortex detection

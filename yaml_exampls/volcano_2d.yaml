@@ -1,0 +1,18 @@
+# Synthetic 2D Volcano Stream
+# Volcano-like elevation with peak and slopes
+# Tests ridge detection and topographic analysis
+
+stream:
+  name: volcano
+  substreams:
+    - name: volcano_shape
+      format: synthetic
+      dimensions: [128, 128]
+      timesteps: 1
+      static: true
+      x0: [64.0, 64.0]      # Peak location
+      radius: 30.0          # Base radius
+      reverse: false        # false for peak, true for crater
+      vars:
+        - name: elevation
+          dtype: float32

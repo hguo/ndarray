@@ -1,0 +1,19 @@
+# Time-Varying Double Gyre with Detailed Parameters
+# Extended double gyre simulation with fine temporal resolution
+# For detailed LCS analysis and particle tracking studies
+
+stream:
+  name: time_varying_double_gyre
+  substreams:
+    - name: gyre_evolution
+      format: synthetic
+      dimensions: [512, 256]
+      timesteps: 200
+      time_start: 0.0
+      time_step: 0.01
+      A: 0.1                # Amplitude parameter
+      omega: 0.628          # Angular frequency (2*pi*0.1)
+      epsilon: 0.25         # Perturbation parameter
+      vars:
+        - name: velocity_field
+          dtype: float64

@@ -1,0 +1,19 @@
+# Distributed 2D Merger Stream
+# Domain-decomposed merger pattern for parallel processing
+# Tests distributed critical point tracking
+
+stream:
+  name: distributed_merger
+  substreams:
+    - format: synthetic
+      name: merger
+      dimensions: [512, 512]
+      timesteps: 100
+      delta: 0.02
+      vars:
+        - name: scalar
+          dtype: float64
+          distribution: distributed
+          decomposition:
+            pattern: [0, 0]     # Auto-decompose both dimensions
+            ghost: [2, 2]       # Ghost layers for gradient computation

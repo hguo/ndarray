@@ -1,0 +1,41 @@
+# Complex 3D Multi-Field Synthetic Stream
+# Multiple 3D fields for comprehensive feature analysis
+# Tests multi-field feature correlation and 3D tracking
+
+stream:
+  name: complex_3d
+  substreams:
+    # 3D Moving extremum - scalar field
+    - name: moving_feature
+      format: synthetic
+      dimensions: [64, 64, 64]
+      timesteps: 40
+      x0: [32.0, 32.0, 10.0]
+      dir: [0.1, 0.15, 0.5]
+      sign: -1
+      vars:
+        - name: pressure
+          dtype: float64
+
+    # 3D ABC flow - vector field
+    - name: flow_structure
+      format: synthetic
+      dimensions: [64, 64, 64]
+      timesteps: 40
+      A: 1.0
+      B: 0.8
+      C: 0.6
+      vars:
+        - name: velocity
+          dtype: float32
+
+    # 3D Moving ramp - levelset
+    - name: boundary_propagation
+      format: synthetic
+      dimensions: [64, 64, 64]
+      timesteps: 40
+      x0: 10.0
+      rate: 0.8
+      vars:
+        - name: interface
+          dtype: float32

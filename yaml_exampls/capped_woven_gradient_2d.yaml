@@ -1,0 +1,17 @@
+# Synthetic 2D Capped Woven Gradient Stream
+# Gradient of woven pattern with magnitude capping
+# Tests vector field analysis with bounded gradients
+
+stream:
+  name: capped_woven_gradient
+  substreams:
+    - name: capped_grad
+      format: synthetic
+      dimensions: [128, 128]
+      timesteps: 50
+      scaling_factor: 15.0
+      cap: 10.0             # Gradient magnitude cap
+      delta: 0.08
+      vars:
+        - name: gradient_field
+          dtype: float64

@@ -1,0 +1,21 @@
+# Distributed 3D ABC Flow Stream
+# Domain-decomposed ABC flow for large-scale parallel vortex analysis
+# Tests distributed 3D vector field processing
+
+stream:
+  name: distributed_abc
+  substreams:
+    - format: synthetic
+      name: abc_flow
+      dimensions: [128, 128, 128]
+      timesteps: 50
+      A: 1.732
+      B: 1.414
+      C: 1.0
+      vars:
+        - name: velocity_3d
+          dtype: float32
+          distribution: distributed
+          decomposition:
+            pattern: [2, 2, 2]  # 2x2x2 domain decomposition
+            ghost: [1, 1, 1]    # Ghost layers for each dimension

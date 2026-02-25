@@ -1,0 +1,16 @@
+# Synthetic 2D Merger Stream
+# Two rotating and translating Gaussian maxima that merge and split
+# Useful for testing critical point tracking and topological analysis
+
+stream:
+  name: merger_2d
+  substreams:
+    - name: merger
+      format: synthetic
+      dimensions: [128, 128]
+      timesteps: 100
+      scaling_factor: 1.0
+      delta: 0.05
+      vars:
+        - name: scalar
+          dtype: float64

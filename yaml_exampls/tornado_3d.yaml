@@ -1,0 +1,15 @@
+# Synthetic 3D Tornado Flow Stream
+# Tornado-like vortex structure with funnel shape
+# Tests vortex core detection and visualization
+
+stream:
+  name: tornado
+  substreams:
+    - name: tornado_vortex
+      format: synthetic
+      dimensions: [48, 48, 48]
+      timesteps: 40
+      time_param: 0.0       # Time parameter for rotation
+      vars:
+        - name: wind_velocity
+          dtype: float32

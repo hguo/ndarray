@@ -1,0 +1,16 @@
+# Synthetic 3D Moving Ramp Stream
+# Single planar ramp moving through space
+# Tests isosurface tracking and plane detection
+
+stream:
+  name: moving_ramp_3d
+  substreams:
+    - name: planar_ramp
+      format: synthetic
+      dimensions: [64, 64, 64]
+      timesteps: 80
+      x0: 10.0              # Initial position
+      rate: 0.5             # Movement rate
+      vars:
+        - name: levelset
+          dtype: float64

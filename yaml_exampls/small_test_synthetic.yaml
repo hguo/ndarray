@@ -1,0 +1,24 @@
+# Small Synthetic Stream for Quick Testing
+# Minimal dimensions and timesteps for rapid development/testing
+# Useful for debugging and algorithm prototyping
+
+stream:
+  name: test_synthetic
+  substreams:
+    - name: woven_small
+      format: synthetic
+      dimensions: [16, 16]
+      timesteps: 5
+      scaling_factor: 10.0
+      vars:
+        - name: test_scalar
+          dtype: float32
+
+    - name: gyre_small
+      format: synthetic
+      dimensions: [32, 16]
+      timesteps: 5
+      time_scale: 0.2
+      vars:
+        - name: test_velocity
+          dtype: float32

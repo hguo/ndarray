@@ -1,0 +1,16 @@
+# High Resolution 2D Woven Stream
+# Large-scale woven pattern for performance testing
+# Tests scalability and memory efficiency
+
+stream:
+  name: high_res_woven
+  substreams:
+    - name: woven_hires
+      format: synthetic
+      dimensions: [1024, 1024]
+      timesteps: 100
+      scaling_factor: 20.0
+      delta: 0.01
+      vars:
+        - name: scalar_field
+          dtype: float32

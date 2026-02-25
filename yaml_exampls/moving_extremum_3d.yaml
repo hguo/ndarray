@@ -1,0 +1,17 @@
+# Synthetic 3D Moving Extremum Stream
+# Single moving critical point in 3D space
+# Tests 3D critical point tracking and visualization
+
+stream:
+  name: moving_extremum_3d
+  substreams:
+    - name: moving_max_3d
+      format: synthetic
+      dimensions: [32, 32, 32]
+      timesteps: 50
+      x0: [16.0, 16.0, 16.0]    # Initial position
+      dir: [0.1, 0.1, 0.2]      # Movement direction
+      sign: -1                   # -1 for maximum
+      vars:
+        - name: scalar_3d
+          dtype: float64

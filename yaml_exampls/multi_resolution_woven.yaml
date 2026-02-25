@@ -1,0 +1,36 @@
+# Multi-Resolution Woven Streams
+# Multiple woven patterns at different resolutions
+# Tests multi-scale analysis and adaptive refinement
+
+stream:
+  name: multi_resolution
+  substreams:
+    # Coarse resolution
+    - name: woven_coarse
+      format: synthetic
+      dimensions: [32, 32]
+      timesteps: 50
+      scaling_factor: 10.0
+      vars:
+        - name: scalar_coarse
+          dtype: float32
+
+    # Medium resolution
+    - name: woven_medium
+      format: synthetic
+      dimensions: [128, 128]
+      timesteps: 50
+      scaling_factor: 15.0
+      vars:
+        - name: scalar_medium
+          dtype: float32
+
+    # Fine resolution
+    - name: woven_fine
+      format: synthetic
+      dimensions: [512, 512]
+      timesteps: 50
+      scaling_factor: 20.0
+      vars:
+        - name: scalar_fine
+          dtype: float32

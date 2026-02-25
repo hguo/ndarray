@@ -1,0 +1,17 @@
+# Synthetic 3D ABC Flow Stream
+# Arnold-Beltrami-Childress flow - a chaotic 3D vector field
+# Tests vortex detection and streamline integration in complex flows
+
+stream:
+  name: abc_flow
+  substreams:
+    - name: abc_chaotic
+      format: synthetic
+      dimensions: [64, 64, 64]
+      timesteps: 25
+      A: 1.732              # sqrt(3)
+      B: 1.414              # sqrt(2)
+      C: 1.0
+      vars:
+        - name: velocity_3d
+          dtype: float32
