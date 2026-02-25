@@ -1,0 +1,137 @@
+# Transpose Quick Reference
+
+## Basic Usage
+
+```cpp
+#include <ndarray/transpose.hh>
+
+// 2D matrix transpose
+auto At = ftk::transpose(A);
+
+// N-D permutation
+auto permuted = ftk::transpose(tensor, {2, 0, 1});
+
+// In-place (square matrices only)
+ftk::transpose_inplace(square_matrix);
+```
+
+## ⚠️ CRITICAL: Multicomponent & Time Arrays
+
+### The Problem
+ndarray tracks special dimension semantics:
+- **`n_component_dims`**: First N dims are components (not spatial)
+- **`is_time_varying`**: Last dim is time (not spatial)
+
+**Layout**: `[components..., spatial..., time]`
+
+### The Solution
+**✅ SAFE: Only transpose spatial dimensions**
+```cpp
+// Vector field: [3, 100, 200], n_component_dims=1
+ftk::transpose(V, {0, 2, 1});  // [3, 200, 100] ✓ Metadata correct
+//                ^  spatial only
+//             keep component first
+
+// Time-varying: [100, 200, 50], is_time_varying=true
+ftk::transpose(T, {1, 0, 2});  // [200, 100, 50] ✓ Metadata correct
+//             spatial only  ^
+//                        keep time last
+```
+
+**⚠️ UNSAFE: Moving component/time dimensions**
+```cpp
+// BAD: Moves component dimension
+ftk::transpose(V, {1, 0, 2});  // [100, 3, 200] ⚠️ WARNING
+// Component dim moved from position 0 → 1
+// Metadata says n_component_dims=1 but first dim is NOT components!
+```
+
+### Quick Checklist
+
+Before transposing, ask:
+1. ✅ Does array have components? (`array.multicomponents() > 0`)
+2. ✅ Does array have time? (`array.has_time()`)
+3. ✅ Am I only permuting spatial dimensions?
+
+If YES to 1 or 2, and NO to 3 → **You'll get a warning!**
+
+### How to Handle Warnings
+
+**Option 1**: Adjust permutation to keep component/time fixed
+```cpp
+// Instead of: {1, 0, 2}  (moves component)
+// Use:        {0, 2, 1}  (keeps component at 0)
+```
+
+**Option 2**: Clear metadata if semantics don't matter
+```cpp
+array.set_multicomponents(0);
+array.set_has_time(false);
+auto result = ftk::transpose(array, arbitrary_axes);
+```
+
+**Option 3**: Manually fix metadata after transpose
+```cpp
+auto result = ftk::transpose(array, {1, 0, 2});
+result.set_multicomponents(0);  // No longer has component semantics
+// Document that dimension 1 is actually components now
+```
+
+## Common Patterns
+
+### Transpose Spatial Dimensions of Vector Field
+```cpp
+// 3D velocity: [3, nx, ny, nz]
+V.set_multicomponents(1);
+auto Vt = ftk::transpose(V, {0, 1, 3, 2});  // [3, nx, nz, ny]
+//                            ^  spatial permute
+//                         keep component
+```
+
+### Transpose Time-Varying Scalar Field
+```cpp
+// Time series: [nx, ny, nt]
+T.set_has_time(true);
+auto Tt = ftk::transpose(T, {1, 0, 2});  // [ny, nx, nt]
+//                       spatial^    ^keep time
+```
+
+### Transpose Both
+```cpp
+// Vector field time series: [3, nx, ny, nt]
+VT.set_multicomponents(1);
+VT.set_has_time(true);
+auto VTt = ftk::transpose(VT, {0, 2, 1, 3});  // [3, ny, nx, nt]
+//                             ^  spatial  ^
+//                          comp         time
+```
+
+## Performance Tips
+
+| Size | Use | Speed |
+|------|-----|-------|
+| < 100×100 | Out-of-place | Fast |
+| 100-1000 | Out-of-place | ~2x speedup (blocked) |
+| > 1000 (square) | In-place | Saves memory |
+| > 1000 (rect) | Out-of-place | ~3-5x speedup (blocked) |
+
+## Error Messages
+
+| Error | Meaning | Fix |
+|-------|---------|-----|
+| "axes size must match" | Wrong number of axes | Provide `nd()` axes |
+| "axes must be unique" | Duplicate in axes | Use each axis once |
+| "axis N out of range" | Invalid axis index | Use axes in [0, nd-1] |
+| "requires 2D array" | Called 2D version on 3D+ | Specify axes explicitly |
+| "requires square matrix" | In-place on non-square | Use out-of-place |
+| "WARNING: moves component/time" | Unsafe permutation | See metadata handling above |
+
+## See Also
+
+- **Full Guide**: `docs/TRANSPOSE_METADATA_HANDLING.md`
+- **Design Doc**: `docs/TRANSPOSE_DESIGN.md`
+- **Examples**: `examples/transpose_example.cpp`
+- **Tests**: `tests/test_transpose_metadata.cpp`
+
+---
+**TL;DR**: If your array has components or time, **only transpose the spatial dimensions** to avoid metadata issues!
