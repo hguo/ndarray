@@ -1,8 +1,10 @@
 # GPU-Accelerated Transpose
 
+> **⚠️ Important**: This implementation has not been performance-tested. All performance claims have been removed. Performance characteristics should be measured on your target hardware before making optimization decisions.
+
 ## Overview
 
-The ndarray library provides CUDA-accelerated transpose operations that automatically execute on the GPU when arrays are on device memory. This offers significant performance improvements for large arrays.
+The ndarray library provides CUDA-accelerated transpose operations that automatically execute on the GPU when arrays are on device memory. GPU transpose is designed for high performance on large arrays using optimized kernels.
 
 ## Table of Contents
 
@@ -55,39 +57,30 @@ auto gpu_result = ftk::transpose(gpu_arr);  // Runs on GPU!
 
 ## Performance
 
-### Speedup
+### Design Goals
 
-For large arrays, GPU transpose can be **10-100x faster** than CPU:
+GPU transpose is designed to provide better performance than CPU for large arrays by:
+- Using shared memory tiling for cache efficiency
+- Achieving coalesced memory access patterns
+- Maximizing GPU memory bandwidth utilization
 
-| Array Size | CPU Time | GPU Kernel Time | Speedup |
-|------------|----------|-----------------|---------|
-| 1024×1024 | 4.2 ms | 0.15 ms | 28× |
-| 2048×2048 | 17.5 ms | 0.52 ms | 34× |
-| 4096×4096 | 72.8 ms | 1.95 ms | 37× |
-| 8192×8192 | 315 ms | 7.8 ms | 40× |
-
-*Measured on NVIDIA RTX 3090, Intel i9-10900K*
-
-**Note**: These are kernel-only times. Including CPU→GPU→CPU transfers:
-
-| Array Size | Total GPU Time | Still Worth It? |
-|------------|----------------|-----------------|
-| 1024×1024 | 12 ms | Maybe |
-| 4096×4096 | 28 ms | ✅ Yes (2.6× faster) |
-| 8192×8192 | 65 ms | ✅ Yes (4.8× faster) |
+**Note**: Actual performance depends on many factors including GPU model, array size, data type, and whether data is already on GPU. Performance should be measured for your specific use case.
 
 ### When to Use GPU Transpose
 
-✅ **Use GPU if:**
-- Array is large (> 1000×1000)
-- Array is already on GPU
+✅ **Consider GPU if:**
+- Array is large (>= 1000×1000 for 2D, >= 100³ for 3D)
+- Array is already on GPU (avoids transfer overhead)
 - You'll do multiple operations on GPU
 - Transpose is part of GPU pipeline
 
-❌ **Use CPU if:**
-- Array is small (< 500×500)
+✅ **Consider CPU if:**
+- Array is small
 - Array is on CPU and stays on CPU
 - One-time transpose with no other GPU work
+- Transfer overhead would dominate
+
+**Recommendation**: Profile both CPU and GPU paths for your specific workload to determine which is faster.
 
 ## Implementation Details
 
@@ -108,7 +101,7 @@ auto transposed = ftk::transpose(gpu_array, {1, 0});  // Uses fast 2D kernel
 - Bank conflict avoidance (padding)
 - High thread occupancy
 
-**Performance**: ~450 GB/s on RTX 3090 (near memory bandwidth limit)
+**Performance**: Designed to approach GPU memory bandwidth limits
 
 #### 2. General N-D Kernel (Flexible Path)
 
@@ -122,7 +115,7 @@ auto transposed = ftk::transpose(gpu_array, {2, 0, 1});  // Any permutation
 **Characteristics:**
 - Handles up to 16 dimensions
 - Less optimized than 2D kernel
-- Still much faster than CPU for large arrays
+- Handles arbitrary dimension permutations
 
 ### Memory Access Patterns
 
@@ -324,21 +317,22 @@ std::cout << "Free GPU memory: " << free_mem / (1024*1024) << " MB" << std::endl
 **Check:**
 1. Are you including transfer time?
    ```cpp
-   // Slow: includes CPU→GPU→CPU transfers
+   // Potentially slow: includes CPU→GPU→CPU transfers
    arr.to_device(NDARRAY_DEVICE_CUDA);
    auto result = ftk::transpose(arr);
-   result.to_host();  // Slow transfer
+   result.to_host();  // Transfer overhead
 
-   // Fast: keep on GPU
+   // Better: keep on GPU if doing multiple operations
    arr.to_device(NDARRAY_DEVICE_CUDA);
    auto result = ftk::transpose(arr);
    // More GPU operations...
-   result.to_host();  // Transfer at end
+   result.to_host();  // Single transfer at end
    ```
 
 2. Is array large enough?
-   - Small arrays (< 500×500) are faster on CPU
-   - GPU overhead dominates for small arrays
+   - Small arrays may not benefit from GPU acceleration
+   - Transfer overhead may dominate for small sizes
+   - Profile to determine crossover point for your hardware
 
 3. Is CUDA installed correctly?
    ```bash
@@ -447,15 +441,16 @@ std::cout << "Transpose time: " << ms << " ms" << std::endl;
 
 **Key Points:**
 - ✅ **Automatic dispatch**: GPU transpose activates automatically for device arrays
-- 🚀 **Fast**: 10-100× speedup for large arrays
 - 📊 **Optimized**: Uses shared memory tiling for 2D, efficient N-D kernel
 - 🔄 **Seamless**: Same API as CPU transpose
 - 💻 **CUDA-only**: Currently requires NVIDIA GPU
 
 **When to Use:**
-- Large arrays (> 1000×1000 for 2D, > 50×50×50 for 3D)
+- Large arrays that benefit from parallel processing
 - Array already on GPU or part of GPU pipeline
-- Multiple GPU operations in sequence
+- Multiple GPU operations in sequence (amortize transfer cost)
+
+**Important**: Performance characteristics depend on GPU model, array size, and data access patterns. Benchmark on your target hardware to validate GPU acceleration provides benefit for your use case.
 
 **Quick Check:**
 ```cpp

@@ -1,5 +1,7 @@
 # Transpose Quick Reference
 
+> **⚠️ Performance Note**: Performance claims have been removed as code is untested. Benchmark on your hardware to determine optimal approach.
+
 ## Basic Usage
 
 ```cpp
@@ -152,18 +154,19 @@ gpu_arr.to_device(NDARRAY_DEVICE_CUDA);
 auto gpu_result = ftk::transpose(gpu_arr);  // Runs on GPU!
 ```
 
-### Performance
+### Design Goals
 
-| Array Size | CPU | GPU Kernel | Speedup |
-|------------|-----|------------|---------|
-| 1024×1024 | 4.2 ms | 0.15 ms | **28×** |
-| 4096×4096 | 72.8 ms | 1.95 ms | **37×** |
-| 8192×8192 | 315 ms | 7.8 ms | **40×** |
+GPU transpose uses optimized CUDA kernels designed for high performance:
+- Shared memory tiling for 2D transpose
+- Coalesced memory access patterns
+- Efficient N-D permutation kernel
 
-**When to use GPU:**
-- ✅ Large arrays (> 1000×1000)
-- ✅ Array already on GPU
+**When to consider GPU:**
+- ✅ Large arrays
+- ✅ Array already on GPU (avoids transfer)
 - ✅ Part of GPU pipeline
+
+**Note**: Profile to determine optimal approach for your hardware and problem size.
 
 **See**: `docs/TRANSPOSE_GPU.md` for complete GPU guide
 
@@ -192,25 +195,29 @@ auto result = ftk::transpose(arr);   // GPU+MPI automatic!
    - Works with any MPI
    - Stages through CPU memory
 
-### Performance
+### Design
 
-- Up to **40× faster than CPU** (single GPU)
-- **Good scaling** across multiple GPUs/nodes
+- Combines GPU kernels with MPI communication
+- Supports GPU-aware MPI or CPU staging fallback
+- Designed for scalability across multiple GPUs/nodes
 - **Best for**: Arrays too large for single GPU
+
+**Note**: Performance depends on GPU model, network, MPI implementation, and problem size. Benchmark on your system.
 
 **See**: `docs/TRANSPOSE_GPU_MPI.md` for complete guide
 
 ## Performance Tips
 
-| Size | Use | Speed |
-|------|-----|-------|
-| < 100×100 | Out-of-place | Fast |
-| 100-1000 | Out-of-place | ~2x speedup (blocked) |
-| > 1000 (square) | In-place | Saves memory |
-| > 1000 (rect) | Out-of-place | ~3-5x speedup (blocked) |
-| **> 1000 (GPU)** | CUDA | **10-40× speedup** |
-| **Distributed (CPU)** | Auto-distributed | All-to-all MPI |
-| **Distributed (GPU)** | CUDA + MPI | **40× + scaling** |
+| Configuration | Approach | Characteristics |
+|---------------|----------|-----------------|
+| Small arrays | Out-of-place | CPU typically sufficient |
+| Medium arrays | Blocked/Cache-optimized | CPU with blocking |
+| Large (square) | In-place | Saves memory (CPU) |
+| Large (GPU) | CUDA | GPU kernels optimized for large arrays |
+| Distributed (CPU) | MPI | All-to-all communication |
+| Distributed (GPU) | CUDA + MPI | GPU + MPI communication |
+
+**Note**: Optimal choice depends on hardware. Profile to determine best approach.
 
 ## Error Messages
 
@@ -239,5 +246,6 @@ auto result = ftk::transpose(arr);   // GPU+MPI automatic!
 **TL;DR**:
 - **Serial arrays**: Only transpose spatial dimensions to avoid metadata issues (warning if violated)
 - **Distributed arrays**: Must only transpose spatial dimensions (error if violated)
-- **GPU arrays**: Automatic CUDA acceleration for 10-40× speedup on large arrays
-- **GPU+MPI arrays**: Combines both for maximum performance on multi-GPU clusters
+- **GPU arrays**: Automatic CUDA acceleration using optimized kernels
+- **GPU+MPI arrays**: Combines GPU + MPI for multi-GPU clusters
+- **Performance**: Should be profiled on your specific hardware and problem size

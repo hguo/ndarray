@@ -1,8 +1,10 @@
 # GPU + MPI Distributed Transpose
 
+> **⚠️ Important**: This implementation has not been tested or benchmarked. GPU-aware MPI path is incomplete and currently uses CPU staging. Performance should be validated on your target system.
+
 ## Overview
 
-The ndarray library supports transpose of arrays that are **both distributed across MPI ranks AND stored on GPUs**. This combines the benefits of distributed computing with GPU acceleration for maximum performance on large-scale systems.
+The ndarray library supports transpose of arrays that are **both distributed across MPI ranks AND stored on GPUs**. This combines distributed computing with GPU acceleration, designed for large-scale systems with multiple GPUs.
 
 ## Table of Contents
 
@@ -121,9 +123,9 @@ Rank 0 GPU → Network → Rank 1 GPU
 ```
 
 **Advantages:**
-- ✅ Fastest performance
-- ✅ No CPU-GPU copies
-- ✅ Lower latency
+- ✅ Designed for optimal performance
+- ✅ Avoids CPU-GPU staging overhead
+- ✅ Potential for lower latency
 
 **Requirements:**
 - GPU-aware MPI build
@@ -142,9 +144,9 @@ Rank 0 GPU → CPU → Network → CPU → Rank 1 GPU
 - ✅ Automatic fallback
 
 **Disadvantages:**
-- ❌ Extra CPU-GPU transfers
-- ❌ Higher latency
-- ❌ Slower
+- ❌ Requires CPU-GPU staging
+- ❌ Additional transfer overhead
+- ❌ May be slower than GPU-aware MPI
 
 ### Algorithm
 
@@ -301,55 +303,53 @@ void analyze_climate_data() {
 
 ## Performance
 
-### Scalability
+### Design Goals
 
-**Strong Scaling** (Fixed problem size, increasing ranks):
+GPU+MPI transpose is designed to:
+- Scale across multiple GPUs and nodes
+- Minimize communication overhead
+- Leverage GPU computational power for local transpose
+- Support both GPU-aware and non-GPU-aware MPI
 
-| Ranks | GPUs | Array Size | Time (CPU) | Time (GPU+MPI) | Speedup |
-|-------|------|------------|------------|----------------|---------|
-| 1 | 1 | 8192×8192 | 315 ms | 7.8 ms | 40× |
-| 2 | 2 | 8192×8192 | 168 ms | 4.2 ms | 40× |
-| 4 | 4 | 8192×8192 | 95 ms | 2.5 ms | 38× |
-| 8 | 8 | 8192×8192 | 58 ms | 1.8 ms | 32× |
+**Note**: Actual performance depends on many factors:
+- GPU model and memory bandwidth
+- Network interconnect (InfiniBand vs Ethernet)
+- MPI implementation (GPU-aware vs standard)
+- Array size and distribution pattern
+- Number of ranks and GPUs
 
-*Communication overhead increases with ranks but still much faster than CPU*
+### Expected Characteristics
 
-**Weak Scaling** (Problem size grows with ranks):
+**Strong Scaling**: Fixed problem size, increasing ranks
+- Communication overhead increases with more ranks
+- GPU acceleration helps offset communication cost
+- Optimal performance depends on problem size vs communication
 
-| Ranks | GPUs | Array per Rank | Total Size | Time |
-|-------|------|----------------|------------|------|
-| 1 | 1 | 2048×2048 | 4 K×2 K | 1.95 ms |
-| 4 | 4 | 2048×2048 | 4 K×8 K | 2.1 ms |
-| 16 | 16 | 2048×2048 | 8 K×32 K | 2.4 ms |
-| 64 | 64 | 2048×2048 | 16 K×128 K | 3.2 ms |
+**Weak Scaling**: Problem size grows with ranks
+- Local work per rank stays constant
+- Should scale well if communication is well-balanced
+- Network bandwidth becomes critical at high rank counts
 
-*Nearly perfect weak scaling - time stays roughly constant*
-
-### Communication Overhead
-
-**GPU-aware MPI vs CPU Staging:**
-
-| Array Size | GPU-Aware MPI | CPU Staging | Difference |
-|------------|---------------|-------------|------------|
-| 1024×1024 | 1.2 ms | 3.8 ms | **3.2× faster** |
-| 4096×4096 | 4.5 ms | 15.2 ms | **3.4× faster** |
-| 8192×8192 | 16.8 ms | 58.6 ms | **3.5× faster** |
-
-*GPU-aware MPI provides significant advantage by avoiding CPU staging*
+**GPU-Aware vs CPU Staging**:
+- GPU-aware MPI eliminates CPU staging overhead
+- Standard MPI requires GPU→CPU→MPI→CPU→GPU path
+- Performance difference depends on network and GPU specs
 
 ### When to Use GPU+MPI
 
-✅ **Use GPU+MPI when:**
+✅ **Consider GPU+MPI when:**
 - Array doesn't fit on single GPU
 - Have multi-GPU cluster available
 - Problem is large enough to amortize communication
-- Need maximum performance
+- Workload benefits from distributed processing
 
-❌ **Use single GPU when:**
+✅ **Consider single GPU when:**
 - Array fits on single GPU
 - Don't have multi-GPU system
-- Communication overhead dominates
-- Simpler is better
+- Communication overhead would dominate
+- Simpler setup is preferred
+
+**Recommendation**: Profile to determine if multi-GPU provides benefit for your specific problem size and hardware configuration.
 
 ## GPU-Aware MPI
 
@@ -590,16 +590,16 @@ decompose({16385, 16384}, 8, {4, 2}, {0, 0});
 
 **Key Points:**
 - ✅ Combines GPU acceleration with MPI distribution
-- ⚡ Up to 40× faster than CPU, scales to large clusters
-- 🔀 Two modes: GPU-aware MPI (fast) or CPU staging (compatible)
+- 🔀 Two modes: GPU-aware MPI (optimized) or CPU staging (compatible)
 - 🎯 Automatic dispatch when array is distributed AND on GPU
-- 📊 Good strong and weak scaling characteristics
+- 📊 Designed for scalability across multiple GPUs/nodes
+- ⚠️ Performance should be validated on target hardware
 
 **When to Use:**
 - Multi-GPU clusters
 - Arrays too large for single GPU
-- Need maximum performance
-- Have GPU-aware MPI infrastructure
+- Workload benefits from distributed GPU processing
+- Have appropriate infrastructure (MPI + CUDA)
 
 **Quick Check:**
 ```cpp

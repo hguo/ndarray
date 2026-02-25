@@ -1,8 +1,10 @@
 # Distributed Transpose Implementation Guide
 
+> **⚠️ Important**: This implementation has not been tested on actual MPI systems. Performance characteristics are theoretical and should be validated on your target hardware.
+
 ## Overview
 
-The ndarray library supports transpose operations on MPI-distributed arrays with automatic data redistribution. This document explains how distributed transpose works, its constraints, performance characteristics, and usage patterns.
+The ndarray library supports transpose operations on MPI-distributed arrays with automatic data redistribution. This document explains how distributed transpose works, its constraints, design goals, and usage patterns.
 
 ## Table of Contents
 
@@ -292,17 +294,19 @@ For an `N×M` array distributed across `P` ranks:
    - Ghost layers add communication overhead
    - Minimize ghost width when possible
 
-### Benchmark Results
+### Performance Characteristics
 
-Example timing on 8 ranks (approximate):
+Distributed transpose involves:
+- Local transpose computation on each rank
+- All-to-all MPI communication for data redistribution
+- Metadata updates
 
-| Array Size | Serial (1 rank) | Distributed (8 ranks) | Speedup |
-|------------|-----------------|----------------------|---------|
-| 1000×800 | 2.1 ms | 3.8 ms | ~0.5× (overhead) |
-| 4000×3200 | 35 ms | 12 ms | ~3× |
-| 10000×8000 | 550 ms | 85 ms | ~6.5× |
+**Expected behavior**:
+- Small arrays: Communication overhead may dominate
+- Large arrays: Should benefit from parallel processing
+- Scaling depends on: network bandwidth, rank count, decomposition pattern
 
-For large arrays, distributed transpose is faster despite communication overhead.
+**Note**: Actual performance should be measured on your specific hardware and problem size.
 
 ## Implementation Details
 
