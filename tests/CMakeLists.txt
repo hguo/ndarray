@@ -274,8 +274,12 @@ endif()
 
 message("")
 
-add_executable(test_transpose_distributed_minimal test_transpose_distributed_minimal.cpp)
-target_link_libraries(test_transpose_distributed_minimal ndarray)
-# Disable optimizations to avoid Heisenbug in distributed transpose
-target_compile_options(test_transpose_distributed_minimal PRIVATE -O0 -g)
+# Minimal distributed transpose test (requires MPI)
+if (NDARRAY_HAVE_MPI)
+  add_executable(test_transpose_distributed_minimal test_transpose_distributed_minimal.cpp)
+  target_link_libraries(test_transpose_distributed_minimal ndarray)
+  # Disable optimizations to avoid Heisenbug in distributed transpose
+  target_compile_options(test_transpose_distributed_minimal PRIVATE -O0 -g)
+  message("  - test_transpose_distributed_minimal: Minimal distributed transpose debugging test (run with: mpirun -np 2 ./bin/test_transpose_distributed_minimal)")
+endif()
 
