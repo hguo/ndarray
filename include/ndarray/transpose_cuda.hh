@@ -15,6 +15,9 @@
 namespace ftk {
 namespace detail {
 
+#ifdef __CUDACC__
+// Only compile CUDA device code when using nvcc compiler
+
 // Tile size for shared memory transpose (32x32 is optimal for most GPUs)
 constexpr int TILE_DIM = 32;
 constexpr int BLOCK_ROWS = 8;  // To avoid shared memory bank conflicts
@@ -124,12 +127,15 @@ __global__ void transpose_nd_kernel(const T* __restrict__ input,
   output[idx] = input[input_linear];
 }
 
+#endif // __CUDACC__
+
 /**
  * @brief Host function: 2D transpose on CUDA device
  */
 template <typename T, typename StoragePolicy>
 void transpose_2d_cuda(const ndarray<T, StoragePolicy>& input,
                        ndarray<T, StoragePolicy>& output) {
+#ifdef __CUDACC__
   const size_t height = input.dimf(0);
   const size_t width = input.dimf(1);
 
@@ -157,6 +163,10 @@ void transpose_2d_cuda(const ndarray<T, StoragePolicy>& input,
 
   CUDA_CHECK(cudaGetLastError());
   CUDA_CHECK(cudaDeviceSynchronize());
+#else
+  throw device_error(ERR_NOT_BUILT_WITH_CUDA,
+                    "transpose_2d_cuda: CUDA support not available (not compiled with nvcc)");
+#endif
 }
 
 /**
@@ -166,6 +176,7 @@ template <typename T, typename StoragePolicy>
 void transpose_nd_cuda(const ndarray<T, StoragePolicy>& input,
                        ndarray<T, StoragePolicy>& output,
                        const std::vector<size_t>& axes) {
+#ifdef __CUDACC__
   const size_t nd = input.nd();
   const size_t n_elems = input.nelem();
 
@@ -222,6 +233,10 @@ void transpose_nd_cuda(const ndarray<T, StoragePolicy>& input,
   CUDA_CHECK(cudaFree(d_input_dims));
   CUDA_CHECK(cudaFree(d_output_dims));
   CUDA_CHECK(cudaFree(d_axes));
+#else
+  throw device_error(ERR_NOT_BUILT_WITH_CUDA,
+                    "transpose_nd_cuda: CUDA support not available (not compiled with nvcc)");
+#endif
 }
 
 /**
