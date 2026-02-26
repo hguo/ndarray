@@ -75,8 +75,14 @@ void validate_distributed_transpose(const ndarray<T, StoragePolicy>& input,
  * @brief Compute intersection of two lattice regions
  */
 inline lattice compute_intersection(const lattice& a, const lattice& b) {
-  if (a.nd() != b.nd()) {
-    return lattice();  // Empty - dimension mismatch
+  if (a.nd() == 0 || b.nd() == 0 || a.nd() != b.nd()) {
+    // Return empty lattice with same dimensions as a (or 0 if a is empty)
+    if (a.nd() > 0) {
+      std::vector<size_t> zero_sizes(a.nd(), 0);
+      std::vector<size_t> starts(a.nd(), 0);
+      return lattice(starts, zero_sizes);
+    }
+    return lattice();  // Both empty
   }
 
   const size_t nd = a.nd();
@@ -93,7 +99,10 @@ inline lattice compute_intersection(const lattice& a, const lattice& b) {
     const size_t end_intersect = std::min(end_a, end_b);
 
     if (start_intersect >= end_intersect) {
-      return lattice();  // No overlap
+      // No overlap - return zero-sized lattice with proper dimensions
+      std::vector<size_t> zero_sizes(nd, 0);
+      std::vector<size_t> zero_starts(nd, 0);
+      return lattice(zero_starts, zero_sizes);
     }
 
     starts[i] = start_intersect;
@@ -157,8 +166,8 @@ MPI_Datatype get_mpi_type() {
 /**
  * @brief Pack data from region with transpose applied
  *
- * Iterates over global_region in input coordinates and packs data
- * in transposed order for the output.
+ * Iterates in transposed coordinate order to ensure packed data
+ * matches the order expected during unpacking.
  */
 template <typename T, typename StoragePolicy>
 void pack_transposed_region(const ndarray<T, StoragePolicy>& input,
@@ -168,25 +177,59 @@ void pack_transposed_region(const ndarray<T, StoragePolicy>& input,
   const size_t nd = input.nd();
   const size_t n_elems = global_region_original.n();
 
+  if (global_region_original.nd() != nd) {
+    throw std::runtime_error("pack_transposed_region: lattice nd mismatch");
+  }
+
   buffer.clear();
   buffer.reserve(n_elems);
 
-  // Iterate over region in original coordinates
-  std::vector<size_t> idx(nd);
+  // Pre-allocate vectors to avoid repeated allocations in the loop
+  std::vector<size_t> transposed_idx(nd);
+  std::vector<size_t> original_idx(nd);
+  std::vector<size_t> local_idx(nd);
+
+  // Compute transposed region dimensions for iteration
+  std::vector<size_t> transposed_sizes(nd);
+  for (size_t d = 0; d < nd; d++) {
+    transposed_sizes[d] = global_region_original.size(axes[d]);
+  }
+
+  // Iterate in transposed coordinate order (to match unpacking order)
   for (size_t linear = 0; linear < n_elems; linear++) {
-    // Compute multi-dimensional index within region (original coordinates)
+    // Compute multi-dimensional index in transposed space
     size_t tmp = linear;
     for (size_t d = 0; d < nd; d++) {
-      idx[d] = global_region_original.start(d) + (tmp % global_region_original.size(d));
-      tmp /= global_region_original.size(d);
+      transposed_idx[d] = tmp % transposed_sizes[d];
+      tmp /= transposed_sizes[d];
+    }
+
+    // Map transposed index back to original coordinates
+    for (size_t d = 0; d < nd; d++) {
+      original_idx[axes[d]] = transposed_idx[d] + global_region_original.start(axes[d]);
     }
 
     // Access element (convert to local if needed)
-    if (input.is_local(idx)) {
-      auto local_idx = input.global_to_local(idx);
-      buffer.push_back(input.f(local_idx));
+    if (input.is_local(original_idx)) {
+      local_idx = input.global_to_local(original_idx);
+
+      // Use dimension-specific accessor for better performance
+      T value;
+      if (nd == 1) {
+        value = input.f(local_idx[0]);
+      } else if (nd == 2) {
+        value = input.f(local_idx[0], local_idx[1]);
+      } else if (nd == 3) {
+        value = input.f(local_idx[0], local_idx[1], local_idx[2]);
+      } else if (nd == 4) {
+        value = input.f(local_idx[0], local_idx[1], local_idx[2], local_idx[3]);
+      } else {
+        // Fall back to array accessor for higher dimensions
+        value = input.f(local_idx.data());
+      }
+
+      buffer.push_back(value);
     } else {
-      // Should not happen if region is properly computed
       throw std::runtime_error("pack_transposed_region: index not in local core");
     }
   }
@@ -206,8 +249,11 @@ void unpack_transposed_region(ndarray<T, StoragePolicy>& output,
     throw std::runtime_error("unpack_transposed_region: buffer size mismatch");
   }
 
-  // Iterate over region in transposed coordinates
+  // Pre-allocate vectors to avoid repeated allocations in the loop
   std::vector<size_t> idx(nd);
+  std::vector<size_t> local_idx(nd);
+
+  // Iterate over region in transposed coordinates
   for (size_t linear = 0; linear < n_elems; linear++) {
     // Compute multi-dimensional index within region (transposed coordinates)
     size_t tmp = linear;
@@ -218,8 +264,21 @@ void unpack_transposed_region(ndarray<T, StoragePolicy>& output,
 
     // Write element (convert to local)
     if (output.is_local(idx)) {
-      auto local_idx = output.global_to_local(idx);
-      output.f(local_idx) = buffer[linear];
+      local_idx = output.global_to_local(idx);
+
+      // Use dimension-specific accessor for better performance
+      if (nd == 1) {
+        output.f(local_idx[0]) = buffer[linear];
+      } else if (nd == 2) {
+        output.f(local_idx[0], local_idx[1]) = buffer[linear];
+      } else if (nd == 3) {
+        output.f(local_idx[0], local_idx[1], local_idx[2]) = buffer[linear];
+      } else if (nd == 4) {
+        output.f(local_idx[0], local_idx[1], local_idx[2], local_idx[3]) = buffer[linear];
+      } else {
+        // Fall back to array accessor for higher dimensions
+        output.f(local_idx.data()) = buffer[linear];
+      }
     } else {
       throw std::runtime_error("unpack_transposed_region: index not in local core");
     }
@@ -311,7 +370,7 @@ ndarray<T, StoragePolicy> transpose_distributed(const ndarray<T, StoragePolicy>&
 
   // Phase 3: MPI communication
   MPI_Datatype mpi_type = get_mpi_type<T>();
-  size_t type_size = std::is_same<MPI_Datatype, MPI_BYTE>::value ? sizeof(T) : 1;
+  size_t type_size = (mpi_type == MPI_BYTE) ? sizeof(T) : 1;
 
   std::vector<MPI_Request> requests;
   requests.reserve(2 * nprocs);

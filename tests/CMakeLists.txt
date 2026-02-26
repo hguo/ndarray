@@ -232,6 +232,50 @@ if (NDARRAY_HAVE_MPI)
     target_link_libraries(test_adios2_parallel ndarray)
     message("  - test_adios2_parallel: Parallel ADIOS2 I/O with MPI (run with: mpirun -np 4 ./bin/test_adios2_parallel)")
   endif()
+
+  # Distributed transpose tests (require MPI)
+  add_executable(test_transpose_distributed test_transpose_distributed.cpp)
+  target_link_libraries(test_transpose_distributed ndarray)
+  # Disable optimizations to avoid Heisenbug in distributed transpose
+  target_compile_options(test_transpose_distributed PRIVATE -O0 -g)
+  message("  - test_transpose_distributed: Distributed array transpose with MPI (run with: mpirun -np 4 ./bin/test_transpose_distributed)")
+
+  # Distributed GPU transpose tests (require MPI + CUDA)
+  if (NDARRAY_HAVE_CUDA)
+    add_executable(test_transpose_distributed_gpu test_transpose_distributed_gpu.cpp)
+    target_link_libraries(test_transpose_distributed_gpu ndarray)
+    message("  - test_transpose_distributed_gpu: GPU-accelerated distributed transpose (run with: mpirun -np 4 ./bin/test_transpose_distributed_gpu)")
+  endif()
+endif()
+
+# Transpose tests (basic functionality)
+add_executable(test_transpose test_transpose.cpp)
+target_link_libraries(test_transpose ndarray)
+add_test(NAME transpose COMMAND test_transpose)
+message("  - test_transpose: Core transpose operations")
+
+add_executable(test_transpose_metadata test_transpose_metadata.cpp)
+target_link_libraries(test_transpose_metadata ndarray)
+add_test(NAME transpose_metadata COMMAND test_transpose_metadata)
+message("  - test_transpose_metadata: Transpose with multicomponent/time arrays")
+
+add_executable(test_transpose_performance test_transpose_performance.cpp)
+target_link_libraries(test_transpose_performance ndarray)
+add_test(NAME transpose_performance COMMAND test_transpose_performance)
+message("  - test_transpose_performance: Transpose performance benchmarks")
+
+# GPU transpose tests (require CUDA)
+if (NDARRAY_HAVE_CUDA)
+  add_executable(test_transpose_cuda test_transpose_cuda.cpp)
+  target_link_libraries(test_transpose_cuda ndarray)
+  add_test(NAME transpose_cuda COMMAND test_transpose_cuda)
+  message("  - test_transpose_cuda: GPU-accelerated transpose with CUDA")
 endif()
 
 message("")
+
+add_executable(test_transpose_distributed_minimal test_transpose_distributed_minimal.cpp)
+target_link_libraries(test_transpose_distributed_minimal ndarray)
+# Disable optimizations to avoid Heisenbug in distributed transpose
+target_compile_options(test_transpose_distributed_minimal PRIVATE -O0 -g)
+

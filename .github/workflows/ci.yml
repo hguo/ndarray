@@ -286,6 +286,18 @@ jobs:
             exit 1
           }
         done
+
+        # Run distributed transpose tests
+        if [ -f bin/test_transpose_distributed ]; then
+          for np in 2 4; do
+            echo "Testing transpose_distributed with $np ranks..."
+            $MPIRUN -np $np bin/test_transpose_distributed || {
+              echo "Distributed transpose test with $np ranks failed"
+              exit 1
+            }
+          done
+        fi
+
         echo "All MPI tests passed"
 
   build-storage-backends:

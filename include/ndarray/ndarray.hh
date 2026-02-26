@@ -2471,15 +2471,21 @@ void ndarray<T, StoragePolicy>::decompose(MPI_Comm comm,
   size_t np = (nprocs == 0) ? dist_->nprocs : nprocs;
 
   // Create effective decomposition pattern
-  // For dimensions with decomp[i] == 0, lattice_partitioner should not split
+  // For dimensions with decomp[i] == 0, convert to 1 (meaning "use 1 partition, don't split")
+  // lattice_partitioner interprets 0 as "not specified" and will auto-partition
   std::vector<size_t> effective_decomp = decomp;
   std::vector<size_t> effective_ghost = ghost;
 
-  // If empty, lattice_partitioner will auto-decompose
-  // But we need to be careful about which dimensions to decompose
+  if (!effective_decomp.empty()) {
+    for (size_t i = 0; i < effective_decomp.size(); i++) {
+      if (effective_decomp[i] == 0) {
+        // Convert 0 to 1: "use 1 partition for this dimension" = don't split
+        effective_decomp[i] = 1;
+      }
+    }
+  }
 
   // Create partitioner
-  // Note: lattice_partitioner needs to handle decomp[i]==0 meaning "don't split"
   dist_->partitioner_ = std::make_unique<lattice_partitioner>(dist_->global_lattice_);
 
   // Partition the domain
@@ -2629,12 +2635,13 @@ std::vector<size_t> ndarray<T, StoragePolicy>::global_to_local(
 
   std::vector<size_t> local_idx(global_idx.size());
   for (size_t d = 0; d < global_idx.size(); d++) {
-    if (global_idx[d] < dist_->local_core_.start(d) ||
-        global_idx[d] >= dist_->local_core_.start(d) + dist_->local_core_.size(d)) {
-      throw std::out_of_range("Global index not in local core region");
+    // Check if global index is in local extent (core + ghosts)
+    if (global_idx[d] < dist_->local_extent_.start(d) ||
+        global_idx[d] >= dist_->local_extent_.start(d) + dist_->local_extent_.size(d)) {
+      throw std::out_of_range("Global index not in local extent region");
     }
-    local_idx[d] = global_idx[d] - dist_->local_core_.start(d) +
-                   (dist_->local_extent_.start(d) - dist_->local_core_.start(d));
+    // Local array starts at local_extent.start in global coordinates
+    local_idx[d] = global_idx[d] - dist_->local_extent_.start(d);
   }
   return local_idx;
 }
@@ -2649,8 +2656,8 @@ std::vector<size_t> ndarray<T, StoragePolicy>::local_to_global(
 
   std::vector<size_t> global_idx(local_idx.size());
   for (size_t d = 0; d < local_idx.size(); d++) {
-    global_idx[d] = local_idx[d] + dist_->local_core_.start(d) -
-                    (dist_->local_extent_.start(d) - dist_->local_core_.start(d));
+    // Local array starts at local_extent.start in global coordinates
+    global_idx[d] = local_idx[d] + dist_->local_extent_.start(d);
   }
   return global_idx;
 }

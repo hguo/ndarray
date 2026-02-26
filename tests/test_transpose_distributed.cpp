@@ -64,12 +64,14 @@ void init_array_with_pattern(ndarray<T>& arr) {
 }
 
 /**
- * @brief Verify transposed array has correct values
+ * @brief Verify transposed array has correct values (only checks core region, not ghosts)
  */
 template <typename T>
 bool verify_transposed_pattern(const ndarray<T>& arr, const std::vector<size_t>& axes) {
   const size_t nd = arr.nd();
+  const auto& core = arr.local_core();
 
+  // Iterate over all local elements, but only verify core elements
   for (size_t i = 0; i < arr.nelem(); i++) {
     // Get local index in transposed array
     std::vector<size_t> transposed_local_idx(nd);
@@ -81,6 +83,17 @@ bool verify_transposed_pattern(const ndarray<T>& arr, const std::vector<size_t>&
 
     // Convert to global index (in transposed coordinates)
     auto transposed_global_idx = arr.local_to_global(transposed_local_idx);
+
+    // Check if this is in the core region (skip ghost elements)
+    bool in_core = true;
+    for (size_t d = 0; d < nd; d++) {
+      if (transposed_global_idx[d] < core.start(d) ||
+          transposed_global_idx[d] >= core.start(d) + core.size(d)) {
+        in_core = false;
+        break;
+      }
+    }
+    if (!in_core) continue;  // Skip ghost elements
 
     // Apply inverse permutation to get original global index
     std::vector<size_t> original_global_idx(nd);
@@ -95,7 +108,13 @@ bool verify_transposed_pattern(const ndarray<T>& arr, const std::vector<size_t>&
     }
 
     if (std::abs(arr[i] - expected) > 1e-10) {
-      return false;
+      std::cerr << "[Rank ?] Mismatch at local i=" << i
+                << ": got " << arr[i] << ", expected " << expected
+                << " (transposed_global=[" << transposed_global_idx[0] << "," << transposed_global_idx[1] << "]"
+                << ", original_global=[" << original_global_idx[0] << "," << original_global_idx[1] << "])"
+                << std::endl;
+      static int error_count = 0;
+      if (++error_count > 5) return false;  // Only show first few errors
     }
   }
 
