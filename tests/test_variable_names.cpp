@@ -222,17 +222,10 @@ int main(int argc, char** argv) {
     };
 
     auto suggestions = ftk::find_similar_names("temperature", candidates);
+    TEST_ASSERT(suggestions.empty(),
+                "Should find no matches for unrelated query 'temperature' against fruit names");
 
-    if (suggestions.empty()) {
-      std::cout << "    Correctly found no matches for unrelated query" << std::endl;
-    } else {
-      std::cout << "    Found some distant matches (acceptable): ";
-      for (const auto& s : suggestions) {
-        std::cout << s << " ";
-      }
-      std::cout << std::endl;
-    }
-
+    std::cout << "    Correctly found no matches for unrelated query" << std::endl;
     std::cout << "    PASSED" << std::endl;
   }
 
@@ -260,17 +253,21 @@ int main(int argc, char** argv) {
       {"verticesOncell", "verticesOnCell"},  // Case typo
     };
 
+    int typo_passes = 0;
     for (const auto& test : typos) {
       auto suggestions = ftk::find_similar_names(test.typo, mpas_vars, 1);
-      if (!suggestions.empty()) {
-        std::cout << "    '" << test.typo << "' -> '" << suggestions[0] << "'";
-        if (suggestions[0] == test.expected) {
-          std::cout << " ✓" << std::endl;
-        } else {
-          std::cout << " (expected '" << test.expected << "')" << std::endl;
-        }
+      TEST_ASSERT(!suggestions.empty(),
+                  "Should find suggestion for typo '" + test.typo + "'");
+      std::cout << "    '" << test.typo << "' -> '" << suggestions[0] << "'";
+      if (suggestions[0] == test.expected) {
+        std::cout << " correct" << std::endl;
+        typo_passes++;
+      } else {
+        std::cout << " (expected '" << test.expected << "')" << std::endl;
       }
     }
+    TEST_ASSERT(typo_passes == static_cast<int>(typos.size()),
+                "All typo corrections should match expected values");
 
     std::cout << "    PASSED" << std::endl;
   }

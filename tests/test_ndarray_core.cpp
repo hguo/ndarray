@@ -144,7 +144,44 @@ int main(int argc, char** argv) {
     std::cout << "    PASSED" << std::endl;
   }
 
-  // Test 7: Slicing
+  // Test 7: reshapec() C-order reshape
+  {
+    TEST_SECTION("reshapec() C-order reshape");
+
+    // 1D reshapec
+    ftk::ndarray<int> arr1d;
+    arr1d.reshapec(10);
+    TEST_ASSERT(arr1d.nd() == 1, "1D reshapec: should have 1 dimension");
+    TEST_ASSERT(arr1d.size() == 10, "1D reshapec: size should be 10");
+    TEST_ASSERT(arr1d.dimc(0) == 10, "1D reshapec: dimc(0) should be 10");
+
+    // 2D reshapec
+    ftk::ndarray<int> arr2d;
+    arr2d.reshapec(3, 4);
+    TEST_ASSERT(arr2d.nd() == 2, "2D reshapec: should have 2 dimensions");
+    TEST_ASSERT(arr2d.size() == 12, "2D reshapec: size should be 3*4=12");
+    TEST_ASSERT(arr2d.dimc(0) == 3, "2D reshapec: dimc(0) should be 3");
+    TEST_ASSERT(arr2d.dimc(1) == 4, "2D reshapec: dimc(1) should be 4");
+
+    // 3D reshapec
+    ftk::ndarray<int> arr3d;
+    arr3d.reshapec(2, 3, 5);
+    TEST_ASSERT(arr3d.nd() == 3, "3D reshapec: should have 3 dimensions");
+    TEST_ASSERT(arr3d.size() == 30, "3D reshapec: size should be 2*3*5=30");
+    TEST_ASSERT(arr3d.dimc(0) == 2, "3D reshapec: dimc(0) should be 2");
+    TEST_ASSERT(arr3d.dimc(1) == 3, "3D reshapec: dimc(1) should be 3");
+    TEST_ASSERT(arr3d.dimc(2) == 5, "3D reshapec: dimc(2) should be 5");
+
+    // Verify c() indexing after reshapec
+    for (size_t i = 0; i < arr2d.size(); i++)
+      arr2d[i] = static_cast<int>(i);
+    // c(0,0) should be element 0, c(0,1) should be element 1 (last index fastest)
+    TEST_ASSERT(arr2d.c(0, 0) == arr2d[0], "c(0,0) should be first element");
+
+    std::cout << "    PASSED" << std::endl;
+  }
+
+  // Test 8: Slicing (was Test 7)
   {
     TEST_SECTION("Array slicing");
     ftk::ndarray<double> arr;

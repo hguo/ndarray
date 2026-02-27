@@ -110,10 +110,9 @@ static inline std::string series_filename(
     const std::string& pattern, int k)
 {
   ssize_t size = snprintf(NULL, 0, pattern.c_str(), k);
-  char *buf = (char*)malloc(size + 1);
-  snprintf(buf, size + 1, pattern.c_str(), k);
-  const std::string filename(buf);
-  free(buf);
+  std::string filename(size + 1, '\0');
+  snprintf(&filename[0], size + 1, pattern.c_str(), k);
+  filename.resize(size);
   return filename;
 }
 

@@ -786,7 +786,7 @@ template <typename T, typename StoragePolicy>
 template <typename T1>
 ndarray<T, StoragePolicy>& ndarray<T, StoragePolicy>::operator*=(const T1& x)
 {
-  for (auto i = 0; i < storage_.size(); i ++)
+  for (size_t i = 0; i < storage_.size(); i ++)
     storage_[i] *= x;
   return *this;
 }
@@ -795,7 +795,7 @@ template <typename T, typename StoragePolicy>
 template <typename T1>
 ndarray<T, StoragePolicy>& ndarray<T, StoragePolicy>::operator/=(const T1& x)
 {
-  for (auto i = 0; i < storage_.size(); i ++)
+  for (size_t i = 0; i < storage_.size(); i ++)
     storage_[i] /= x;
   return *this;
 }
@@ -805,8 +805,9 @@ ndarray<T, StoragePolicy>& ndarray<T, StoragePolicy>::operator+=(const ndarray<T
 {
   if (empty()) *this = x;
   else {
-    assert(this->shapef() == x.shapef());
-    for (auto i = 0; i < storage_.size(); i ++)
+    if (this->shapef() != x.shapef())
+      throw std::invalid_argument("ndarray::operator+=: dimension mismatch");
+    for (size_t i = 0; i < storage_.size(); i ++)
       storage_[i] += x.storage_[i];
   }
   return *this;
@@ -879,7 +880,7 @@ template <typename T1>
 void ndarray<T, StoragePolicy>::from_array(const ndarray<T1>& array1)
 {
   reshapef(array1.shapef());
-  for (auto i = 0; i < storage_.size(); i ++)
+  for (size_t i = 0; i < storage_.size(); i ++)
     storage_[i] = static_cast<T>(array1[i]);
   n_component_dims = array1.multicomponents();
   is_time_varying = array1.has_time();
@@ -910,7 +911,7 @@ void ndarray<T, StoragePolicy>::from_array(const T *x, const std::vector<size_t>
 
 template <typename T, typename StoragePolicy>
 void ndarray<T, StoragePolicy>::from_vector(const std::vector<T> &in_vector){
-  for (int i=0;i<nelem();++i)
+  for (size_t i=0;i<nelem();++i)
     if (i<in_vector.size())
       storage_[i] = in_vector[i];
     else break;
@@ -1486,8 +1487,7 @@ inline void ndarray<T, StoragePolicy>::read_bp(adios2::IO &io, adios2::Engine &r
     // Execute all deferred Get operations
     reader.PerformGets();
   } else {
-    throw ERR_ADIOS2_VARIABLE_NOT_FOUND;
-    // fatal(ERR_ADIOS2_VARIABLE_NOT_FOUND);
+    fatal(ERR_ADIOS2_VARIABLE_NOT_FOUND);
   }
 }
 
@@ -1506,7 +1506,7 @@ bool ndarray<T, StoragePolicy>::read_bp_legacy(ADIOS_FILE *fp, const std::string
   warn("reading bp file with legacy ADIOS1 API..");
   ADIOS_VARINFO *avi = adios_inq_var(fp, varname.c_str());
   if (avi == NULL)
-    throw ERR_ADIOS2_VARIABLE_NOT_FOUND;
+    fatal(ERR_ADIOS2_VARIABLE_NOT_FOUND);
 
   adios_inq_var_stat(fp, avi, 0, 0);
   adios_inq_var_blockinfo(fp, avi);

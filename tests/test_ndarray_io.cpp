@@ -11,6 +11,7 @@
 #include <iostream>
 #include <cassert>
 #include <cmath>
+#include <cstdio>
 #include <fstream>
 #if NDARRAY_HAVE_MPI
 #include <mpi.h>
@@ -181,11 +182,18 @@ std::cout << "  NetCDF tests SKIPPED (requires manual ncid/varid management)" <<
 // The convenience methods write_h5()/read_h5() don't exist in this library
 std::cout << "  HDF5 tests SKIPPED (requires manual hid_t management)" << std::endl;
 
+  // Clean up temporary test files
+  std::remove("test_output.bin");
+  std::remove("test_float.bin");
+  std::remove("test_int.bin");
+  std::remove("test_3d.bin");
+  std::remove("test_large.bin");
+
   std::cout << std::endl;
-    std::cout << "=== All I/O Tests Passed ===" << std::endl;
-  
-  #if NDARRAY_HAVE_MPI
-    MPI_Finalize();
-  #endif
-    return 0;
-  }
+  std::cout << "=== All I/O Tests Passed ===" << std::endl;
+
+#if NDARRAY_HAVE_MPI
+  MPI_Finalize();
+#endif
+  return 0;
+}

@@ -16,8 +16,11 @@ set (NDARRAY_HAVE_MPI @NDARRAY_HAVE_MPI@)
 set (NDARRAY_HAVE_NETCDF @NDARRAY_HAVE_NETCDF@)
 set (NDARRAY_HAVE_PNETCDF @NDARRAY_HAVE_PNETCDF@)
 set (NDARRAY_HAVE_VTK @NDARRAY_HAVE_VTK@)
+set (NDARRAY_HAVE_YAML @NDARRAY_HAVE_YAML@)
 
-find_dependency (yaml-cpp REQUIRED)
+if (NDARRAY_HAVE_YAML)
+  find_dependency (yaml-cpp REQUIRED)
+endif ()
 
 if (NDARRAY_HAVE_ADIOS2)
   # Require at least the version ndarray was built with to avoid ABI incompatibilities
@@ -36,7 +39,13 @@ if (NDARRAY_HAVE_CUDA)
 endif ()
 
 if (NDARRAY_HAVE_VTK)
-  find_dependency (VTK @VTK_MAJOR_VERSION@.@VTK_MINOR_VERSION@ REQUIRED)
+  set (_VTK_VERSION "@VTK_MAJOR_VERSION@.@VTK_MINOR_VERSION@")
+  if (_VTK_VERSION MATCHES "^[0-9]+\\.[0-9]+")
+    find_dependency (VTK ${_VTK_VERSION} REQUIRED)
+  else ()
+    find_dependency (VTK REQUIRED)
+  endif ()
+  unset (_VTK_VERSION)
 endif ()
 
 if (NDARRAY_HAVE_METIS)

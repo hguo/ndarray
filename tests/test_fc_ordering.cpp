@@ -7,6 +7,15 @@
 
 using namespace ftk;
 
+#define TEST_ASSERT(condition, message) \
+  do { \
+    if (!(condition)) { \
+      std::cerr << "FAILED: " << message << std::endl; \
+      std::cerr << "  at " << __FILE__ << ":" << __LINE__ << std::endl; \
+      return 1; \
+    } \
+  } while (0)
+
 void print_array_memory(const ndarray<int>& arr) {
   std::cout << "Memory: [";
   for (size_t i = 0; i < arr.size(); i++) {
@@ -16,7 +25,7 @@ void print_array_memory(const ndarray<int>& arr) {
   std::cout << "]" << std::endl;
 }
 
-void test_2d_column_major() {
+int test_2d_column_major() {
   std::cout << "=== Test 2D Column-Major Access (f) ===" << std::endl;
 
   ndarray<int> arr;
@@ -36,6 +45,8 @@ void test_2d_column_major() {
     for (size_t i0 = 0; i0 < arr.dimf(0); i0++) {
       size_t mem_idx = i0 + i1 * arr.dimf(0);  // column-major formula
       std::cout << "f(" << i0 << "," << i1 << ")=[" << mem_idx << "]=" << arr.f(i0, i1);
+      TEST_ASSERT(arr.f(i0, i1) == static_cast<int>(mem_idx),
+                  "f() should follow column-major layout");
       if (i0 < arr.dimf(0) - 1) std::cout << ", ";
     }
     std::cout << std::endl;
@@ -43,9 +54,10 @@ void test_2d_column_major() {
 
   std::cout << "\nConclusion: f() is column-major (Fortran-style)" << std::endl;
   std::cout << std::endl;
+  return 0;
 }
 
-void test_2d_row_major() {
+int test_2d_row_major() {
   std::cout << "=== Test 2D Row-Major Access (c) ===" << std::endl;
 
   ndarray<int> arr;
@@ -67,6 +79,8 @@ void test_2d_row_major() {
     for (size_t i1 = 0; i1 < arr.dimf(0); i1++) {
       size_t mem_idx = i1 + i0 * arr.dimf(0);  // row-major formula with transposed dims
       std::cout << "c(" << i0 << "," << i1 << ")=[" << mem_idx << "]=" << arr.c(i0, i1);
+      TEST_ASSERT(arr.c(i0, i1) == static_cast<int>(mem_idx),
+                  "c() should follow row-major layout");
       if (i1 < arr.dimf(0) - 1) std::cout << ", ";
     }
     std::cout << std::endl;
@@ -74,9 +88,10 @@ void test_2d_row_major() {
 
   std::cout << "\nConclusion: c() is row-major (C-style)" << std::endl;
   std::cout << std::endl;
+  return 0;
 }
 
-void test_3d_ordering() {
+int test_3d_ordering() {
   std::cout << "=== Test 3D Ordering ===" << std::endl;
 
   ndarray<int> arr;
@@ -98,6 +113,8 @@ void test_3d_ordering() {
       for (size_t i0 = 0; i0 < 2; i0++) {
         size_t mem_idx = i0 + i1 * s1 + i2 * s2;
         std::cout << "f(" << i0 << "," << i1 << "," << i2 << ")=[" << mem_idx << "]=" << arr.f(i0, i1, i2) << " ";
+        TEST_ASSERT(arr.f(i0, i1, i2) == static_cast<int>(mem_idx),
+                    "f() 3D should follow column-major layout");
       }
       std::cout << std::endl;
     }
@@ -111,14 +128,17 @@ void test_3d_ordering() {
       for (size_t i2 = 0; i2 < 3; i2++) {
         size_t mem_idx = i2 + i1 * s1 + i0 * s2;
         std::cout << "c(" << i0 << "," << i1 << "," << i2 << ")=[" << mem_idx << "]=" << arr.c(i0, i1, i2) << " ";
+        TEST_ASSERT(arr.c(i0, i1, i2) == static_cast<int>(mem_idx),
+                    "c() 3D should follow row-major layout");
       }
       std::cout << std::endl;
     }
   }
   std::cout << std::endl;
+  return 0;
 }
 
-void test_fortran_vs_c() {
+int test_fortran_vs_c() {
   std::cout << "=== Fortran vs C Convention ===" << std::endl;
 
   ndarray<double> arr;
@@ -141,28 +161,44 @@ void test_fortran_vs_c() {
   std::cout << "Row 0: c(0,0)=" << arr.c(0,0) << ", c(0,1)=" << arr.c(0,1) << ", c(0,2)=" << arr.c(0,2) << std::endl;
   std::cout << "Row 1: c(1,0)=" << arr.c(1,0) << ", c(1,1)=" << arr.c(1,1) << ", c(1,2)=" << arr.c(1,2) << std::endl;
 
+  // Verify f(i,j) == c(j,i)
+  for (size_t i = 0; i < 3; i++) {
+    for (size_t j = 0; j < 2; j++) {
+      TEST_ASSERT(arr.f(i, j) == arr.c(j, i),
+                  "f(i,j) should equal c(j,i)");
+    }
+  }
+
   std::cout << "\nKey: f(i,j) on (3,2) = c(j,i) on transposed (2,3) view" << std::endl;
   std::cout << std::endl;
+  return 0;
 }
 
 int main(int argc, char** argv) {
 #if NDARRAY_HAVE_MPI
   MPI_Init(&argc, &argv);
 #endif
-  test_2d_column_major();
-  test_2d_row_major();
-  test_3d_ordering();
-  test_fortran_vs_c();
+
+  int failures = 0;
+  failures += test_2d_column_major();
+  failures += test_2d_row_major();
+  failures += test_3d_ordering();
+  failures += test_fortran_vs_c();
 
   std::cout << "=== Summary ===" << std::endl;
   std::cout << "f(): Column-major (Fortran) - first index varies fastest" << std::endl;
   std::cout << "c(): Row-major (C) - last index varies fastest" << std::endl;
   std::cout << "Both access the same memory with different indexing" << std::endl;
-  std::cout << "\nDemonstration completed successfully!" << std::endl;
+
+  if (failures == 0) {
+    std::cout << "\nAll ordering tests passed!" << std::endl;
+  } else {
+    std::cerr << "\n" << failures << " test(s) failed!" << std::endl;
+  }
 
 #if NDARRAY_HAVE_MPI
   MPI_Finalize();
 #endif
 
-  return 0;
+  return failures;
 }
