@@ -135,6 +135,14 @@ struct ndarray : public ndarray_base {
   void reshapef(size_t n0, size_t n1, size_t n2, size_t n3, size_t n4, size_t n5) {reshapef({n0, n1, n2, n3, n4, n5});}
   void reshapef(size_t n0, size_t n1, size_t n2, size_t n3, size_t n4, size_t n5, size_t n6) {reshapef({n0, n1, n2, n3, n4, n5, n6});}
 
+  void reshapec(size_t n0) { ndarray_base::reshapec(std::vector<size_t>({n0})); }
+  void reshapec(size_t n0, size_t n1) { ndarray_base::reshapec(std::vector<size_t>({n0, n1})); }
+  void reshapec(size_t n0, size_t n1, size_t n2) { ndarray_base::reshapec(std::vector<size_t>({n0, n1, n2})); }
+  void reshapec(size_t n0, size_t n1, size_t n2, size_t n3) { ndarray_base::reshapec(std::vector<size_t>({n0, n1, n2, n3})); }
+  void reshapec(size_t n0, size_t n1, size_t n2, size_t n3, size_t n4) { ndarray_base::reshapec(std::vector<size_t>({n0, n1, n2, n3, n4})); }
+  void reshapec(size_t n0, size_t n1, size_t n2, size_t n3, size_t n4, size_t n5) { ndarray_base::reshapec(std::vector<size_t>({n0, n1, n2, n3, n4, n5})); }
+  void reshapec(size_t n0, size_t n1, size_t n2, size_t n3, size_t n4, size_t n5, size_t n6) { ndarray_base::reshapec(std::vector<size_t>({n0, n1, n2, n3, n4, n5, n6})); }
+
   [[deprecated("Use reshapef() for Fortran-order (first index varies fastest) or reshapec() for C-order/NumPy compatibility (last index varies fastest)")]]
   void reshape(const std::vector<size_t> &dims_) {reshapef(dims_);}
   [[deprecated("Use reshapef() for Fortran-order (first index varies fastest) or reshapec() for C-order/NumPy compatibility (last index varies fastest)")]]
@@ -840,7 +848,8 @@ void ndarray<T, StoragePolicy>::fill(T v)
 #if NDARRAY_HAVE_CUDA
   if (device_type == NDARRAY_DEVICE_CUDA) {
     launch_fill<T>(static_cast<T*>(devptr_.get()), nelem(), v);
-    cudaDeviceSynchronize();
+    CUDA_CHECK(cudaGetLastError());
+    CUDA_CHECK(cudaDeviceSynchronize());
     return;
   }
 #endif
@@ -1301,7 +1310,8 @@ ndarray<T, StoragePolicy>& ndarray<T, StoragePolicy>::scale(T factor)
 #if NDARRAY_HAVE_CUDA
   if (device_type == NDARRAY_DEVICE_CUDA) {
     launch_scale<T>(static_cast<T*>(devptr_.get()), nelem(), factor);
-    cudaDeviceSynchronize();
+    CUDA_CHECK(cudaGetLastError());
+    CUDA_CHECK(cudaDeviceSynchronize());
     return *this;
   }
 #endif
@@ -1317,7 +1327,8 @@ ndarray<T, StoragePolicy>& ndarray<T, StoragePolicy>::add(const ndarray<T, Stora
 #if NDARRAY_HAVE_CUDA
   if (device_type == NDARRAY_DEVICE_CUDA && other.device_type == NDARRAY_DEVICE_CUDA) {
     launch_add<T>(static_cast<T*>(devptr_.get()), static_cast<const T*>(other.devptr_.get()), nelem());
-    cudaDeviceSynchronize();
+    CUDA_CHECK(cudaGetLastError());
+    CUDA_CHECK(cudaDeviceSynchronize());
     return *this;
   }
 #endif
@@ -1576,9 +1587,9 @@ inline void ndarray<T, StoragePolicy>::to_device(int dev, int id)
       this->device_id = id;
 
       devptr_.allocate(sizeof(T) * nelem(), NDARRAY_DEVICE_CUDA, id);
-      cudaSetDevice(id);
-      cudaMemcpy(devptr_.get(), storage_.data(), sizeof(T) * storage_.size(),
-          cudaMemcpyHostToDevice);
+      CUDA_CHECK(cudaSetDevice(id));
+      CUDA_CHECK(cudaMemcpy(devptr_.get(), storage_.data(), sizeof(T) * storage_.size(),
+          cudaMemcpyHostToDevice));
       storage_.resize(0);
     }
 #else
@@ -1628,9 +1639,9 @@ inline void ndarray<T, StoragePolicy>::to_host()
     if (this->device_type == NDARRAY_DEVICE_CUDA) {
       storage_.resize(nelem());
 
-      cudaSetDevice(this->device_id);
-      cudaMemcpy(storage_.data(), devptr_.get(), sizeof(T) * storage_.size(),
-          cudaMemcpyDeviceToHost);
+      CUDA_CHECK(cudaSetDevice(this->device_id));
+      CUDA_CHECK(cudaMemcpy(storage_.data(), devptr_.get(), sizeof(T) * storage_.size(),
+          cudaMemcpyDeviceToHost));
       devptr_.free();
 
       this->device_type = NDARRAY_DEVICE_HOST;
@@ -1684,9 +1695,9 @@ inline void ndarray<T, StoragePolicy>::copy_to_device(int dev, int id)
       this->device_id = id;
 
       devptr_.allocate(sizeof(T) * nelem(), NDARRAY_DEVICE_CUDA, id);
-      cudaSetDevice(id);
-      cudaMemcpy(devptr_.get(), storage_.data(), sizeof(T) * storage_.size(),
-          cudaMemcpyHostToDevice);
+      CUDA_CHECK(cudaSetDevice(id));
+      CUDA_CHECK(cudaMemcpy(devptr_.get(), storage_.data(), sizeof(T) * storage_.size(),
+          cudaMemcpyHostToDevice));
       // Note: storage_ is NOT cleared, keeping data on both host and device
     }
 #else
@@ -1739,9 +1750,9 @@ inline void ndarray<T, StoragePolicy>::copy_from_device()
       storage_.resize(nelem());
     }
 
-    cudaSetDevice(this->device_id);
-    cudaMemcpy(storage_.data(), devptr_.get(), sizeof(T) * storage_.size(),
-        cudaMemcpyDeviceToHost);
+    CUDA_CHECK(cudaSetDevice(this->device_id));
+    CUDA_CHECK(cudaMemcpy(storage_.data(), devptr_.get(), sizeof(T) * storage_.size(),
+        cudaMemcpyDeviceToHost));
     // Note: device memory is NOT freed
 #else
     fatal(ERR_NOT_BUILT_WITH_CUDA);

@@ -8,7 +8,7 @@
 
 > **🤖 AI-Assisted Development**: Significant portions of this project's code, documentation, examples, and tests have been generated or enhanced with AI assistance (starting 2026). While functional, the code should be thoroughly reviewed and tested before use in critical applications.
 
-> **📋 Maintenance Mode**: This library is in maintenance mode. Critical bugs will be fixed, but new features are limited. See [docs/MAINTENANCE-MODE.md](docs/MAINTENANCE-MODE.md) for details and alternative recommendations.
+> **📋 Maintenance Mode**: This library is in maintenance mode. Critical bugs will be fixed, but new features are limited. See [docs/archive/MAINTENANCE-MODE.md](docs/archive/MAINTENANCE-MODE.md) for details and alternative recommendations.
 
 NDArray is a **unified I/O abstraction library for time-varying scientific data** designed for HPC systems. It provides a consistent C++ interface for reading and writing multidimensional arrays across diverse scientific data formats (NetCDF, HDF5, ADIOS2, VTK). The library is header-only when used without external dependencies, but requires linking against third-party libraries when using features like NetCDF, HDF5, or ADIOS2.
 
@@ -535,7 +535,7 @@ ctest
 - **[ZERO_COPY_OPTIMIZATION.md](docs/ZERO_COPY_OPTIMIZATION.md)** - Using `get_ref()` for efficient memory access
 - **[BACKENDS.md](docs/BACKENDS.md)** - Eigen and xtensor integration for interoperability
 - **[EXCEPTION_HANDLING.md](docs/EXCEPTION_HANDLING.md)** - Exception-based error handling guide
-- **[FDPOOL.md](docs/FDPOOL.md)** - NetCDF file descriptor pool (prevents double-opening)
+- **[FDPOOL.md](docs/archive/FDPOOL.md)** - NetCDF file descriptor pool (prevents double-opening)
 
 ### API Reference
 
@@ -584,7 +584,7 @@ Copyright (c) 2018 Hanqi Guo
 
 - **Issues**: Report bugs and request features via [GitHub Issues](https://github.com/hguo/ndarray/issues)
 - **Discussions**: Ask questions in [GitHub Discussions](https://github.com/hguo/ndarray/discussions)
-- **Status**: See [docs/MAINTENANCE-MODE.md](docs/MAINTENANCE-MODE.md) for current project status and support expectations
+- **Status**: See [docs/archive/MAINTENANCE-MODE.md](docs/archive/MAINTENANCE-MODE.md) for current project status and support expectations
 
 ### Current Status
 
@@ -592,7 +592,7 @@ This library is in **maintenance mode**:
 - ✅ Critical bugs will be fixed
 - ✅ Existing features are maintained
 - ⚠️ New features are limited
-- ⚠️ Consider [alternatives](docs/MAINTENANCE-MODE.md#-consider-alternatives-if) for new projects
+- ⚠️ Consider [alternatives](docs/archive/MAINTENANCE-MODE.md#-consider-alternatives-if) for new projects
 
 ## Acknowledgments
 

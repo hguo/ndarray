@@ -135,6 +135,7 @@ void launch_fill(T* data, size_t n, T val) {
   int threads = 256;
   int blocks = (n + threads - 1) / threads;
   kernel_fill<<<blocks, threads>>>(data, n, val);
+  CUDA_CHECK(cudaGetLastError());
 }
 
 // Explicit instantiations for launchers (add more as needed)
@@ -147,6 +148,7 @@ void launch_scale(T* data, size_t n, T factor) {
   int threads = 256;
   int blocks = (n + threads - 1) / threads;
   kernel_scale<<<blocks, threads>>>(data, n, factor);
+  CUDA_CHECK(cudaGetLastError());
 }
 
 template <typename T>
@@ -154,6 +156,7 @@ void launch_add(T* dst, const T* src, size_t n) {
   int threads = 256;
   int blocks = (n + threads - 1) / threads;
   kernel_add<<<blocks, threads>>>(dst, src, n);
+  CUDA_CHECK(cudaGetLastError());
 }
 
 template void launch_scale<float>(float*, size_t, float);
@@ -167,6 +170,7 @@ void launch_pack_boundary_1d(T* buffer, const T* data, int n, bool is_high, int 
   int threads = 256;
   int blocks = (ghost_width + threads - 1) / threads;
   kernel_pack_1d<<<blocks, threads>>>(buffer, data, n, is_high, ghost_width, core_size);
+  CUDA_CHECK(cudaGetLastError());
 }
 
 template <typename T>
@@ -174,6 +178,7 @@ void launch_unpack_ghost_1d(T* data, const T* buffer, int n, bool is_high, int g
   int threads = 256;
   int blocks = (ghost_width + threads - 1) / threads;
   kernel_unpack_1d<<<blocks, threads>>>(data, buffer, n, is_high, ghost_width, ghost_low, ghost_high, core_size);
+  CUDA_CHECK(cudaGetLastError());
 }
 
 template <typename T>
@@ -181,6 +186,7 @@ void launch_pack_boundary_2d(T* buffer, const T* data, int n0, int n1, int dim, 
   dim3 threads(16, 16);
   dim3 blocks((dim == 0 ? ghost_width + 15 : c0 + 15) / 16, (dim == 0 ? c1 + 15 : ghost_width + 15) / 16);
   kernel_pack_2d<<<blocks, threads>>>(buffer, data, n0, n1, dim, is_high, ghost_width, c0, c1);
+  CUDA_CHECK(cudaGetLastError());
 }
 
 template <typename T>
@@ -188,6 +194,7 @@ void launch_unpack_ghost_2d(T* data, const T* buffer, int n0, int n1, int dim, b
   dim3 threads(16, 16);
   dim3 blocks((dim == 0 ? ghost_width + 15 : c0 + 15) / 16, (dim == 0 ? c1 + 15 : ghost_width + 15) / 16);
   kernel_unpack_2d<<<blocks, threads>>>(data, buffer, n0, n1, dim, is_high, ghost_width, ghost_low, ghost_high, c0, c1);
+  CUDA_CHECK(cudaGetLastError());
 }
 
 template <typename T>
@@ -197,6 +204,7 @@ void launch_pack_boundary_3d(T* buffer, const T* data, int n0, int n1, int n2, i
               (dim == 1 ? ghost_width + 7 : c1 + 7) / 8, 
               (dim == 2 ? ghost_width + 3 : c2 + 3) / 4);
   kernel_pack_3d<<<blocks, threads>>>(buffer, data, n0, n1, n2, dim, is_high, ghost_width, c0, c1, c2);
+  CUDA_CHECK(cudaGetLastError());
 }
 
 template <typename T>
@@ -206,6 +214,7 @@ void launch_unpack_ghost_3d(T* data, const T* buffer, int n0, int n1, int n2, in
               (dim == 1 ? ghost_width + 7 : c1 + 7) / 8, 
               (dim == 2 ? ghost_width + 3 : c2 + 3) / 4);
   kernel_unpack_3d<<<blocks, threads>>>(data, buffer, n0, n1, n2, dim, is_high, ghost_width, ghost_low, ghost_high, c0, c1, c2);
+  CUDA_CHECK(cudaGetLastError());
 }
 
 // Instantiations for float/double (commonly used in scientific data)

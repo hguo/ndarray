@@ -6,6 +6,7 @@
 
 #if NDARRAY_HAVE_CUDA
 #include <cuda_runtime.h>
+#include <ndarray/ndarray_cuda.hh>
 #endif
 
 #if NDARRAY_HAVE_SYCL
@@ -73,8 +74,8 @@ public:
 
     if (device_type == NDARRAY_DEVICE_CUDA) {
 #if NDARRAY_HAVE_CUDA
-      cudaSetDevice(device_id);
-      cudaMalloc(&ptr_, bytes);
+      CUDA_CHECK(cudaSetDevice(device_id));
+      CUDA_CHECK(cudaMalloc(&ptr_, bytes));
 #endif
     } else if (device_type == NDARRAY_DEVICE_SYCL) {
 #if NDARRAY_HAVE_SYCL
@@ -102,8 +103,8 @@ public:
     if (ptr_ != nullptr) {
       if (device_type_ == NDARRAY_DEVICE_CUDA) {
 #if NDARRAY_HAVE_CUDA
-        cudaSetDevice(device_id_);
-        cudaFree(ptr_);
+        CUDA_CHECK(cudaSetDevice(device_id_));
+        CUDA_CHECK(cudaFree(ptr_));
 #endif
       } else if (device_type_ == NDARRAY_DEVICE_SYCL) {
 #if NDARRAY_HAVE_SYCL
