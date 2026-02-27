@@ -135,6 +135,7 @@ struct ndarray : public ndarray_base {
   void reshapef(size_t n0, size_t n1, size_t n2, size_t n3, size_t n4, size_t n5) {reshapef({n0, n1, n2, n3, n4, n5});}
   void reshapef(size_t n0, size_t n1, size_t n2, size_t n3, size_t n4, size_t n5, size_t n6) {reshapef({n0, n1, n2, n3, n4, n5, n6});}
 
+  using ndarray_base::reshapec;
   void reshapec(size_t n0) { ndarray_base::reshapec(std::vector<size_t>({n0})); }
   void reshapec(size_t n0, size_t n1) { ndarray_base::reshapec(std::vector<size_t>({n0, n1})); }
   void reshapec(size_t n0, size_t n1, size_t n2) { ndarray_base::reshapec(std::vector<size_t>({n0, n1, n2})); }
