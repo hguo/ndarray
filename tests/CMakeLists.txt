@@ -109,6 +109,26 @@ if (NDARRAY_HAVE_PNG)
   add_test(NAME png COMMAND test_png)
 endif()
 
+# Arithmetic operator tests
+add_executable(test_arithmetic test_arithmetic.cpp)
+target_link_libraries(test_arithmetic ndarray)
+add_test(NAME arithmetic COMMAND test_arithmetic)
+
+# Statistical function tests
+add_executable(test_statistics test_statistics.cpp)
+target_link_libraries(test_statistics ndarray)
+add_test(NAME statistics COMMAND test_statistics)
+
+# Data manipulation tests
+add_executable(test_data_ops test_data_ops.cpp)
+target_link_libraries(test_data_ops ndarray)
+add_test(NAME data_ops COMMAND test_data_ops)
+
+# Gradient computation tests
+add_executable(test_gradient test_gradient.cpp)
+target_link_libraries(test_gradient ndarray)
+add_test(NAME gradient COMMAND test_gradient)
+
 # Test summary
 message("")
 message("Unit tests configured:")
@@ -119,6 +139,10 @@ message("  - test_zero_copy: Zero-copy optimization")
 message("  - test_variable_names: Variable name matching")
 message("  - test_vector_conversion: Vector conversion")
 message("  - test_fc_ordering: F/C ordering demonstration")
+message("  - test_arithmetic: Arithmetic operators and scale/add")
+message("  - test_statistics: Statistical functions (min_max, maxabs, resolution)")
+message("  - test_data_ops: Data manipulation (perturb, flip, slice, concat, stack)")
+message("  - test_gradient: Gradient computations (gradient2D, gradient3D)")
 if (NDARRAY_HAVE_NETCDF)
   message("    + NetCDF support enabled")
 endif()
