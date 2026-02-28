@@ -136,8 +136,11 @@ template <typename T, typename StoragePolicy>
 void transpose_2d_cuda(const ndarray<T, StoragePolicy>& input,
                        ndarray<T, StoragePolicy>& output) {
 #ifdef __CUDACC__
-  const size_t height = input.dimf(0);
-  const size_t width = input.dimf(1);
+  // ndarray stores data in column-major (Fortran) order internally.
+  // From the kernel's row-major perspective, the raw memory is a
+  // dimf(1) x dimf(0) matrix (height=cols, width=rows).
+  const size_t width = input.dimf(0);
+  const size_t height = input.dimf(1);
 
   // Ensure input is on device
   if (!input.is_on_device() || input.get_device_type() != NDARRAY_DEVICE_CUDA) {
