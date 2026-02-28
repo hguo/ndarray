@@ -1,7 +1,7 @@
 # ndarray Documentation Index
 
-**Version**: 0.0.3
-**Last Updated**: 2026-02-21
+**Version**: 0.0.6
+**Last Updated**: 2026-02-28
 
 ---
 

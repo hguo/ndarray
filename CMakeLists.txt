@@ -1,5 +1,5 @@
 cmake_minimum_required (VERSION 3.10)
-project (ndarray VERSION 0.0.1 LANGUAGES C CXX)
+project (ndarray VERSION 0.0.6 LANGUAGES C CXX)
 
 include(GNUInstallDirs)
 # include (ExternalProject)

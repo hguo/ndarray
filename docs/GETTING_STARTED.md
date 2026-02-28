@@ -1,7 +1,7 @@
 # Getting Started with ndarray
 
-**Version**: 0.0.3
-**Last Updated**: 2026-02-21
+**Version**: 0.0.6
+**Last Updated**: 2026-02-28
 
 This guide will get you up and running with ndarray in 15 minutes.
 
@@ -141,7 +141,7 @@ include(FetchContent)
 FetchContent_Declare(
   ndarray
   GIT_REPOSITORY https://github.com/hguo/ndarray.git
-  GIT_TAG        v0.0.3
+  GIT_TAG        v0.0.6
 )
 FetchContent_MakeAvailable(ndarray)
 

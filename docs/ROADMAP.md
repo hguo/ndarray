@@ -164,4 +164,4 @@ auto view = arr.get_mdspan_view();  // std::mdspan view
 ---
 
 **Last Updated**: 2026-02-21
-**Current Version**: v0.0.3-alpha
+**Current Version**: v0.0.6-alpha

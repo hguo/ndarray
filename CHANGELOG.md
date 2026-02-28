@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.0.6] - 2026-02-28
+
+### Added
+- **Comprehensive test suite** for arithmetic, statistics, data operations, and gradient functions
+
+### Fixed
+- **reshapef() backend dimension mismatch** - Storage backends (xtensor, Eigen) now receive C-order dims consistent with ndarray's internal state, fixing shape inconsistencies in `get_xarray()` and `get_matrix()` interop
+- **Eigen 2D resize** - Reversed resize args to maintain correct (rows, cols) layout when receiving C-order dims
+- **CUDA transpose** - Fixed width/height swap and compile test with nvcc
+- **reshapec() overloads** - Fixed reshapec() hiding base class vector overloads
+- **11 code quality issues** across codebase
+- **CUDA error checking** improvements and documentation link fixes
+
+---
+
 ## [0.0.3] - 2026-02-21
 
 ### Added

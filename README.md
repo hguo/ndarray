@@ -2,9 +2,9 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![C++17](https://img.shields.io/badge/C%2B%2B-17-blue.svg)](https://isocpp.org/std/the-standard)
-[![Version](https://img.shields.io/badge/version-0.0.3--alpha-orange.svg)](https://github.com/hguo/ndarray/releases)
+[![Version](https://img.shields.io/badge/version-0.0.6--alpha-orange.svg)](https://github.com/hguo/ndarray/releases)
 
-> **⚠️ Alpha Release**: This is an early pre-release version (v0.0.3). Core features are functional but the API may change. Not recommended for production use.
+> **⚠️ Alpha Release**: This is an early pre-release version (v0.0.6). Core features are functional but the API may change. Not recommended for production use.
 
 > **🤖 AI-Assisted Development**: Significant portions of this project's code, documentation, examples, and tests have been generated or enhanced with AI assistance (starting 2026). While functional, the code should be thoroughly reviewed and tested before use in critical applications.
 

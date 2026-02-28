@@ -1,6 +1,6 @@
 # ndarray Documentation
 
-**Version**: 0.0.3
+**Version**: 0.0.6
 
 👉 **[Start Here: Getting Started Guide](GETTING_STARTED.md)** - Complete tutorial for new users
 📚 **[Documentation Index](INDEX.md)** - Browse all documentation by topic
