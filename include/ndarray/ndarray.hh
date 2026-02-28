@@ -1291,7 +1291,7 @@ void ndarray<T, StoragePolicy>::reshapef(const std::vector<size_t> &dims_)
 
     // Use reshape() if the storage backend supports it (xtensor, eigen)
     if constexpr (has_reshape<storage_type>::value) {
-      storage_.reshape(dims_);  // Backend gets F-order
+      storage_.reshape(dims);  // Backend gets C-order (consistent with internal dims/strides)
     } else {
       storage_.resize(total_size);
     }

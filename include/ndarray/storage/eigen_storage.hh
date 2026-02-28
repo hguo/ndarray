@@ -35,7 +35,7 @@ struct eigen_storage {
 
       if (shape.size() == 2) {
         // 2D array - use native Eigen matrix layout
-        data_.resize(shape[0], shape[1]);
+        data_.resize(shape[1], shape[0]);
       } else {
         // 1D or N-D array - flatten to column vector
         data_.resize(total, 1);
