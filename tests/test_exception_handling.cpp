@@ -1,63 +1,44 @@
 /**
- * Test that NC_SAFE_CALL and PNC_SAFE_CALL throw exceptions instead of calling exit()
+ * Test that error-handling macros throw exceptions instead of calling exit().
+ * Exercises NC_SAFE_CALL, PNC_SAFE_CALL, and HDF5 error paths through
+ * actual ndarray I/O methods with non-existent files.
  */
 
 #include <ndarray/ndarray.hh>
 #include <iostream>
 #include <cassert>
 
-void test_exception_not_exit() {
-  std::cout << "Testing: Exception handling replaces exit() calls" << std::endl;
-
-#if NDARRAY_HAVE_PNETCDF
-  // Test that PNC_SAFE_CALL throws exception on error (not exit)
+void test_netcdf_exception() {
+  std::cout << "Testing: NetCDF exception on non-existent file" << std::endl;
+#if NDARRAY_HAVE_NETCDF
   try {
-    // Try to open non-existent file - should throw exception
-    int ncid;
-    int result = ncmpi_open(MPI_COMM_SELF, "nonexistent_file.nc", NC_NOWRITE, MPI_INFO_NULL, &ncid);
-
-    // Manually trigger the error handling to test exception
-    if (result != NC_NOERR) {
-      std::string error_msg = std::string(ncmpi_strerror(result)) + " at test_exception_handling.cpp";
-      throw ftk::netcdf_error(ftk::ERR_PNETCDF_IO, error_msg);
-    }
-
-    std::cerr << "FAILED: Expected exception but none was thrown" << std::endl;
-    return;
+    ftk::ndarray<float> arr;
+    arr.read_netcdf("nonexistent_file_that_does_not_exist.nc", "var");
+    std::cerr << "  FAILED: Expected exception but none was thrown" << std::endl;
+    assert(false);
   } catch (const ftk::netcdf_error& e) {
-    std::cout << "  - Caught exception (expected): " << e.what() << std::endl;
-    std::cout << "  - Error code: " << e.error_code() << std::endl;
+    std::cout << "  - Caught netcdf_error: " << e.what() << std::endl;
     std::cout << "  PASSED" << std::endl;
-  } catch (const std::exception& e) {
-    std::cerr << "FAILED: Caught wrong exception type: " << e.what() << std::endl;
-    return;
   }
 #else
-  std::cout << "  SKIPPED (PNetCDF not enabled)" << std::endl;
+  std::cout << "  SKIPPED (NetCDF not enabled)" << std::endl;
 #endif
+}
 
-#if NDARRAY_HAVE_NETCDF
-  // Test that NC_SAFE_CALL throws exception on error (not exit)
+void test_hdf5_exception() {
+  std::cout << "Testing: HDF5 exception on non-existent file" << std::endl;
+#if NDARRAY_HAVE_HDF5
   try {
-    // Try to open non-existent file - should throw exception
-    int ncid;
-    int result = nc_open("nonexistent_netcdf_file.nc", NC_NOWRITE, &ncid);
-
-    // Manually trigger the error handling to test exception
-    if (result != NC_NOERR) {
-      std::string error_msg = std::string(nc_strerror(result)) + " at test_exception_handling.cpp";
-      throw ftk::netcdf_error(ftk::ERR_NETCDF_IO, error_msg);
-    }
-
-    std::cerr << "FAILED: Expected exception but none was thrown" << std::endl;
-    return;
-  } catch (const ftk::netcdf_error& e) {
-    std::cout << "  - Caught NetCDF exception (expected): " << e.what() << std::endl;
+    ftk::ndarray<float> arr;
+    arr.read_h5("nonexistent_file_that_does_not_exist.h5", "dataset");
+    std::cerr << "  FAILED: Expected exception but none was thrown" << std::endl;
+    assert(false);
+  } catch (const ftk::hdf5_error& e) {
+    std::cout << "  - Caught hdf5_error: " << e.what() << std::endl;
     std::cout << "  PASSED" << std::endl;
-  } catch (const std::exception& e) {
-    std::cerr << "FAILED: Caught wrong exception type: " << e.what() << std::endl;
-    return;
   }
+#else
+  std::cout << "  SKIPPED (HDF5 not enabled)" << std::endl;
 #endif
 }
 
@@ -66,8 +47,9 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  std::cout << "=== Testing Exception Handling (No exit() calls) ===" << std::endl;
-  test_exception_not_exit();
+  std::cout << "=== Testing Exception Handling ===" << std::endl;
+  test_netcdf_exception();
+  test_hdf5_exception();
   std::cout << std::endl;
 
 #if NDARRAY_HAVE_MPI

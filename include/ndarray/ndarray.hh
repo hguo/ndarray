@@ -814,13 +814,40 @@ ndarray<T, StoragePolicy>& ndarray<T, StoragePolicy>::operator+=(const ndarray<T
 }
 
 template <typename T, typename StoragePolicy>
+ndarray<T, StoragePolicy>& ndarray<T, StoragePolicy>::operator-=(const ndarray<T, StoragePolicy>& x)
+{
+  if (empty()) {
+    *this = x;
+    for (size_t i = 0; i < storage_.size(); i ++)
+      storage_[i] = -storage_[i];
+  } else {
+    if (this->shapef() != x.shapef())
+      throw std::invalid_argument("ndarray::operator-=: dimension mismatch");
+    for (size_t i = 0; i < storage_.size(); i ++)
+      storage_[i] -= x.storage_[i];
+  }
+  return *this;
+}
+
+template <typename T, typename StoragePolicy>
 ndarray<T, StoragePolicy> operator+(const ndarray<T, StoragePolicy>& lhs, const ndarray<T, StoragePolicy>& rhs)
 {
   ndarray<T, StoragePolicy> array;
-  array.reshape(lhs);
+  array.reshapef(lhs.shapef());
 
-  for (auto i = 0; i < array.nelem(); i ++)
+  for (size_t i = 0; i < array.nelem(); i ++)
     array[i] = lhs[i] + rhs[i];
+  return array;
+}
+
+template <typename T, typename StoragePolicy>
+ndarray<T, StoragePolicy> operator-(const ndarray<T, StoragePolicy>& lhs, const ndarray<T, StoragePolicy>& rhs)
+{
+  ndarray<T, StoragePolicy> array;
+  array.reshapef(lhs.shapef());
+
+  for (size_t i = 0; i < array.nelem(); i ++)
+    array[i] = lhs[i] - rhs[i];
   return array;
 }
 
@@ -828,8 +855,8 @@ template <typename T, typename StoragePolicy, typename T1>
 ndarray<T, StoragePolicy> operator*(const ndarray<T, StoragePolicy>& lhs, const T1& rhs)
 {
   ndarray<T, StoragePolicy> array;
-  array.reshape(lhs);
-  for (auto i = 0; i < array.nelem(); i ++)
+  array.reshapef(lhs.shapef());
+  for (size_t i = 0; i < array.nelem(); i ++)
     array[i] = lhs[i] * rhs;
   return array;
 }
@@ -838,8 +865,8 @@ template <typename T, typename StoragePolicy, typename T1>
 ndarray<T, StoragePolicy> operator/(const ndarray<T, StoragePolicy>& lhs, const T1& rhs)
 {
   ndarray<T, StoragePolicy> array;
-  array.reshapef(lhs);
-  for (auto i = 0; i < array.nelem(); i ++)
+  array.reshapef(lhs.shapef());
+  for (size_t i = 0; i < array.nelem(); i ++)
     array[i] = lhs[i] / rhs;
   return array;
 }
@@ -961,7 +988,7 @@ ndarray<T, StoragePolicy> ndarray<T, StoragePolicy>::subarray(const lattice& l0)
   }
 
   ndarray<T, StoragePolicy> arr(l.sizes());
-  for (auto i = 0; i < arr.nelem(); i ++) {
+  for (size_t i = 0; i < arr.nelem(); i ++) {
     auto idx = l.from_integer(i);
     arr[i] = f(idx);
   }
@@ -1006,7 +1033,7 @@ void ndarray<T, StoragePolicy>::flip_byte_order(T &x)
 template <typename T, typename StoragePolicy>
 void ndarray<T, StoragePolicy>::flip_byte_order()
 {
-  for (auto i = 0; i < this->nelem(); i ++)
+  for (size_t i = 0; i < this->nelem(); i ++)
     flip_byte_order(storage_[i]);
 }
 
@@ -1055,7 +1082,7 @@ void ndarray<T, StoragePolicy>::read_binary_file_sequence(const std::string& pat
   reshapef(mydims);
 
   size_t npt = std::accumulate(dims.begin(), dims.end()-1, 1, std::multiplies<size_t>());
-  for (int i = 0; i < filenames.size(); i ++) {
+  for (size_t i = 0; i < filenames.size(); i ++) {
     // fprintf(stderr, "loading %s\n", filenames[i].c_str());
     FILE *fp = fopen(filenames[i].c_str(), "rb");
     fread(&storage_[npt*i], sizeof(T), npt, fp);
@@ -1203,7 +1230,7 @@ inline void ndarray<T, StoragePolicy>::read_vtk_image_data_file_sequence(const s
 
   ndarray<T, StoragePolicy> array;
   std::vector<ndarray<T, StoragePolicy>> arrays;
-  for (int t = 0; t < filenames.size(); t ++) {
+  for (size_t t = 0; t < filenames.size(); t ++) {
     array.read_vtk_image_data_file(filenames[t]);
     arrays.push_back(array);
   }
@@ -1918,7 +1945,7 @@ template <typename T, typename StoragePolicy>
 inline ndarray<T, StoragePolicy> ndarray<T, StoragePolicy>::slice(const lattice& l) const
 {
   ndarray<T, StoragePolicy> array(l.sizes());
-  for (auto i = 0; i < l.n(); i ++) {
+  for (size_t i = 0; i < l.n(); i ++) {
     auto idx = l.from_integer(i);
     array[i] = f(idx);
   }
@@ -2008,23 +2035,23 @@ ndarray<T, StoragePolicy> ndarray<T, StoragePolicy>::get_transpose() const
   else if (nd() == 1) return *this;
   else if (nd() == 2) {
     a.reshapef(dimf(1), dimf(0));
-    for (auto i = 0; i < dimf(0); i ++)
-      for (auto j = 0; j < dimf(1); j ++)
+    for (size_t i = 0; i < dimf(0); i ++)
+      for (size_t j = 0; j < dimf(1); j ++)
         a.f(j, i) = f(i, j);
     return a;
   } else if (nd() == 3) {
     a.reshapef(dimf(2), dimf(1), dimf(0));
-    for (auto i = 0; i < dimf(0); i ++)
-      for (auto j = 0; j < dimf(1); j ++)
-        for (auto k = 0; k < dimf(2); k ++)
+    for (size_t i = 0; i < dimf(0); i ++)
+      for (size_t j = 0; j < dimf(1); j ++)
+        for (size_t k = 0; k < dimf(2); k ++)
           a.f(k, j, i) = f(i, j, k);
     return a;
   } else if (nd() == 4) {
     a.reshapef(dimf(3), dimf(2), dimf(1), dimf(0));
-    for (auto i = 0; i < dimf(0); i ++)
-      for (auto j = 0; j < dimf(1); j ++)
-        for (auto k = 0; k < dimf(2); k ++)
-          for (auto l = 0; l < dimf(3); l ++)
+    for (size_t i = 0; i < dimf(0); i ++)
+      for (size_t j = 0; j < dimf(1); j ++)
+        for (size_t k = 0; k < dimf(2); k ++)
+          for (size_t l = 0; l < dimf(3); l ++)
             a.f(l, k, j, i) = f(i, j, k, l);
     return a;
   } else {
@@ -2043,8 +2070,8 @@ ndarray<T, StoragePolicy> ndarray<T, StoragePolicy>::concat(const std::vector<nd
   const auto n = arrays[0].nelem();
   const auto n1 = arrays.size();
 
-  for (auto i = 0; i < n; i ++)
-    for (auto j = 0 ; j < n1; j ++)
+  for (size_t i = 0; i < n; i ++)
+    for (size_t j = 0 ; j < n1; j ++)
       result[i*n1 + j] = arrays[j][i];
 
   return result;
@@ -2061,8 +2088,8 @@ ndarray<T, StoragePolicy> ndarray<T, StoragePolicy>::stack(const std::vector<nda
   const auto n = arrays[0].nelem();
   const auto n1 = arrays.size();
 
-  for (auto j = 0 ; j < n1; j ++)
-    for (auto i = 0; i < n; i ++)
+  for (size_t j = 0 ; j < n1; j ++)
+    for (size_t i = 0; i < n; i ++)
       result[i + j*n] = arrays[j][i];
 
   return result;
@@ -2258,7 +2285,7 @@ ndarray<T, StoragePolicy>& ndarray<T, StoragePolicy>::perturb(T sigma)
   std::mt19937 gen{rd()};
   std::normal_distribution<> d{0, sigma};
 
-  for (auto i = 0; i < nelem(); i ++)
+  for (size_t i = 0; i < nelem(); i ++)
     storage_[i] = storage_[i] + d(gen);
 
   return *this;
@@ -2334,7 +2361,7 @@ inline T mse(const ndarray<T>& x, const ndarray<T>& y)
   T r(0);
   const auto n = std::min(x.size(), y.size());
   size_t m = 0;
-  for (auto i = 0; i < n; i ++) {
+  for (size_t i = 0; i < n; i ++) {
     if (std::isnan(x[i]) || std::isinf(x[i]) ||
         std::isnan(y[i]) || std::isinf(y[i]))
       continue;
