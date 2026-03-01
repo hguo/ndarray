@@ -19,7 +19,10 @@ add_library (ndarray SHARED ${ndarray_sources})
 # specifying each optional dependency
 
 if (NDARRAY_HAVE_YAML)
-  target_link_libraries (ndarray PUBLIC yaml-cpp::yaml-cpp)
+  # PRIVATE: yaml-cpp is only needed by the opt-in stream API (ndarray_stream.hh).
+  # Downstream apps that don't use streams are not forced to find/link yaml-cpp.
+  # Apps that DO use streams must find_package(yaml-cpp) and link it themselves.
+  target_link_libraries (ndarray PRIVATE yaml-cpp::yaml-cpp)
 endif ()
 
 if (NDARRAY_HAVE_ADIOS2)
@@ -98,7 +101,7 @@ endif ()
 
 if (NDARRAY_HAVE_YAML)
   add_executable (ndarray-dryrun dryrun.cpp)
-  target_link_libraries (ndarray-dryrun PRIVATE ndarray)
+  target_link_libraries (ndarray-dryrun PRIVATE ndarray yaml-cpp::yaml-cpp)
 endif ()
 
 

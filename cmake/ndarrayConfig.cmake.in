@@ -18,9 +18,9 @@ set (NDARRAY_HAVE_PNETCDF @NDARRAY_HAVE_PNETCDF@)
 set (NDARRAY_HAVE_VTK @NDARRAY_HAVE_VTK@)
 set (NDARRAY_HAVE_YAML @NDARRAY_HAVE_YAML@)
 
-if (NDARRAY_HAVE_YAML)
-  find_dependency (yaml-cpp REQUIRED)
-endif ()
+# yaml-cpp is a PRIVATE dependency of ndarray (only needed for the opt-in
+# stream API in ndarray_stream.hh).  Downstream projects that use the stream
+# API should find_package(yaml-cpp) and link yaml-cpp::yaml-cpp themselves.
 
 if (NDARRAY_HAVE_ADIOS2)
   # Require at least the version ndarray was built with to avoid ABI incompatibilities

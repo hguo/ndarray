@@ -137,7 +137,7 @@ inline void stream<StoragePolicy>::new_substream_from_yaml(YAML::Node y)
   sub->name = name;
 
   if (auto yvars = y["vars"]) { // has variable list
-    for (auto i = 0; i < yvars.size(); i ++) {
+    for (size_t i = 0; i < yvars.size(); i ++) {
       variable var;
       var.parse_yaml(yvars[i]);
 
@@ -168,9 +168,9 @@ inline void stream<StoragePolicy>::new_substream_from_yaml(YAML::Node y)
       }
     }
     else if (yfilenames.IsSequence()) {
-      for (auto i = 0; i < yfilenames.size(); i ++) { // still, apply a pattern search
+      for (size_t i = 0; i < yfilenames.size(); i ++) { // still, apply a pattern search
         const std::string mypattern = path_prefix.empty() ? yfilenames[i].as<std::string>() :
-          path_prefix + "/" + yfilenames.as<std::string>();
+          path_prefix + "/" + yfilenames[i].as<std::string>();
 
         if (sub->direction() == SUBSTREAM_DIR_INPUT) {
           const auto filenames = glob(mypattern);
@@ -203,7 +203,7 @@ inline void stream<StoragePolicy>::new_substream_from_yaml(YAML::Node y)
   }
 
   if (auto ydimensions = y["dimensions"]) {
-      for (auto i = 0; i < ydimensions.size(); i ++)
+      for (size_t i = 0; i < ydimensions.size(); i ++)
         sub->dimensions.push_back(ydimensions[i].as<int>());
 
       for (auto &var : sub->variables) // overriding variables as well

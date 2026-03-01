@@ -169,7 +169,7 @@ inline void substream_vtu_resample<StoragePolicy>::read(int i, std::shared_ptr<g
 
   vtkSmartPointer<vtkResampleToImage> resample = vtkSmartPointer<vtkResampleToImage>::New();
   std::array<int, 3> dims = {1, 1, 1};
-  for (int i = 0; i < this->dimensions.size(); i ++)
+  for (size_t i = 0; i < this->dimensions.size(); i ++)
     dims[i] = this->dimensions[i];
   resample->SetSamplingDimensions(dims[0], dims[1], dims[2]);
 

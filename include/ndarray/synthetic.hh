@@ -178,10 +178,10 @@ ndarray<T> synthetic_double_gyre_unstructured(
     const T epsilon = 0.25)
 {
   ndarray<T> result;
-  result.reshape(coords);
+  result.reshapef(coords.shapef());
   result.set_multicomponents();
 
-  for (auto i = 0; i < coords.dim(1); i ++) {
+  for (size_t i = 0; i < coords.dim(1); i ++) {
     auto uv = double_gyre(coords(0, i), coords(1, i), time, A, omega, epsilon);
     result(0, i) = uv[0];
     result(1, i) = uv[1];
@@ -305,7 +305,7 @@ ndarray<T> synthetic_moving_ramp(const std::vector<size_t>& shape, T x0, T rate,
   const auto lattice = scalar.get_lattice();
   x0 = x0 + rate * t;
 
-  for (auto i = 0; i < scalar.nelem(); i ++) {
+  for (size_t i = 0; i < scalar.nelem(); i ++) {
     std::vector<int> xi = lattice.from_integer(i);
     T x = xi[0];
     scalar[i] = (x - x0); //  * (x - x0);
@@ -321,7 +321,7 @@ ndarray<T> synthetic_moving_dual_ramp(const std::vector<size_t>& shape, T x0, T 
   const auto lattice = scalar.get_lattice();
   // x0 = x0 + rate * t;
 
-  for (auto i = 0; i < scalar.nelem(); i ++) {
+  for (size_t i = 0; i < scalar.nelem(); i ++) {
     std::vector<int> xi = lattice.from_integer(i);
     T x = xi[0];
     scalar[i] = std::abs(x - x0) - rate * t; //  * (x - x0);
@@ -341,7 +341,7 @@ ndarray<T> synthetic_moving_extremum(const std::vector<size_t>& shape, const T x
     xc[j] = x0[j] + dir[j] * t;
 
 #pragma omp parallel for
-  for (auto i = 0; i < scalar.nelem(); i ++) {
+  for (size_t i = 0; i < scalar.nelem(); i ++) {
     std::vector<int> xi = lattice.from_integer(i);
     T x[N];
     T d = 0;
@@ -368,7 +368,7 @@ ndarray<T> synthetic_moving_extremum_unstructured(
   for (int j = 0; j < N; j ++)
     xc[j] = x0[j] + dir[j] * t;
 
-  for (auto i = 0; i < coords.dim(1); i ++) {
+  for (size_t i = 0; i < coords.dim(1); i ++) {
     T d = 0;
     for (int j = 0; j < N; j ++) {
       d += pow(coords(j, i) - xc[j], T(2.0));
@@ -393,7 +393,7 @@ ndarray<T> synthetic_moving_extremum_grad_unstructured(
   for (int j = 0; j < N; j ++)
     xc[j] = x0[j] + dir[j] * t;
 
-  for (auto i = 0; i < coords.dim(1); i ++)
+  for (size_t i = 0; i < coords.dim(1); i ++)
     for (int j = 0; j < N; j ++)
       V(j, i) += -(coords(j, i) - xc[j]);
 
@@ -409,7 +409,7 @@ ndarray<T> synthetic_volcano(
   ndarray<T> scalar(shape);
   const auto lattice = scalar.get_lattice();
 
-  for (auto i = 0; i < scalar.nelem(); i ++) {
+  for (size_t i = 0; i < scalar.nelem(); i ++) {
     std::vector<int> xi = lattice.from_integer(i);
     T x[N];
     T d = 0;

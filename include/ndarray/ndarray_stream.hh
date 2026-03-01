@@ -393,7 +393,7 @@ inline void stream<StoragePolicy>::parse_yaml(const std::string filename)
   }
 
   if (auto ydimensions = yroot["dimensions"]) { // this will override all dimensions in all substreams and variables
-      for (auto i = 0; i < ydimensions.size(); i ++)
+      for (size_t i = 0; i < ydimensions.size(); i ++)
         dimensions.push_back(ydimensions[i].as<int>());
   }
 
@@ -406,7 +406,7 @@ inline void stream<StoragePolicy>::parse_yaml(const std::string filename)
     size_t np = 0;
 
     if (auto ygdims = ydecomp["global_dims"]) {
-      for (auto i = 0; i < ygdims.size(); i++)
+      for (size_t i = 0; i < ygdims.size(); i++)
         global_dims.push_back(ygdims[i].as<size_t>());
     }
 
@@ -414,12 +414,12 @@ inline void stream<StoragePolicy>::parse_yaml(const std::string filename)
       np = ynprocs.as<size_t>();
 
     if (auto ypattern = ydecomp["pattern"]) {
-      for (auto i = 0; i < ypattern.size(); i++)
+      for (size_t i = 0; i < ypattern.size(); i++)
         pattern.push_back(ypattern[i].as<size_t>());
     }
 
     if (auto yghost = ydecomp["ghost"]) {
-      for (auto i = 0; i < yghost.size(); i++)
+      for (size_t i = 0; i < yghost.size(); i++)
         ghost.push_back(yghost[i].as<size_t>());
     }
 
@@ -452,17 +452,17 @@ inline void stream<StoragePolicy>::parse_yaml(const std::string filename)
         variable_decomposition decomp;
 
         if (auto ydims = yvardecomp["dims"]) {
-          for (auto i = 0; i < ydims.size(); i++)
+          for (size_t i = 0; i < ydims.size(); i++)
             decomp.dims.push_back(ydims[i].as<size_t>());
         }
 
         if (auto ypattern = yvardecomp["pattern"]) {
-          for (auto i = 0; i < ypattern.size(); i++)
+          for (size_t i = 0; i < ypattern.size(); i++)
             decomp.pattern.push_back(ypattern[i].as<size_t>());
         }
 
         if (auto yghost = yvardecomp["ghost"]) {
-          for (auto i = 0; i < yghost.size(); i++)
+          for (size_t i = 0; i < yghost.size(); i++)
             decomp.ghost.push_back(yghost[i].as<size_t>());
         }
 
@@ -473,7 +473,7 @@ inline void stream<StoragePolicy>::parse_yaml(const std::string filename)
 #endif // NDARRAY_HAVE_MPI
 
   if (auto ysubstreams = yroot["substreams"]) { // has substreams
-    for (auto i = 0; i < ysubstreams.size(); i ++) {
+    for (size_t i = 0; i < ysubstreams.size(); i ++) {
       auto ysubstream = ysubstreams[i];
 
       if (auto yformat = ysubstream["format"]) {
@@ -567,7 +567,7 @@ inline void variable::parse_yaml(YAML::Node y)
   this->name = y["name"].as<std::string>();
 
   if (auto ypvar = y["possible_names"]) {
-    for (auto j = 0; j < ypvar.size(); j ++)
+    for (size_t j = 0; j < ypvar.size(); j ++)
       this->possible_names.push_back(ypvar[j].as<std::string>());
   } else
     this->possible_names.push_back( this->name );
@@ -582,7 +582,7 @@ inline void variable::parse_yaml(YAML::Node y)
   }
 
   if (auto ypatterns = y["name_patterns"]) {
-    for (auto j = 0; j < ypatterns.size(); j ++)
+    for (size_t j = 0; j < ypatterns.size(); j ++)
       this->name_patterns.push_back(ypatterns[j].as<std::string>());
   }
 
@@ -615,7 +615,7 @@ inline void variable::parse_yaml(YAML::Node y)
     if (ydims.IsScalar()) { // auto
       this->is_dims_auto = true;
     } else if (ydims.IsSequence()) {
-      for (auto i = 0; i < ydims.size(); i ++)
+      for (size_t i = 0; i < ydims.size(); i ++)
         this->dimensions.push_back( ydims[i].as<int>() );
     } else
       throw ERR_STREAM_FORMAT;

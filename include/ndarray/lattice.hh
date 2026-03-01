@@ -85,15 +85,15 @@ inline lattice::lattice(int n, const int *dims)
 inline std::ostream& operator<<(std::ostream& os, const lattice& l)
 {
   os << "starts={";
-  for (int i = 0; i < l.nd(); i ++)
+  for (size_t i = 0; i < l.nd(); i ++)
     if (i < l.nd()-1) os << l.starts_[i] << ",";
     else os << l.starts_[i] << "}, sizes={";
 
-  for (int i = 0; i < l.nd(); i ++)
+  for (size_t i = 0; i < l.nd(); i ++)
     if (i < l.nd()-1) os << l.sizes_[i] << ",";
     else os << l.sizes_[i] << "}, prod={";
 
-  for (int i = 0; i < l.nd(); i ++)
+  for (size_t i = 0; i < l.nd(); i ++)
     if (i < l.nd()-1) os << l.prod_[i] << ",";
     else os << l.prod_[i] << "}"; // << std::endl;
 
@@ -120,7 +120,7 @@ inline std::vector<size_t> lattice::upper_bounds() const {
 }
 
 inline bool lattice::contains(const std::vector<size_t>& x) const {
-  for (auto i = 0; i < nd(); i ++)
+  for (size_t i = 0; i < nd(); i ++)
     if (x[i] < starts_[i] || x[i] >= starts_[i] + sizes_[i])
       return false;
 
@@ -173,11 +173,11 @@ template <typename uint>
 inline uint lattice::to_integer(const std::vector<int> &idx1) const
 {
   std::vector<int> idx(idx1);
-  for (auto j = 0; j < nd(); j ++)
+  for (size_t j = 0; j < nd(); j ++)
     idx[j] -= starts_[j];
 
   uint i(idx[0]);
-  for (auto j = 1; j < nd(); j ++)
+  for (size_t j = 1; j < nd(); j ++)
     i += idx[j] * prod_[j];
   return i;
 }
@@ -186,13 +186,13 @@ template <typename uint>
 inline std::vector<int> lattice::from_integer(uint i) const
 {
   std::vector<int> idx(nd());
-  for (auto j = nd()-1; j > 0; j --) {
+  for (size_t j = nd()-1; j > 0; j --) {
     idx[j] = i / prod_[j];
     i -= idx[j] * prod_[j];
   }
   idx[0] = i;
 
-  for (auto j = 0; j < nd(); j ++)
+  for (size_t j = 0; j < nd(); j ++)
     idx[j] += starts_[j];
 
   return idx;
