@@ -528,6 +528,7 @@ inline void ndarray_base::make_multicomponents()
 inline void ndarray_base::read_binary_file(const std::string& filename, int endian)
 {
   FILE *fp = fopen(filename.c_str(), "rb");
+  if (!fp) throw std::runtime_error("Cannot open file for reading: " + filename);
   read_binary_file(fp, endian);
   fclose(fp);
 }
@@ -535,8 +536,9 @@ inline void ndarray_base::read_binary_file(const std::string& filename, int endi
 inline void ndarray_base::to_binary_file(const std::string& f)
 {
   FILE *fp = fopen(f.c_str(), "wb");
+  if (!fp) throw std::runtime_error("Cannot open file for writing: " + f);
   to_binary_file(fp);
-  fflush(fp);  // Ensure data is written to disk before closing (prevents race conditions)
+  fflush(fp);
   fclose(fp);
 }
 
@@ -697,15 +699,16 @@ inline void ndarray_base::read_netcdf(const std::string& filename, const std::st
   NC_SAFE_CALL( nc_open(filename.c_str(), NC_NOWRITE, &ncid) );
 #endif
 
-  {
+  try {
     int rtn = nc_inq_varid(ncid, varname.c_str(), &varid);
     if (rtn == NC_ENOTVAR)
       throw ERR_NETCDF_MISSING_VARIABLE;
+
+    read_netcdf(ncid, varid, comm);
+  } catch (...) {
+    nc_close(ncid);
+    throw;
   }
-
-  // NC_SAFE_CALL( nc_inq_varid(ncid, varname.c_str(), &varid) );
-
-  read_netcdf(ncid, varid, comm);
   NC_SAFE_CALL( nc_close(ncid) );
 #else
   fatal(ERR_NOT_BUILT_WITH_NETCDF);
@@ -844,11 +847,12 @@ inline void ndarray_base::read_netcdf_timestep(int ncid, int varid, int t, MPI_C
 {
 #ifdef NDARRAY_HAVE_NETCDF
   int ndims;
-  int dimids[4];
-  size_t st[4] = {0}, sz[4] = {0};
-
   NC_SAFE_CALL( nc_inq_varndims(ncid, varid, &ndims) );
-  NC_SAFE_CALL( nc_inq_vardimid(ncid, varid, dimids) );
+
+  std::vector<int> dimids(ndims);
+  std::vector<size_t> st(ndims, 0), sz(ndims, 0);
+
+  NC_SAFE_CALL( nc_inq_vardimid(ncid, varid, dimids.data()) );
 
   for (int i = 0; i < ndims; i ++)
     NC_SAFE_CALL( nc_inq_dimlen(ncid, dimids[i], &sz[i]) );
@@ -856,7 +860,7 @@ inline void ndarray_base::read_netcdf_timestep(int ncid, int varid, int t, MPI_C
   st[0] = t;
   sz[0] = 1;
 
-  read_netcdf(ncid, varid, st, sz, comm);
+  read_netcdf(ncid, varid, st.data(), sz.data(), comm);
   set_has_time(true);
 
 #else
@@ -868,16 +872,17 @@ inline void ndarray_base::read_netcdf(int ncid, int varid, MPI_Comm comm)
 {
 #ifdef NDARRAY_HAVE_NETCDF
   int ndims;
-  int dimids[4];
-  size_t starts[4] = {0}, sizes[4] = {0};
-
   NC_SAFE_CALL( nc_inq_varndims(ncid, varid, &ndims) );
-  NC_SAFE_CALL( nc_inq_vardimid(ncid, varid, dimids) );
+
+  std::vector<int> dimids(ndims);
+  std::vector<size_t> starts(ndims, 0), sizes(ndims, 0);
+
+  NC_SAFE_CALL( nc_inq_vardimid(ncid, varid, dimids.data()) );
 
   for (int i = 0; i < ndims; i ++)
     NC_SAFE_CALL( nc_inq_dimlen(ncid, dimids[i], &sizes[i]) );
 
-  read_netcdf(ncid, varid, starts, sizes, comm);
+  read_netcdf(ncid, varid, starts.data(), sizes.data(), comm);
 #else
   fatal(ERR_NOT_BUILT_WITH_NETCDF);
 #endif

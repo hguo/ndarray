@@ -36,7 +36,7 @@ ndarray<T> gradient2Dt(const ndarray<T>& scalar)
 {
   const int DW = scalar.dimf(0), DH = scalar.dimf(1), DT = scalar.dimf(2);
   ndarray<T> grad;
-  grad.reshape(2, DW, DH, DT);
+  grad.reshapef(2, DW, DH, DT);
 
 #pragma omp parallel for collapse(3)
   for (int k = 0; k < DT; k ++) {
@@ -241,7 +241,7 @@ template <typename T>
 ndarray<T> vorticity3D(const ndarray<T>& V)
 {
   ndarray<T> vort;
-  vort.reshape(V);
+  vort.reshapef(V.shapef());
   vort.set_multicomponents(1);
 
   for (int k = 1; k < V.dimf(3) - 1; k++) {
@@ -260,7 +260,7 @@ template <typename T>
 ndarray<T> cross_product3D(const ndarray<T>& V, const ndarray<T>& W)
 {
   ndarray<T> VW;
-  VW.reshape(V);
+  VW.reshapef(V.shapef());
   VW.set_multicomponents(1);
 
   for (int k = 1; k < V.dimf(3) - 1; k++) {
@@ -280,7 +280,7 @@ template <typename T>
 ndarray<T> JvT_dot_v(const ndarray<T>& V)
 {
   auto J = jacobian3D(V, 1);
-  ndarray<T> Jvv(V.shape());
+  ndarray<T> Jvv(V.shapef());
   Jvv.set_multicomponents(1);
 
   for (int k = 1; k < V.dimf(3) - 1; k++) {
@@ -303,7 +303,7 @@ ndarray<T> Jv_dot_v(const ndarray<T>& V)
 {
   auto J = jacobian3D(V, 1);
   ndarray<T> Jvv; //
-  Jvv.reshape(V);
+  Jvv.reshapef(V.shapef());
   Jvv.set_multicomponents(1);
 
   for (int k = 1; k < V.dimf(3) - 1; k++) {

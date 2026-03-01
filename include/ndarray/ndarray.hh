@@ -1083,8 +1083,8 @@ void ndarray<T, StoragePolicy>::read_binary_file_sequence(const std::string& pat
 
   size_t npt = std::accumulate(dims.begin(), dims.end()-1, 1, std::multiplies<size_t>());
   for (size_t i = 0; i < filenames.size(); i ++) {
-    // fprintf(stderr, "loading %s\n", filenames[i].c_str());
     FILE *fp = fopen(filenames[i].c_str(), "rb");
+    if (!fp) throw std::runtime_error("Cannot open file for reading: " + filenames[i]);
     fread(&storage_[npt*i], sizeof(T), npt, fp);
     fclose(fp);
   }
