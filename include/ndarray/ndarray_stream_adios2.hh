@@ -76,6 +76,7 @@ inline void substream_adios2<StoragePolicy>::read(int i, std::shared_ptr<group_t
       g->set(var.name, p);
     }
   }
+  reader.Close();
 }
 
 } // namespace ftk

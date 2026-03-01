@@ -1540,23 +1540,21 @@ bool ndarray<T, StoragePolicy>::read_bp_legacy(ADIOS_FILE *fp, const std::string
   adios_inq_var_meshinfo(fp, avi);
 
   int nt = 1;
-  uint64_t st[4] = {0, 0, 0, 0}, sz[4] = {0, 0, 0, 0};
+  std::vector<uint64_t> st(avi->ndim, 0), sz(avi->ndim, 0);
   std::vector<size_t> mydims;
 
   for (int i = 0; i < avi->ndim; i++) {
-    st[i] = 0;
     sz[i] = avi->dims[i];
     nt = nt * sz[i];
     mydims.push_back(sz[i]);
   }
-  // fprintf(stderr, "%d, %d, %d, %d\n", sz[0], sz[1], sz[2], sz[3]);
 
   if (!mydims.empty()) {
     // ADIOS1 uses C-order, ndarray now stores C-order - direct use!
     reshapec(mydims);
 
     // Selection uses ADIOS1 C-order
-    ADIOS_SELECTION *sel = adios_selection_boundingbox(avi->ndim, st, sz);
+    ADIOS_SELECTION *sel = adios_selection_boundingbox(avi->ndim, st.data(), sz.data());
     assert(sel->type == ADIOS_SELECTION_BOUNDINGBOX);
 
     adios_schedule_read_byid(fp, sel, avi->varid, 0, 1, &storage_[0]);
@@ -1590,12 +1588,18 @@ bool ndarray<T, StoragePolicy>::read_bp_legacy(const std::string& filename, cons
 #if NDARRAY_HAVE_ADIOS1
   adios_read_init_method( ADIOS_READ_METHOD_BP, comm, "" );
   ADIOS_FILE *fp = adios_read_open_file(filename.c_str(), ADIOS_READ_METHOD_BP, comm);
-  // adios_read_bp_reset_dimension_order(fp, 0);
 
-  bool succ = read_bp_legacy(fp, varname);
+  bool succ;
+  try {
+    succ = read_bp_legacy(fp, varname);
+  } catch (...) {
+    adios_read_close(fp);
+    adios_read_finalize_method(ADIOS_READ_METHOD_BP);
+    throw;
+  }
 
-  adios_read_finalize_method (ADIOS_READ_METHOD_BP);
   adios_read_close(fp);
+  adios_read_finalize_method(ADIOS_READ_METHOD_BP);
   return succ;
 #else
   throw feature_not_available(ERR_NOT_BUILT_WITH_ADIOS1, "ADIOS1 support not enabled in this build");
@@ -3867,43 +3871,46 @@ void ndarray<T, StoragePolicy>::read_pnetcdf_auto(
 
     int ncid, varid;
     PNC_SAFE_CALL(ncmpi_open(dist_->comm, filename.c_str(), NC_NOWRITE, MPI_INFO_NULL, &ncid));
-    PNC_SAFE_CALL(ncmpi_inq_varid(ncid, varname.c_str(), &varid));
 
-    // Calculate offset in local storage (core relative to extent)
-    size_t off_i = core.start(0) - extent.start(0);
-    size_t off_j = (nd >= 2) ? (core.start(1) - extent.start(1)) : 0;
-    size_t off_k = (nd >= 3) ? (core.start(2) - extent.start(2)) : 0;
+    try {
+      PNC_SAFE_CALL(ncmpi_inq_varid(ncid, varname.c_str(), &varid));
 
-    if (nd == 1) {
-      T* data_ptr = &this->f(off_i);
-      if constexpr (std::is_same_v<T, float>) PNC_SAFE_CALL(ncmpi_get_vara_float_all(ncid, varid, starts.data(), sizes.data(), data_ptr));
-      else if constexpr (std::is_same_v<T, double>) PNC_SAFE_CALL(ncmpi_get_vara_double_all(ncid, varid, starts.data(), sizes.data(), data_ptr));
-      else if constexpr (std::is_same_v<T, int>) PNC_SAFE_CALL(ncmpi_get_vara_int_all(ncid, varid, starts.data(), sizes.data(), (int*)data_ptr));
-    } else if (nd == 2) {
-      for (size_t j = 0; j < core.size(1); j++) {
-        // In NetCDF (y, x), we iterate over y (dim 1 of ndarray)
-        // starts[0] is y_start, starts[1] is x_start
-        MPI_Offset st[2] = {starts[0] + (MPI_Offset)j, starts[1]};
-        MPI_Offset sz[2] = {1, sizes[1]};
-        T* col_ptr = &this->f(off_i, off_j + j);
-        if constexpr (std::is_same_v<T, float>) PNC_SAFE_CALL(ncmpi_get_vara_float_all(ncid, varid, st, sz, col_ptr));
-        else if constexpr (std::is_same_v<T, double>) PNC_SAFE_CALL(ncmpi_get_vara_double_all(ncid, varid, st, sz, col_ptr));
-        else if constexpr (std::is_same_v<T, int>) PNC_SAFE_CALL(ncmpi_get_vara_int_all(ncid, varid, st, sz, (int*)col_ptr));
-      }
-    } else if (nd == 3) {
-      for (size_t k = 0; k < core.size(2); k++) {
+      // Calculate offset in local storage (core relative to extent)
+      size_t off_i = core.start(0) - extent.start(0);
+      size_t off_j = (nd >= 2) ? (core.start(1) - extent.start(1)) : 0;
+      size_t off_k = (nd >= 3) ? (core.start(2) - extent.start(2)) : 0;
+
+      if (nd == 1) {
+        T* data_ptr = &this->f(off_i);
+        if constexpr (std::is_same_v<T, float>) PNC_SAFE_CALL(ncmpi_get_vara_float_all(ncid, varid, starts.data(), sizes.data(), data_ptr));
+        else if constexpr (std::is_same_v<T, double>) PNC_SAFE_CALL(ncmpi_get_vara_double_all(ncid, varid, starts.data(), sizes.data(), data_ptr));
+        else if constexpr (std::is_same_v<T, int>) PNC_SAFE_CALL(ncmpi_get_vara_int_all(ncid, varid, starts.data(), sizes.data(), (int*)data_ptr));
+      } else if (nd == 2) {
         for (size_t j = 0; j < core.size(1); j++) {
-          // NetCDF (z, y, x)
-          MPI_Offset st[3] = {starts[0] + (MPI_Offset)k, starts[1] + (MPI_Offset)j, starts[2]};
-          MPI_Offset sz[3] = {1, 1, sizes[2]};
-          T* ptr = &this->f(off_i, off_j + j, off_k + k);
-          if constexpr (std::is_same_v<T, float>) PNC_SAFE_CALL(ncmpi_get_vara_float_all(ncid, varid, st, sz, ptr));
-          else if constexpr (std::is_same_v<T, double>) PNC_SAFE_CALL(ncmpi_get_vara_double_all(ncid, varid, st, sz, ptr));
-          else if constexpr (std::is_same_v<T, int>) PNC_SAFE_CALL(ncmpi_get_vara_int_all(ncid, varid, st, sz, (int*)ptr));
+          MPI_Offset st[2] = {starts[0] + (MPI_Offset)j, starts[1]};
+          MPI_Offset sz[2] = {1, sizes[1]};
+          T* col_ptr = &this->f(off_i, off_j + j);
+          if constexpr (std::is_same_v<T, float>) PNC_SAFE_CALL(ncmpi_get_vara_float_all(ncid, varid, st, sz, col_ptr));
+          else if constexpr (std::is_same_v<T, double>) PNC_SAFE_CALL(ncmpi_get_vara_double_all(ncid, varid, st, sz, col_ptr));
+          else if constexpr (std::is_same_v<T, int>) PNC_SAFE_CALL(ncmpi_get_vara_int_all(ncid, varid, st, sz, (int*)col_ptr));
         }
+      } else if (nd == 3) {
+        for (size_t k = 0; k < core.size(2); k++) {
+          for (size_t j = 0; j < core.size(1); j++) {
+            MPI_Offset st[3] = {starts[0] + (MPI_Offset)k, starts[1] + (MPI_Offset)j, starts[2]};
+            MPI_Offset sz[3] = {1, 1, sizes[2]};
+            T* ptr = &this->f(off_i, off_j + j, off_k + k);
+            if constexpr (std::is_same_v<T, float>) PNC_SAFE_CALL(ncmpi_get_vara_float_all(ncid, varid, st, sz, ptr));
+            else if constexpr (std::is_same_v<T, double>) PNC_SAFE_CALL(ncmpi_get_vara_double_all(ncid, varid, st, sz, ptr));
+            else if constexpr (std::is_same_v<T, int>) PNC_SAFE_CALL(ncmpi_get_vara_int_all(ncid, varid, st, sz, (int*)ptr));
+          }
+        }
+      } else {
+        fatal("Parallel read only implemented for 1D, 2D, 3D");
       }
-    } else {
-      fatal("Parallel read only implemented for 1D, 2D, 3D");
+    } catch (...) {
+      ncmpi_close(ncid);
+      throw;
     }
 
     PNC_SAFE_CALL(ncmpi_close(ncid));
@@ -4009,48 +4016,51 @@ void ndarray<T, StoragePolicy>::write_pnetcdf_auto(
     int ncid, varid;
     PNC_SAFE_CALL(ncmpi_create(dist_->comm, filename.c_str(), NC_CLOBBER | NC_64BIT_DATA, MPI_INFO_NULL, &ncid));
 
-    std::vector<int> dimids(nd);
-    for (size_t d = 0; d < nd; d++) {
-      std::string dimname = "dim" + std::to_string(d);
-      // Define dims in C-order (reverse of ndarray dims)
-      PNC_SAFE_CALL(ncmpi_def_dim(ncid, dimname.c_str(), dist_->global_lattice_.size(nd - 1 - d), &dimids[d]));
-    }
-
-    PNC_SAFE_CALL(ncmpi_def_var(ncid, varname.c_str(), this->pnc_dtype(), nd, dimids.data(), &varid));
-    PNC_SAFE_CALL(ncmpi_enddef(ncid));
-
-    // Handle non-contiguous layout
-    size_t off_i = core.start(0) - extent.start(0);
-    size_t off_j = (nd >= 2) ? (core.start(1) - extent.start(1)) : 0;
-    size_t off_k = (nd >= 3) ? (core.start(2) - extent.start(2)) : 0;
-
-    if (nd == 1) {
-      const T* ptr = &this->f(off_i);
-      if constexpr (std::is_same_v<T, float>) PNC_SAFE_CALL(ncmpi_put_vara_float_all(ncid, varid, starts.data(), sizes.data(), ptr));
-      else if constexpr (std::is_same_v<T, double>) PNC_SAFE_CALL(ncmpi_put_vara_double_all(ncid, varid, starts.data(), sizes.data(), ptr));
-      else if constexpr (std::is_same_v<T, int>) PNC_SAFE_CALL(ncmpi_put_vara_int_all(ncid, varid, starts.data(), sizes.data(), (const int*)ptr));
-    } else if (nd == 2) {
-      for (size_t j = 0; j < core.size(1); j++) {
-        MPI_Offset st[2] = {starts[0] + (MPI_Offset)j, starts[1]};
-        MPI_Offset sz[2] = {1, sizes[1]};
-        const T* ptr = &this->f(off_i, off_j + j);
-        if constexpr (std::is_same_v<T, float>) PNC_SAFE_CALL(ncmpi_put_vara_float_all(ncid, varid, st, sz, ptr));
-        else if constexpr (std::is_same_v<T, double>) PNC_SAFE_CALL(ncmpi_put_vara_double_all(ncid, varid, st, sz, ptr));
-        else if constexpr (std::is_same_v<T, int>) PNC_SAFE_CALL(ncmpi_put_vara_int_all(ncid, varid, st, sz, (const int*)ptr));
+    try {
+      std::vector<int> dimids(nd);
+      for (size_t d = 0; d < nd; d++) {
+        std::string dimname = "dim" + std::to_string(d);
+        PNC_SAFE_CALL(ncmpi_def_dim(ncid, dimname.c_str(), dist_->global_lattice_.size(nd - 1 - d), &dimids[d]));
       }
-    } else if (nd == 3) {
-      for (size_t k = 0; k < core.size(2); k++) {
+
+      PNC_SAFE_CALL(ncmpi_def_var(ncid, varname.c_str(), this->pnc_dtype(), nd, dimids.data(), &varid));
+      PNC_SAFE_CALL(ncmpi_enddef(ncid));
+
+      size_t off_i = core.start(0) - extent.start(0);
+      size_t off_j = (nd >= 2) ? (core.start(1) - extent.start(1)) : 0;
+      size_t off_k = (nd >= 3) ? (core.start(2) - extent.start(2)) : 0;
+
+      if (nd == 1) {
+        const T* ptr = &this->f(off_i);
+        if constexpr (std::is_same_v<T, float>) PNC_SAFE_CALL(ncmpi_put_vara_float_all(ncid, varid, starts.data(), sizes.data(), ptr));
+        else if constexpr (std::is_same_v<T, double>) PNC_SAFE_CALL(ncmpi_put_vara_double_all(ncid, varid, starts.data(), sizes.data(), ptr));
+        else if constexpr (std::is_same_v<T, int>) PNC_SAFE_CALL(ncmpi_put_vara_int_all(ncid, varid, starts.data(), sizes.data(), (const int*)ptr));
+      } else if (nd == 2) {
         for (size_t j = 0; j < core.size(1); j++) {
-          MPI_Offset st[3] = {starts[0] + (MPI_Offset)k, starts[1] + (MPI_Offset)j, starts[2]};
-          MPI_Offset sz[3] = {1, 1, sizes[2]};
-          const T* ptr = &this->f(off_i, off_j + j, off_k + k);
+          MPI_Offset st[2] = {starts[0] + (MPI_Offset)j, starts[1]};
+          MPI_Offset sz[2] = {1, sizes[1]};
+          const T* ptr = &this->f(off_i, off_j + j);
           if constexpr (std::is_same_v<T, float>) PNC_SAFE_CALL(ncmpi_put_vara_float_all(ncid, varid, st, sz, ptr));
           else if constexpr (std::is_same_v<T, double>) PNC_SAFE_CALL(ncmpi_put_vara_double_all(ncid, varid, st, sz, ptr));
           else if constexpr (std::is_same_v<T, int>) PNC_SAFE_CALL(ncmpi_put_vara_int_all(ncid, varid, st, sz, (const int*)ptr));
         }
-      }
+      } else if (nd == 3) {
+        for (size_t k = 0; k < core.size(2); k++) {
+          for (size_t j = 0; j < core.size(1); j++) {
+            MPI_Offset st[3] = {starts[0] + (MPI_Offset)k, starts[1] + (MPI_Offset)j, starts[2]};
+            MPI_Offset sz[3] = {1, 1, sizes[2]};
+            const T* ptr = &this->f(off_i, off_j + j, off_k + k);
+            if constexpr (std::is_same_v<T, float>) PNC_SAFE_CALL(ncmpi_put_vara_float_all(ncid, varid, st, sz, ptr));
+            else if constexpr (std::is_same_v<T, double>) PNC_SAFE_CALL(ncmpi_put_vara_double_all(ncid, varid, st, sz, ptr));
+            else if constexpr (std::is_same_v<T, int>) PNC_SAFE_CALL(ncmpi_put_vara_int_all(ncid, varid, st, sz, (const int*)ptr));
+          }
+        }
     } else {
       fatal("Parallel write only implemented for 1D, 2D, 3D");
+    }
+    } catch (...) {
+      ncmpi_close(ncid);
+      throw;
     }
 
     PNC_SAFE_CALL(ncmpi_close(ncid));
