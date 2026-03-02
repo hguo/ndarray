@@ -196,7 +196,11 @@ message("  - test_storage_backends: Storage backend functionality")
 
 # Storage backend stream tests (requires YAML)
 add_executable(test_storage_streams test_storage_streams.cpp)
-target_link_libraries(test_storage_streams ndarray yaml-cpp::yaml-cpp)
+if (NDARRAY_HAVE_YAML)
+  target_link_libraries(test_storage_streams ndarray yaml-cpp::yaml-cpp)
+else ()
+  target_link_libraries(test_storage_streams ndarray)
+endif ()
 add_test(NAME storage_streams COMMAND test_storage_streams)
 message("  - test_storage_streams: Storage backend stream functionality")
 
