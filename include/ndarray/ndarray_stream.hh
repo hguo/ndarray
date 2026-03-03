@@ -498,7 +498,7 @@ inline std::shared_ptr<typename stream<StoragePolicy>::group_type> stream<Storag
 {
   std::shared_ptr<group_type> g(new group_type);
 
-  for (auto sub : this->substreams)
+  for (const auto& sub : this->substreams)
     if (sub->is_enabled && sub->is_static) {
       sub->read(0, g);
     }
@@ -526,7 +526,7 @@ inline std::shared_ptr<typename stream<StoragePolicy>::group_type> stream<Storag
 template <typename StoragePolicy>
 inline int stream<StoragePolicy>::total_timesteps() const
 {
-  for (auto sub : this->substreams)
+  for (const auto& sub : this->substreams)
     if (!sub->is_static)
       return sub->total_timesteps;
 

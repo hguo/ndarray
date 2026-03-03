@@ -109,7 +109,7 @@ static void ndarray_finalize()
 static inline std::string series_filename(
     const std::string& pattern, int k)
 {
-  int size = snprintf(NULL, 0, pattern.c_str(), k);
+  int size = snprintf(nullptr, 0, pattern.c_str(), k);
   if (size < 0) return pattern;
   std::string filename(static_cast<size_t>(size) + 1, '\0');
   snprintf(&filename[0], static_cast<size_t>(size) + 1, pattern.c_str(), k);
@@ -121,7 +121,7 @@ static inline std::vector<std::string> glob(const std::string &pattern)
 {
   std::vector<std::string> filenames;
   glob_t results;
-  ::glob(pattern.c_str(), 0, NULL, &results);
+  ::glob(pattern.c_str(), 0, nullptr, &results);
   for (size_t i=0; i<results.gl_pathc; i++)
     filenames.push_back(results.gl_pathv[i]);
   globfree(&results);

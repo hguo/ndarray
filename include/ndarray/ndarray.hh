@@ -1022,7 +1022,7 @@ template <typename T, typename StoragePolicy>
 void ndarray<T, StoragePolicy>::flip_byte_order(T &x)
 {
   T y;
-  char *px = (char*)&x, *py = (char*)&y;
+  char *px = reinterpret_cast<char*>(&x), *py = reinterpret_cast<char*>(&y);
 
   for (size_t i = 0; i < sizeof(T); i ++)
     py[sizeof(T)-i-1] = px[i];
@@ -1538,7 +1538,7 @@ bool ndarray<T, StoragePolicy>::read_bp_legacy(ADIOS_FILE *fp, const std::string
 {
   warn("reading bp file with legacy ADIOS1 API..");
   ADIOS_VARINFO *avi = adios_inq_var(fp, varname.c_str());
-  if (avi == NULL)
+  if (avi == nullptr)
     fatal(ERR_ADIOS2_VARIABLE_NOT_FOUND);
 
   adios_inq_var_stat(fp, avi, 0, 0);
@@ -1572,7 +1572,7 @@ bool ndarray<T, StoragePolicy>::read_bp_legacy(ADIOS_FILE *fp, const std::string
     // Note: Only adios_integer scalar type supported (maintenance mode)
     if (avi->type == adios_integer) {
       reshapef({1});
-      storage_[0] = *((int*)avi->value);
+      storage_[0] = *static_cast<int*>(avi->value);
       return true;
     }
     else return false;
@@ -1861,7 +1861,7 @@ inline void ndarray<T, StoragePolicy>::read_h5_did(hid_t did)
   if (type == H5S_SIMPLE) {
     const int h5ndims = H5Sget_simple_extent_ndims(sid);
     std::vector<hsize_t> h5dims(h5ndims);
-    H5Sget_simple_extent_dims(sid, h5dims.data(), NULL);
+    H5Sget_simple_extent_dims(sid, h5dims.data(), nullptr);
 
     std::vector<size_t> h5_dims(h5ndims);
     for (auto i = 0; i < h5ndims; i ++)
@@ -1899,7 +1899,7 @@ inline void ndarray<T, StoragePolicy>::to_h5(const std::string& filename, const 
   auto h5_dims_vec = shapec();  // Already in C-order
   std::vector<hsize_t> h5_dims(h5_dims_vec.begin(), h5_dims_vec.end());
 
-  hid_t dataspace_id = H5Screate_simple(static_cast<int>(nd), h5_dims.data(), NULL);
+  hid_t dataspace_id = H5Screate_simple(static_cast<int>(nd), h5_dims.data(), nullptr);
   hid_t dataset_id = H5Dcreate2(file_id, varname.c_str(), dtype, dataspace_id,
                                  H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
@@ -2106,7 +2106,7 @@ void ndarray<T, StoragePolicy>::from_numpy(const pybind11::array_t<T, pybind11::
     shape.push_back(array.shape(i));
   reshapef(shape);
 
-  from_array((T*)buf.ptr, shape);
+  from_array(static_cast<T*>(buf.ptr), shape);
 }
 
 template <typename T, typename StoragePolicy>
@@ -2116,7 +2116,7 @@ pybind11::array_t<T, pybind11::array::c_style> ndarray<T, StoragePolicy>::to_num
   result.resize(shapef());
   pybind11::buffer_info buf = result.request();
 
-  T *ptr = (T*)buf.ptr;
+  T *ptr = static_cast<T*>(buf.ptr);
   memcpy(ptr, data(), sizeof(T) * nelem());
 
   return result;
@@ -2236,7 +2236,7 @@ inline bool ndarray<float>::read_amira(const std::string& filename)
   printf("\tBoundingBox in y-Direction: [%g ... %g]\n", ymin, ymax);
   printf("\tBoundingBox in z-Direction: [%g ... %g]\n", zmin, zmax);
 
-  const bool bIsUniform = (strstr(buffer, "CoordType \"uniform\"") != NULL);
+  const bool bIsUniform = (strstr(buffer, "CoordType \"uniform\"") != nullptr);
   printf("\tGridType: %s\n", bIsUniform ? "uniform" : "UNKNOWN");
 
   int NumComponents(0);
@@ -3886,25 +3886,25 @@ void ndarray<T, StoragePolicy>::read_pnetcdf_auto(
         T* data_ptr = &this->f(off_i);
         if constexpr (std::is_same_v<T, float>) PNC_SAFE_CALL(ncmpi_get_vara_float_all(ncid, varid, starts.data(), sizes.data(), data_ptr));
         else if constexpr (std::is_same_v<T, double>) PNC_SAFE_CALL(ncmpi_get_vara_double_all(ncid, varid, starts.data(), sizes.data(), data_ptr));
-        else if constexpr (std::is_same_v<T, int>) PNC_SAFE_CALL(ncmpi_get_vara_int_all(ncid, varid, starts.data(), sizes.data(), (int*)data_ptr));
+        else if constexpr (std::is_same_v<T, int>) PNC_SAFE_CALL(ncmpi_get_vara_int_all(ncid, varid, starts.data(), sizes.data(), data_ptr));
       } else if (nd == 2) {
         for (size_t j = 0; j < core.size(1); j++) {
-          MPI_Offset st[2] = {starts[0] + (MPI_Offset)j, starts[1]};
+          MPI_Offset st[2] = {starts[0] + static_cast<MPI_Offset>(j), starts[1]};
           MPI_Offset sz[2] = {1, sizes[1]};
           T* col_ptr = &this->f(off_i, off_j + j);
           if constexpr (std::is_same_v<T, float>) PNC_SAFE_CALL(ncmpi_get_vara_float_all(ncid, varid, st, sz, col_ptr));
           else if constexpr (std::is_same_v<T, double>) PNC_SAFE_CALL(ncmpi_get_vara_double_all(ncid, varid, st, sz, col_ptr));
-          else if constexpr (std::is_same_v<T, int>) PNC_SAFE_CALL(ncmpi_get_vara_int_all(ncid, varid, st, sz, (int*)col_ptr));
+          else if constexpr (std::is_same_v<T, int>) PNC_SAFE_CALL(ncmpi_get_vara_int_all(ncid, varid, st, sz, col_ptr));
         }
       } else if (nd == 3) {
         for (size_t k = 0; k < core.size(2); k++) {
           for (size_t j = 0; j < core.size(1); j++) {
-            MPI_Offset st[3] = {starts[0] + (MPI_Offset)k, starts[1] + (MPI_Offset)j, starts[2]};
+            MPI_Offset st[3] = {starts[0] + static_cast<MPI_Offset>(k), starts[1] + static_cast<MPI_Offset>(j), starts[2]};
             MPI_Offset sz[3] = {1, 1, sizes[2]};
             T* ptr = &this->f(off_i, off_j + j, off_k + k);
             if constexpr (std::is_same_v<T, float>) PNC_SAFE_CALL(ncmpi_get_vara_float_all(ncid, varid, st, sz, ptr));
             else if constexpr (std::is_same_v<T, double>) PNC_SAFE_CALL(ncmpi_get_vara_double_all(ncid, varid, st, sz, ptr));
-            else if constexpr (std::is_same_v<T, int>) PNC_SAFE_CALL(ncmpi_get_vara_int_all(ncid, varid, st, sz, (int*)ptr));
+            else if constexpr (std::is_same_v<T, int>) PNC_SAFE_CALL(ncmpi_get_vara_int_all(ncid, varid, st, sz, ptr));
           }
         }
       } else {
@@ -4036,25 +4036,25 @@ void ndarray<T, StoragePolicy>::write_pnetcdf_auto(
         const T* ptr = &this->f(off_i);
         if constexpr (std::is_same_v<T, float>) PNC_SAFE_CALL(ncmpi_put_vara_float_all(ncid, varid, starts.data(), sizes.data(), ptr));
         else if constexpr (std::is_same_v<T, double>) PNC_SAFE_CALL(ncmpi_put_vara_double_all(ncid, varid, starts.data(), sizes.data(), ptr));
-        else if constexpr (std::is_same_v<T, int>) PNC_SAFE_CALL(ncmpi_put_vara_int_all(ncid, varid, starts.data(), sizes.data(), (const int*)ptr));
+        else if constexpr (std::is_same_v<T, int>) PNC_SAFE_CALL(ncmpi_put_vara_int_all(ncid, varid, starts.data(), sizes.data(), ptr));
       } else if (nd == 2) {
         for (size_t j = 0; j < core.size(1); j++) {
-          MPI_Offset st[2] = {starts[0] + (MPI_Offset)j, starts[1]};
+          MPI_Offset st[2] = {starts[0] + static_cast<MPI_Offset>(j), starts[1]};
           MPI_Offset sz[2] = {1, sizes[1]};
           const T* ptr = &this->f(off_i, off_j + j);
           if constexpr (std::is_same_v<T, float>) PNC_SAFE_CALL(ncmpi_put_vara_float_all(ncid, varid, st, sz, ptr));
           else if constexpr (std::is_same_v<T, double>) PNC_SAFE_CALL(ncmpi_put_vara_double_all(ncid, varid, st, sz, ptr));
-          else if constexpr (std::is_same_v<T, int>) PNC_SAFE_CALL(ncmpi_put_vara_int_all(ncid, varid, st, sz, (const int*)ptr));
+          else if constexpr (std::is_same_v<T, int>) PNC_SAFE_CALL(ncmpi_put_vara_int_all(ncid, varid, st, sz, ptr));
         }
       } else if (nd == 3) {
         for (size_t k = 0; k < core.size(2); k++) {
           for (size_t j = 0; j < core.size(1); j++) {
-            MPI_Offset st[3] = {starts[0] + (MPI_Offset)k, starts[1] + (MPI_Offset)j, starts[2]};
+            MPI_Offset st[3] = {starts[0] + static_cast<MPI_Offset>(k), starts[1] + static_cast<MPI_Offset>(j), starts[2]};
             MPI_Offset sz[3] = {1, 1, sizes[2]};
             const T* ptr = &this->f(off_i, off_j + j, off_k + k);
             if constexpr (std::is_same_v<T, float>) PNC_SAFE_CALL(ncmpi_put_vara_float_all(ncid, varid, st, sz, ptr));
             else if constexpr (std::is_same_v<T, double>) PNC_SAFE_CALL(ncmpi_put_vara_double_all(ncid, varid, st, sz, ptr));
-            else if constexpr (std::is_same_v<T, int>) PNC_SAFE_CALL(ncmpi_put_vara_int_all(ncid, varid, st, sz, (const int*)ptr));
+            else if constexpr (std::is_same_v<T, int>) PNC_SAFE_CALL(ncmpi_put_vara_int_all(ncid, varid, st, sz, ptr));
           }
         }
     } else {
@@ -4157,10 +4157,10 @@ void ndarray<T, StoragePolicy>::read_hdf5_auto(
     }
 
     hid_t file_space = H5Dget_space(dataset_id);
-    H5Sselect_hyperslab(file_space, H5S_SELECT_SET, starts.data(), NULL, counts.data(), NULL);
+    H5Sselect_hyperslab(file_space, H5S_SELECT_SET, starts.data(), nullptr, counts.data(), nullptr);
 
     // Memory space and transfer property
-    hid_t mem_space = H5Screate_simple(nd, counts.data(), NULL);
+    hid_t mem_space = H5Screate_simple(nd, counts.data(), nullptr);
     hid_t xfer_plist = H5Pcreate(H5P_DATASET_XFER);
     H5Pset_dxpl_mpio(xfer_plist, H5FD_MPIO_COLLECTIVE);
 
@@ -4175,24 +4175,24 @@ void ndarray<T, StoragePolicy>::read_hdf5_auto(
       // Hyperslab for a single column in memory
       hsize_t m_counts[2] = {1, counts[1]}; // One row in C-order (one column in Fortran)
       H5Sclose(mem_space);
-      mem_space = H5Screate_simple(2, m_counts, NULL);
+      mem_space = H5Screate_simple(2, m_counts, nullptr);
       
       for (size_t j = 0; j < core.size(1); j++) {
         hsize_t st[2] = {starts[0] + j, starts[1]};
         hsize_t sz[2] = {1, counts[1]};
-        H5Sselect_hyperslab(file_space, H5S_SELECT_SET, st, NULL, sz, NULL);
+        H5Sselect_hyperslab(file_space, H5S_SELECT_SET, st, nullptr, sz, nullptr);
         H5Dread(dataset_id, h5_mem_type_id(), mem_space, file_space, xfer_plist, &this->f(off_i, off_j + j));
       }
     } else if (nd == 3) {
       hsize_t m_counts[3] = {1, 1, counts[2]};
       H5Sclose(mem_space);
-      mem_space = H5Screate_simple(3, m_counts, NULL);
+      mem_space = H5Screate_simple(3, m_counts, nullptr);
 
       for (size_t k = 0; k < core.size(2); k++) {
         for (size_t j = 0; j < core.size(1); j++) {
           hsize_t st[3] = {starts[0] + k, starts[1] + j, starts[2]};
           hsize_t sz[3] = {1, 1, counts[2]};
-          H5Sselect_hyperslab(file_space, H5S_SELECT_SET, st, NULL, sz, NULL);
+          H5Sselect_hyperslab(file_space, H5S_SELECT_SET, st, nullptr, sz, nullptr);
           H5Dread(dataset_id, h5_mem_type_id(), mem_space, file_space, xfer_plist, &this->f(off_i, off_j + j, off_k + k));
         }
       }
@@ -4256,7 +4256,7 @@ void ndarray<T, StoragePolicy>::write_hdf5_auto(
     // Create dataspace for global array (C-order)
     std::vector<hsize_t> global_dims(nd);
     for (size_t d = 0; d < nd; d++) global_dims[nd - 1 - d] = dist_->global_lattice_.size(d);
-    hid_t file_space = H5Screate_simple(nd, global_dims.data(), NULL);
+    hid_t file_space = H5Screate_simple(nd, global_dims.data(), nullptr);
 
     hid_t dataset_id = H5Dcreate(file_id, varname.c_str(), h5_mem_type_id(), file_space, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
@@ -4276,28 +4276,28 @@ void ndarray<T, StoragePolicy>::write_hdf5_auto(
     size_t off_k = (nd >= 3) ? (core.start(2) - extent.start(2)) : 0;
 
     if (nd == 1) {
-      hid_t mem_space = H5Screate_simple(1, &counts[0], NULL);
-      H5Sselect_hyperslab(file_space, H5S_SELECT_SET, starts.data(), NULL, counts.data(), NULL);
+      hid_t mem_space = H5Screate_simple(1, &counts[0], nullptr);
+      H5Sselect_hyperslab(file_space, H5S_SELECT_SET, starts.data(), nullptr, counts.data(), nullptr);
       H5Dwrite(dataset_id, h5_mem_type_id(), mem_space, file_space, xfer_plist, &this->f(off_i));
       H5Sclose(mem_space);
     } else if (nd == 2) {
       hsize_t m_counts[2] = {1, counts[1]};
-      hid_t mem_space = H5Screate_simple(2, m_counts, NULL);
+      hid_t mem_space = H5Screate_simple(2, m_counts, nullptr);
       for (size_t j = 0; j < core.size(1); j++) {
         hsize_t st[2] = {starts[0] + j, starts[1]};
         hsize_t sz[2] = {1, counts[1]};
-        H5Sselect_hyperslab(file_space, H5S_SELECT_SET, st, NULL, sz, NULL);
+        H5Sselect_hyperslab(file_space, H5S_SELECT_SET, st, nullptr, sz, nullptr);
         H5Dwrite(dataset_id, h5_mem_type_id(), mem_space, file_space, xfer_plist, &this->f(off_i, off_j + j));
       }
       H5Sclose(mem_space);
     } else if (nd == 3) {
       hsize_t m_counts[3] = {1, 1, counts[2]};
-      hid_t mem_space = H5Screate_simple(3, m_counts, NULL);
+      hid_t mem_space = H5Screate_simple(3, m_counts, nullptr);
       for (size_t k = 0; k < core.size(2); k++) {
         for (size_t j = 0; j < core.size(1); j++) {
           hsize_t st[3] = {starts[0] + k, starts[1] + j, starts[2]};
           hsize_t sz[3] = {1, 1, counts[2]};
-          H5Sselect_hyperslab(file_space, H5S_SELECT_SET, st, NULL, sz, NULL);
+          H5Sselect_hyperslab(file_space, H5S_SELECT_SET, st, nullptr, sz, nullptr);
           H5Dwrite(dataset_id, h5_mem_type_id(), mem_space, file_space, xfer_plist, &this->f(off_i, off_j + j, off_k + k));
         }
       }

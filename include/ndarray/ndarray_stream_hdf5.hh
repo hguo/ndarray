@@ -100,7 +100,7 @@ inline void substream_h5<StoragePolicy>::read(int i, std::shared_ptr<group_type>
         hid_t space_id = H5Dget_space(did);
         int nd = H5Sget_simple_extent_ndims(space_id);
         std::vector<hsize_t> hdims(nd);
-        H5Sget_simple_extent_dims(space_id, hdims.data(), NULL);
+        H5Sget_simple_extent_dims(space_id, hdims.data(), nullptr);
         H5Sclose(space_id);
 
         std::vector<size_t> gdims(nd);

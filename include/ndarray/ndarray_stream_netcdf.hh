@@ -58,7 +58,7 @@ inline void substream_netcdf<StoragePolicy>::read(int i, std::shared_ptr<group_t
     std::string found_varname;
 
     // Step 1: Try exact names from possible_names (fast path)
-    for (const auto varname : var.possible_names) {
+    for (const auto& varname : var.possible_names) {
       int rtn = nc_inq_varid(ncid, varname.c_str(), &varid);
 
       if (rtn == NC_NOERR) {
@@ -176,7 +176,7 @@ template <typename StoragePolicy>
 inline void substream_netcdf<StoragePolicy>::initialize(YAML::Node y)
 {
   auto &pool = fdpool_nc::get_instance();
-  for (const auto f : this->filenames) {
+  for (const auto& f : this->filenames) {
     int ncid = pool.open(f, this->comm);
 
     size_t nt = 0;

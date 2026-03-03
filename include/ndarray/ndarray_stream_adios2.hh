@@ -52,7 +52,7 @@ inline void substream_adios2<StoragePolicy>::read(int i, std::shared_ptr<group_t
 
   for (const auto &var : this->variables) {
     std::string actual_varname;
-    for (const auto varname : var.possible_names) {
+    for (const auto& varname : var.possible_names) {
       if (available_variables.find(varname) != available_variables.end()) {
         actual_varname = varname;
         break;

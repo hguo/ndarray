@@ -727,9 +727,9 @@ inline void ndarray_base::read_netcdf(int ncid, int varid, int ndims, const size
   std::vector<size_t> nc_sizes(sizes, sizes + ndims);
 
   if (nc_dtype() == NC_INT) {
-    NC_SAFE_CALL( nc_get_vara_int(ncid, varid, nc_starts.data(), nc_sizes.data(), (int*)pdata()) );
+    NC_SAFE_CALL( nc_get_vara_int(ncid, varid, nc_starts.data(), nc_sizes.data(), static_cast<int*>(pdata())) );
   } else if (nc_dtype() == NC_FLOAT) {
-    NC_SAFE_CALL( nc_get_vara_float(ncid, varid, nc_starts.data(), nc_sizes.data(), (float*)pdata()) );
+    NC_SAFE_CALL( nc_get_vara_float(ncid, varid, nc_starts.data(), nc_sizes.data(), static_cast<float*>(pdata())) );
 
     // fill value
     nc_type vr_type;
@@ -739,18 +739,18 @@ inline void ndarray_base::read_netcdf(int ncid, int varid, int ndims, const size
     if (rtn == NC_NOERR) { // has fill value
       NC_SAFE_CALL( nc_get_att_float(ncid, varid, "_FillValue", &fillvalue) );
 
-      float *data = (float*)pdata();
+      float *data = static_cast<float*>(pdata());
       for (size_t i = 0; i < nelem(); i ++)
         if (data[i] == fillvalue)
           data[i] = std::nan("");
     }
 
   } else if (nc_dtype() == NC_DOUBLE) {
-    NC_SAFE_CALL( nc_get_vara_double(ncid, varid, nc_starts.data(), nc_sizes.data(), (double*)pdata()) );
+    NC_SAFE_CALL( nc_get_vara_double(ncid, varid, nc_starts.data(), nc_sizes.data(), static_cast<double*>(pdata())) );
   } else if (nc_dtype() == NC_UINT) {
-    NC_SAFE_CALL( nc_get_vara_uint(ncid, varid, nc_starts.data(), nc_sizes.data(), (unsigned int*)pdata()) );
+    NC_SAFE_CALL( nc_get_vara_uint(ncid, varid, nc_starts.data(), nc_sizes.data(), static_cast<unsigned int*>(pdata())) );
   } else if (nc_dtype() == NC_CHAR) {
-    NC_SAFE_CALL( nc_get_vara_text(ncid, varid, nc_starts.data(), nc_sizes.data(), (char*)pdata()) );
+    NC_SAFE_CALL( nc_get_vara_text(ncid, varid, nc_starts.data(), nc_sizes.data(), static_cast<char*>(pdata())) );
   } else
     fatal(ERR_NOT_IMPLEMENTED);
 
@@ -778,11 +778,11 @@ inline void ndarray_base::to_netcdf(int ncid, int varid, const size_t st[], cons
   std::vector<size_t> nc_sizes(sz, sz + nc_ndims);
 
   if (nc_dtype() == NC_DOUBLE) {
-    NC_SAFE_CALL( nc_put_vara_double(ncid, varid, nc_starts.data(), nc_sizes.data(), (double*)pdata()) );
+    NC_SAFE_CALL( nc_put_vara_double(ncid, varid, nc_starts.data(), nc_sizes.data(), static_cast<const double*>(pdata())) );
   } else if (nc_dtype() == NC_FLOAT) {
-    NC_SAFE_CALL( nc_put_vara_float(ncid, varid, nc_starts.data(), nc_sizes.data(), (float*)pdata()) );
+    NC_SAFE_CALL( nc_put_vara_float(ncid, varid, nc_starts.data(), nc_sizes.data(), static_cast<const float*>(pdata())) );
   } else if (nc_dtype() == NC_INT) {
-    NC_SAFE_CALL( nc_put_vara_int(ncid, varid, nc_starts.data(), nc_sizes.data(), (int*)pdata()) );
+    NC_SAFE_CALL( nc_put_vara_int(ncid, varid, nc_starts.data(), nc_sizes.data(), static_cast<const int*>(pdata())) );
   } else
     fatal(ERR_NOT_IMPLEMENTED);
 #else
@@ -925,7 +925,7 @@ inline int ndarray_base::probe_netcdf_varid(
 #ifdef NDARRAY_HAVE_NETCDF
   int varid = -1;
 
-  for (const auto varname : possible_varnames) {
+  for (const auto& varname : possible_varnames) {
     const int rtn = nc_inq_varid(ncid, varname.c_str(), &varid);
 
     if (rtn == NC_EBADID)
