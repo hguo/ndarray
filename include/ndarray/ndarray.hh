@@ -2273,7 +2273,8 @@ inline bool ndarray<float>::read_amira(const std::string& filename)
     return false;
   }
 
-  const long idxStartData = strstr(buffer, "# Data section follows") - buffer;
+  const char* dataSection = strstr(buffer, "# Data section follows");
+  const long idxStartData = dataSection ? (dataSection - buffer) : -1;
   if (idxStartData > 0)
   {
     fseek(fp, idxStartData, SEEK_SET);

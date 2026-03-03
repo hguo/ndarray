@@ -208,39 +208,47 @@ void transpose_nd_cuda(const ndarray<T, StoragePolicy>& input,
   }
 
   // Allocate device memory for dimension arrays
-  size_t* d_input_dims;
-  size_t* d_output_dims;
-  size_t* d_axes;
+  size_t* d_input_dims = nullptr;
+  size_t* d_output_dims = nullptr;
+  size_t* d_axes = nullptr;
 
-  CUDA_CHECK(cudaMalloc(&d_input_dims, nd * sizeof(size_t)));
-  CUDA_CHECK(cudaMalloc(&d_output_dims, nd * sizeof(size_t)));
-  CUDA_CHECK(cudaMalloc(&d_axes, nd * sizeof(size_t)));
+  auto free_dim_arrays = [&]() {
+    if (d_input_dims) cudaFree(d_input_dims);
+    if (d_output_dims) cudaFree(d_output_dims);
+    if (d_axes) cudaFree(d_axes);
+  };
 
-  CUDA_CHECK(cudaMemcpy(d_input_dims, input_dims.data(),
-                       nd * sizeof(size_t), cudaMemcpyHostToDevice));
-  CUDA_CHECK(cudaMemcpy(d_output_dims, output_dims.data(),
-                       nd * sizeof(size_t), cudaMemcpyHostToDevice));
-  CUDA_CHECK(cudaMemcpy(d_axes, axes.data(),
-                       nd * sizeof(size_t), cudaMemcpyHostToDevice));
+  try {
+    CUDA_CHECK(cudaMalloc(&d_input_dims, nd * sizeof(size_t)));
+    CUDA_CHECK(cudaMalloc(&d_output_dims, nd * sizeof(size_t)));
+    CUDA_CHECK(cudaMalloc(&d_axes, nd * sizeof(size_t)));
 
-  const T* d_input = static_cast<const T*>(input.get_devptr());
-  T* d_output = static_cast<T*>(output.get_devptr());
+    CUDA_CHECK(cudaMemcpy(d_input_dims, input_dims.data(),
+                         nd * sizeof(size_t), cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_output_dims, output_dims.data(),
+                         nd * sizeof(size_t), cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_axes, axes.data(),
+                         nd * sizeof(size_t), cudaMemcpyHostToDevice));
 
-  // Launch kernel
-  const int blockSize = 256;
-  const int gridSize = (n_elems + blockSize - 1) / blockSize;
+    const T* d_input = static_cast<const T*>(input.get_devptr());
+    T* d_output = static_cast<T*>(output.get_devptr());
 
-  transpose_nd_kernel<T><<<gridSize, blockSize>>>(
-      d_input, d_output, n_elems, nd,
-      d_input_dims, d_output_dims, d_axes);
+    // Launch kernel
+    const int blockSize = 256;
+    const int gridSize = (n_elems + blockSize - 1) / blockSize;
 
-  CUDA_CHECK(cudaGetLastError());
-  CUDA_CHECK(cudaDeviceSynchronize());
+    transpose_nd_kernel<T><<<gridSize, blockSize>>>(
+        d_input, d_output, n_elems, nd,
+        d_input_dims, d_output_dims, d_axes);
 
-  // Free device memory
-  CUDA_CHECK(cudaFree(d_input_dims));
-  CUDA_CHECK(cudaFree(d_output_dims));
-  CUDA_CHECK(cudaFree(d_axes));
+    CUDA_CHECK(cudaGetLastError());
+    CUDA_CHECK(cudaDeviceSynchronize());
+
+    free_dim_arrays();
+  } catch (...) {
+    free_dim_arrays();
+    throw;
+  }
 #else
   throw device_error(ERR_NOT_BUILT_WITH_CUDA,
                     "transpose_nd_cuda: CUDA support not available (not compiled with nvcc)");

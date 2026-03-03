@@ -7,6 +7,7 @@
 
 #include <ndarray/ndarray.hh>
 #include <Eigen/Dense>
+#include <stdexcept>
 
 namespace ftk {
 

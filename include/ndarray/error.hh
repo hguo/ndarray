@@ -2,6 +2,7 @@
 #define __NDARRAY_ERROR_HH
 
 #include <ndarray/config.hh>
+#include <cstdio>
 #include <string>
 #include <iostream>
 #include <exception>

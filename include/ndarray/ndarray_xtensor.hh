@@ -8,6 +8,7 @@
 #include <ndarray/ndarray.hh>
 #include <xtensor/xarray.hpp>
 #include <xtensor/xadapt.hpp>
+#include <stdexcept>
 
 namespace ftk {
 
