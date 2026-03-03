@@ -162,7 +162,7 @@ inline void substream_netcdf<StoragePolicy>::read(int i, std::shared_ptr<group_t
         // Variable is required but not found - provide helpful error
         std::string error_msg = create_variable_not_found_message(
             var.possible_names, ncid);
-        fprintf(stderr, "[NDARRAY ERROR] %s", error_msg.c_str());
+        warn(error_msg);
 
         // For now, just warn instead of fatal error to maintain backward compatibility
         // In future versions, this should throw or fatal

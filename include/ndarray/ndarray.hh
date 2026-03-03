@@ -1124,8 +1124,8 @@ template<typename T, typename StoragePolicy>
 inline void ndarray<T, StoragePolicy>::from_vtk_data_array(
     vtkSmartPointer<vtkDataArray> da)
 {
-  const int nc = da->GetNumberOfComponents(),
-            ne = da->GetNumberOfTuples();
+  const int nc = da->GetNumberOfComponents();
+  const vtkIdType ne = da->GetNumberOfTuples();
   if (nc > 1) {
     reshapef(nc, ne);
     set_multicomponents(1);
@@ -1134,9 +1134,9 @@ inline void ndarray<T, StoragePolicy>::from_vtk_data_array(
     set_multicomponents(0);
   }
 
-  for (auto i = 0; i < ne; i ++) {
+  for (vtkIdType i = 0; i < ne; i ++) {
     double *tuple = da->GetTuple(i);
-    for (auto j = 0; j < nc; j ++)
+    for (int j = 0; j < nc; j ++)
       storage_[i*nc+j] = tuple[j];
   }
 }
@@ -1179,13 +1179,12 @@ inline void ndarray<T, StoragePolicy>::from_vtk_regular_data(
       n_component_dims = 1; // multicomponent array
     }
   } else {
-    fprintf(stderr, "[NDARRAY] fatal error: unsupported data dimension %d.\n", nd);
-    assert(false);
+    fatal("unsupported VTK data dimension");
   }
 
-  for (auto i = 0; i < da->GetNumberOfTuples(); i ++) {
+  for (vtkIdType i = 0; i < da->GetNumberOfTuples(); i ++) {
     double *tuple = da->GetTuple(i);
-    for (auto j = 0; j < nc; j ++)
+    for (int j = 0; j < nc; j ++)
       storage_[i*nc+j] = tuple[j];
   }
 }
@@ -1642,12 +1641,12 @@ inline void ndarray<T, StoragePolicy>::to_device(int dev, int id)
       this->device_type = NDARRAY_DEVICE_SYCL;
       this->device_id = id;
 
-      // Use provided queue or create default queue
+      // Use provided queue or create temporary queue (unique_ptr for exception safety)
+      std::unique_ptr<sycl::queue> tmp_queue;
       sycl::queue* q = sycl_queue_ptr;
-      bool own_queue = false;
       if (q == nullptr) {
-        q = new sycl::queue();  // SYCL 2020: default device
-        own_queue = true;
+        tmp_queue = std::make_unique<sycl::queue>();  // SYCL 2020: default device
+        q = tmp_queue.get();
       }
 
       // Allocate device memory
@@ -1655,9 +1654,6 @@ inline void ndarray<T, StoragePolicy>::to_device(int dev, int id)
 
       // Copy data to device
       q->memcpy(devptr_.get(), storage_.data(), sizeof(T) * storage_.size()).wait();
-
-      // Clean up temporary queue if we created it
-      if (own_queue) delete q;
 
       storage_.resize(0);
     }
@@ -1675,18 +1671,15 @@ inline void ndarray<T, StoragePolicy>::to_host()
     warn("array already on host");
   } else if (this->device_type == NDARRAY_DEVICE_CUDA) {
 #if NDARRAY_HAVE_CUDA
-    if (this->device_type == NDARRAY_DEVICE_CUDA) {
-      storage_.resize(nelem());
+    storage_.resize(nelem());
 
-      CUDA_CHECK(cudaSetDevice(this->device_id));
-      CUDA_CHECK(cudaMemcpy(storage_.data(), devptr_.get(), sizeof(T) * storage_.size(),
-          cudaMemcpyDeviceToHost));
-      devptr_.free();
+    CUDA_CHECK(cudaSetDevice(this->device_id));
+    CUDA_CHECK(cudaMemcpy(storage_.data(), devptr_.get(), sizeof(T) * storage_.size(),
+        cudaMemcpyDeviceToHost));
+    devptr_.free();
 
-      this->device_type = NDARRAY_DEVICE_HOST;
-      this->device_id = 0;
-    } else
-      fatal("array not on device");
+    this->device_type = NDARRAY_DEVICE_HOST;
+    this->device_id = 0;
 #else
     fatal(ERR_NOT_BUILT_WITH_CUDA);
 #endif
@@ -1694,12 +1687,12 @@ inline void ndarray<T, StoragePolicy>::to_host()
 #if NDARRAY_HAVE_SYCL
     storage_.resize(nelem());
 
-    // Use provided queue or create default queue
+    // Use provided queue or create temporary queue (unique_ptr for exception safety)
+    std::unique_ptr<sycl::queue> tmp_queue;
     sycl::queue* q = sycl_queue_ptr;
-    bool own_queue = false;
     if (q == nullptr) {
-      q = new sycl::queue();  // SYCL 2020: default device
-      own_queue = true;
+      tmp_queue = std::make_unique<sycl::queue>();  // SYCL 2020: default device
+      q = tmp_queue.get();
     }
 
     // Copy data from device
@@ -1707,9 +1700,6 @@ inline void ndarray<T, StoragePolicy>::to_host()
 
     // Free device memory (RAII wrapper handles cleanup)
     devptr_.free();
-
-    // Clean up temporary queue if we created it
-    if (own_queue) delete q;
 
     this->device_type = NDARRAY_DEVICE_HOST;
     this->device_id = 0;
@@ -1752,12 +1742,12 @@ inline void ndarray<T, StoragePolicy>::copy_to_device(int dev, int id)
       this->device_type = NDARRAY_DEVICE_SYCL;
       this->device_id = id;
 
-      // Use provided queue or create default queue
+      // Use provided queue or create temporary queue (unique_ptr for exception safety)
+      std::unique_ptr<sycl::queue> tmp_queue;
       sycl::queue* q = sycl_queue_ptr;
-      bool own_queue = false;
       if (q == nullptr) {
-        q = new sycl::queue();  // SYCL 2020: default device
-        own_queue = true;
+        tmp_queue = std::make_unique<sycl::queue>();  // SYCL 2020: default device
+        q = tmp_queue.get();
       }
 
       // Allocate device memory
@@ -1765,9 +1755,6 @@ inline void ndarray<T, StoragePolicy>::copy_to_device(int dev, int id)
 
       // Copy data to device
       q->memcpy(devptr_.get(), storage_.data(), sizeof(T) * storage_.size()).wait();
-
-      // Clean up temporary queue if we created it
-      if (own_queue) delete q;
 
       // Note: storage_ is NOT cleared, keeping data on both host and device
     }
@@ -1802,19 +1789,16 @@ inline void ndarray<T, StoragePolicy>::copy_from_device()
       storage_.resize(nelem());
     }
 
-    // Use provided queue or create default queue
+    // Use provided queue or create temporary queue (unique_ptr for exception safety)
+    std::unique_ptr<sycl::queue> tmp_queue;
     sycl::queue* q = sycl_queue_ptr;
-    bool own_queue = false;
     if (q == nullptr) {
-      q = new sycl::queue();  // SYCL 2020: default device
-      own_queue = true;
+      tmp_queue = std::make_unique<sycl::queue>();  // SYCL 2020: default device
+      q = tmp_queue.get();
     }
 
     // Copy data from device
     q->memcpy(storage_.data(), devptr_.get(), sizeof(T) * storage_.size()).wait();
-
-    // Clean up temporary queue if we created it
-    if (own_queue) delete q;
 
     // Note: device memory is NOT freed
 #else
@@ -2118,7 +2102,7 @@ void ndarray<T, StoragePolicy>::from_numpy(const pybind11::array_t<T, pybind11::
 {
   pybind11::buffer_info buf = array.request();
   std::vector<size_t> shape;
-  for (auto i = 0; i < buf.ndim; i ++)
+  for (ssize_t i = 0; i < buf.ndim; i ++)
     shape.push_back(array.shape(i));
   reshapef(shape);
 
