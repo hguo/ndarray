@@ -19,6 +19,7 @@ struct eigen_storage {
     std::vector<size_t> shape_;  // Track shape separately for N-D arrays
 
     size_t size() const { return data_.size(); }
+    bool empty() const { return data_.size() == 0; }
 
     T* data() { return data_.data(); }
     const T* data() const { return data_.data(); }

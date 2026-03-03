@@ -119,7 +119,7 @@ inline void ndarray_group<StoragePolicy>::print_info(std::ostream& os) const
      << '\n';
 
   for (const auto &kv : *this) {
-    os << " - name: " << kv.first.c_str() << ", ";
+    os << " - name: " << kv.first << ", ";
     os << "type: " << ndarray_base::dtype2str( kv.second->type() ) << ", ";
     kv.second->print_shapef(os);
     os << '\n';

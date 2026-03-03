@@ -71,8 +71,8 @@ inline std::vector<uint> lattice_partitioner::prime_factorization(uint n) {
   return factors;
 }
 
-inline bool is_vector_zero(const std::vector<size_t> vec) {
-  if(vec.size() == 0 || (vec.size() == 1 && vec[0] == 0)) {
+inline bool is_vector_zero(const std::vector<size_t>& vec) {
+  if(vec.empty() || (vec.size() == 1 && vec[0] == 0)) {
     return true;
   }
 
@@ -157,7 +157,7 @@ inline void lattice_partitioner::partition(size_t np,
 
   partition(prime_factors_dims); // get partitions given the prime factors of each dimension
 
-  if (cores.size() == 0) return;
+  if (cores.empty()) return;
 
   // apply ghosts
   for(const auto& core : cores) {

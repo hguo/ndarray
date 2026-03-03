@@ -98,7 +98,7 @@ struct ndarray : public ndarray_base {
   std::ostream& print(std::ostream& os) const;
 
   size_t size() const {return storage_.size();}
-  bool empty() const  {return storage_.size() == 0;}
+  bool empty() const  {return storage_.empty();}
   size_t elem_size() const { return sizeof(T); }
 
   void fill(T value); //! fill with a constant value
@@ -1078,7 +1078,7 @@ template <typename T, typename StoragePolicy>
 void ndarray<T, StoragePolicy>::read_binary_file_sequence(const std::string& pattern, int endian) // Note: endian parameter not implemented (maintenance mode)
 {
   const auto filenames = glob(pattern);
-  if (filenames.size() == 0) return;
+  if (filenames.empty()) return;
 
   std::vector<size_t> mydims = dims;
   mydims[nd() - 1] = filenames.size();
@@ -1231,7 +1231,7 @@ template<typename T, typename StoragePolicy>
 inline void ndarray<T, StoragePolicy>::read_vtk_image_data_file_sequence(const std::string& pattern)
 {
   const auto filenames = glob(pattern);
-  if (filenames.size() == 0) return;
+  if (filenames.empty()) return;
   storage_.resize(0);
 
   ndarray<T, StoragePolicy> array;
@@ -1261,7 +1261,7 @@ inline void ndarray<T, StoragePolicy>::read_vtk_image_data_file_sequence(const s
 }
 
 template<typename T, typename StoragePolicy>
-inline void ndarray<T, StoragePolicy>::to_vtk_image_data_file(const std::string& filename, const std::string) const
+inline void ndarray<T, StoragePolicy>::to_vtk_image_data_file(const std::string&, const std::string&) const
 {
   throw feature_not_available(ERR_NOT_BUILT_WITH_VTK, "VTK support not enabled in this build");
 }
@@ -1311,7 +1311,7 @@ void ndarray<T, StoragePolicy>::reshapef(const std::vector<size_t> &dims_)
     dims = f_to_c_order(dims_);
     s.resize(dims.size());
 
-    if (dims.size() == 0)
+    if (dims.empty())
       throw std::invalid_argument("Cannot reshape to empty dimensions");
 
     // C-order strides: last dimension varies fastest
@@ -1772,7 +1772,7 @@ inline void ndarray<T, StoragePolicy>::copy_from_device()
     warn("array is on host, nothing to copy");
   } else if (this->device_type == NDARRAY_DEVICE_CUDA) {
 #if NDARRAY_HAVE_CUDA
-    if (storage_.size() == 0) {
+    if (storage_.empty()) {
       storage_.resize(nelem());
     }
 
@@ -1785,7 +1785,7 @@ inline void ndarray<T, StoragePolicy>::copy_from_device()
 #endif
   } else if (this->device_type == NDARRAY_DEVICE_SYCL) {
 #if NDARRAY_HAVE_SYCL
-    if (storage_.size() == 0) {
+    if (storage_.empty()) {
       storage_.resize(nelem());
     }
 
@@ -1864,7 +1864,7 @@ inline void ndarray<T, StoragePolicy>::read_h5_did(hid_t did)
     H5Sget_simple_extent_dims(sid, h5dims.data(), nullptr);
 
     std::vector<size_t> h5_dims(h5ndims);
-    for (auto i = 0; i < h5ndims; i ++)
+    for (int i = 0; i < h5ndims; i ++)
       h5_dims[i] = h5dims[i];
 
     // HDF5 uses C-order, ndarray now stores C-order - direct use!

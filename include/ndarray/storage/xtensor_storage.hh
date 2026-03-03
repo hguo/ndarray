@@ -22,6 +22,7 @@ struct xtensor_storage {
     }
 
     size_t size() const { return data_.size(); }
+    bool empty() const { return data_.size() == 0; }
 
     T* data() { return data_.data(); }
     const T* data() const { return data_.data(); }

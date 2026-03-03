@@ -8,6 +8,7 @@ namespace ftk {
 // Storage policy concept (C++17 compatible)
 // All storage policies must provide a container_type<T> with these operations:
 // - size_t size() const
+// - bool empty() const
 // - T* data()
 // - const T* data() const
 // - void resize(size_t)

@@ -14,6 +14,7 @@ struct native_storage {
     std::vector<T> data_;
 
     size_t size() const { return data_.size(); }
+    bool empty() const { return data_.empty(); }
 
     T* data() { return data_.data(); }
     const T* data() const { return data_.data(); }

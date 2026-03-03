@@ -122,7 +122,7 @@ struct eigen_backend {
   }
 
   bool empty() const {
-    return data_.size() == 0;
+    return data_.empty();
   }
 
   pointer data() {
@@ -195,7 +195,7 @@ struct xtensor_backend {
   }
 
   bool empty() const {
-    return data_.size() == 0;
+    return data_.empty();
   }
 
   pointer data() {
