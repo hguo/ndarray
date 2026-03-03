@@ -50,8 +50,6 @@ inline void substream_netcdf<StoragePolicy>::read(int i, std::shared_ptr<group_t
 
   const std::string f = this->filenames[fi];
 
-  fprintf(stderr, "static=%d, filename=%s, i=%d, fi=%d, filenames.size=%zu\n", this->is_static, f.c_str(), i, fi, this->filenames.size());
-
   auto &pool = fdpool_nc::get_instance();
   int ncid = pool.open(f, this->comm);
 
@@ -107,9 +105,10 @@ inline void substream_netcdf<StoragePolicy>::read(int i, std::shared_ptr<group_t
       int unlimited_recid;
       NC_SAFE_CALL( nc_inq_unlimdim(ncid, &unlimited_recid) );
 
-      int ndims, dimids[4];
+      int ndims;
       NC_SAFE_CALL( nc_inq_varndims(ncid, varid, &ndims) );
-      NC_SAFE_CALL( nc_inq_vardimid(ncid, varid, dimids) );
+      std::vector<int> dimids(ndims);
+      NC_SAFE_CALL( nc_inq_vardimid(ncid, varid, dimids.data()) );
 
       bool time_varying = false;
       if (unlimited_recid >= 0) // has unlimied dimension
@@ -195,7 +194,6 @@ inline void substream_netcdf<StoragePolicy>::initialize(YAML::Node y)
     this->timesteps_per_file.push_back(nt);
     this->first_timestep_per_file.push_back( this->total_timesteps );
     this->total_timesteps += nt;
-    fprintf(stderr, "filename=%s, nt=%zu\n", f.c_str(), nt);
   }
 }
 

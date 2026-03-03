@@ -30,6 +30,12 @@ struct ndarray_group : public std::map<std::string, std::shared_ptr<ndarray_base
     else return nullptr;
   }
 
+  template <typename T> std::shared_ptr<const ndarray<T, StoragePolicy>> get_ptr(const std::string key) const {
+    auto it = this->find(key);
+    if (it != this->end()) return std::dynamic_pointer_cast<const ndarray<T, StoragePolicy>>(it->second);
+    else return nullptr;
+  }
+
   // Zero-copy access: returns reference to internal array
   // WARNING: Reference is only valid while ndarray_group exists
   template <typename T> const ndarray<T, StoragePolicy>& get_ref(const std::string key) const;
@@ -72,9 +78,13 @@ template <typename StoragePolicy>
 template <typename T>
 const ndarray<T, StoragePolicy>& ndarray_group<StoragePolicy>::get_ref(const std::string key) const
 {
-  auto ptr = get_ptr<T>(key);
-  if (!ptr) {
+  auto it = this->find(key);
+  if (it == this->end()) {
     throw std::runtime_error("ndarray_group::get_ref: key '" + key + "' not found");
+  }
+  auto ptr = std::dynamic_pointer_cast<ndarray<T, StoragePolicy>>(it->second);
+  if (!ptr) {
+    throw std::runtime_error("ndarray_group::get_ref: key '" + key + "' has wrong type");
   }
   return *ptr;
 }

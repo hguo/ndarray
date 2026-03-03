@@ -163,8 +163,6 @@ inline void stream<StoragePolicy>::new_substream_from_yaml(YAML::Node y)
 
       if (sub->direction() == SUBSTREAM_DIR_INPUT) {
         sub->filenames = glob(sub->filename_pattern);
-        fprintf(stderr, "input substream '%s', filename_pattern=%s, found %zu files.\n",
-            sub->name.c_str(), sub->filename_pattern.c_str(), sub->filenames.size());
       }
     }
     else if (yfilenames.IsSequence()) {
@@ -176,9 +174,6 @@ inline void stream<StoragePolicy>::new_substream_from_yaml(YAML::Node y)
           const auto filenames = glob(mypattern);
           sub->filenames.insert(sub->filenames.end(), filenames.begin(), filenames.end());
         }
-
-        fprintf(stderr, "input substream '%s', found %zu files.\n",
-            sub->name.c_str(), sub->filenames.size());
       }
     }
   }

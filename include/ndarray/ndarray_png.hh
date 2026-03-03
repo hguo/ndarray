@@ -134,8 +134,8 @@ inline void read_png_file(const std::string& filename,
   data.resize(height * row_bytes);
 
   // Create row pointers
-  std::vector<png_bytep> row_pointers(height);
-  for (int y = 0; y < height; y++) {
+  std::vector<png_bytep> row_pointers(static_cast<size_t>(height));
+  for (size_t y = 0; y < static_cast<size_t>(height); y++) {
     row_pointers[y] = data.data() + y * row_bytes;
   }
 
@@ -229,9 +229,9 @@ inline void write_png_file(const std::string& filename,
   png_write_info(png, info);
 
   // Write image data
-  size_t row_bytes = channels * width;
-  std::vector<png_const_bytep> row_pointers(height);
-  for (int y = 0; y < height; y++) {
+  size_t row_bytes = static_cast<size_t>(channels) * static_cast<size_t>(width);
+  std::vector<png_const_bytep> row_pointers(static_cast<size_t>(height));
+  for (size_t y = 0; y < static_cast<size_t>(height); y++) {
     row_pointers[y] = data + y * row_bytes;
   }
 

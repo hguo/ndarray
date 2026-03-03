@@ -107,7 +107,6 @@ template <typename StoragePolicy>
 inline void substream_vti_o<StoragePolicy>::read(int i, std::shared_ptr<group_type> g)
 {
   const auto f = series_filename(this->filename_pattern, i);
-  fprintf(stderr, "writing step %d, f=%s\n", i, f.c_str());
 
   vtkSmartPointer<vtkImageData> vti = vtkImageData::New();
 
