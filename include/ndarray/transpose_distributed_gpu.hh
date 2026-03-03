@@ -238,6 +238,15 @@ ndarray<T, StoragePolicy> transpose_distributed_gpu(const ndarray<T, StoragePoli
     }
   }
 
+  auto free_gpu_buffers = [&]() {
+    for (int r = 0; r < nprocs; r++) {
+      if (send_buffers_gpu[r]) cudaFree(send_buffers_gpu[r]);
+      if (recv_buffers_gpu[r]) cudaFree(recv_buffers_gpu[r]);
+    }
+  };
+
+  try {
+
   // Phase 2: Allocate GPU buffers
   for (int r = 0; r < nprocs; r++) {
     if (send_counts[r] > 0) {
@@ -331,9 +340,11 @@ ndarray<T, StoragePolicy> transpose_distributed_gpu(const ndarray<T, StoragePoli
   }
 
   // Phase 6: Cleanup GPU buffers
-  for (int r = 0; r < nprocs; r++) {
-    if (send_buffers_gpu[r]) CUDA_CHECK(cudaFree(send_buffers_gpu[r]));
-    if (recv_buffers_gpu[r]) CUDA_CHECK(cudaFree(recv_buffers_gpu[r]));
+  free_gpu_buffers();
+
+  } catch (...) {
+    free_gpu_buffers();
+    throw;
   }
 
   // Copy metadata

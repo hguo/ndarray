@@ -1040,7 +1040,10 @@ void ndarray<T, StoragePolicy>::flip_byte_order()
 template <typename T, typename StoragePolicy>
 void ndarray<T, StoragePolicy>::read_binary_file(FILE *fp, int endian)
 {
-  auto s = fread(&storage_[0], sizeof(T), nelem(), fp);
+  size_t s = fread(&storage_[0], sizeof(T), nelem(), fp);
+  if (s != nelem()) {
+    warn("fread: expected " + std::to_string(nelem()) + " elements, got " + std::to_string(s));
+  }
 
 #if NDARRAY_USE_LITTLE_ENDIAN
   if (endian == NDARRAY_ENDIAN_BIG)
@@ -1085,8 +1088,12 @@ void ndarray<T, StoragePolicy>::read_binary_file_sequence(const std::string& pat
   for (size_t i = 0; i < filenames.size(); i ++) {
     FILE *fp = fopen(filenames[i].c_str(), "rb");
     if (!fp) throw std::runtime_error("Cannot open file for reading: " + filenames[i]);
-    fread(&storage_[npt*i], sizeof(T), npt, fp);
+    size_t nread = fread(&storage_[npt*i], sizeof(T), npt, fp);
     fclose(fp);
+    if (nread != npt) {
+      warn("fread: short read in " + filenames[i] + ": expected " +
+           std::to_string(npt) + " elements, got " + std::to_string(nread));
+    }
   }
 }
 
@@ -2224,8 +2231,8 @@ inline bool ndarray<float>::read_amira(const std::string& filename)
   }
 
   char buffer[2048];
-  fread(buffer, sizeof(char), 2047, fp);
-  buffer[2047] = '\0';
+  size_t nread = fread(buffer, sizeof(char), 2047, fp);
+  buffer[nread] = '\0';
 
   if (!strstr(buffer, "# AmiraMesh BINARY-LITTLE-ENDIAN 2.1")) {
     warn(ERR_FILE_FORMAT_AMIRA, filename);
@@ -3163,8 +3170,17 @@ void ndarray<T, StoragePolicy>::exchange_ghosts_gpu_direct()
   // Use CUDA kernels for pack/unpack operations
 
   // Allocate device buffers for send/recv
-  std::vector<T*> d_send_buffers(dist_->neighbors_.size());
-  std::vector<T*> d_recv_buffers(dist_->neighbors_.size());
+  std::vector<T*> d_send_buffers(dist_->neighbors_.size(), nullptr);
+  std::vector<T*> d_recv_buffers(dist_->neighbors_.size(), nullptr);
+
+  auto free_gpu_buffers = [&]() {
+    for (size_t i = 0; i < d_send_buffers.size(); i++) {
+      if (d_send_buffers[i]) cudaFree(d_send_buffers[i]);
+      if (d_recv_buffers[i]) cudaFree(d_recv_buffers[i]);
+    }
+  };
+
+  try {
 
   for (size_t i = 0; i < dist_->neighbors_.size(); i++) {
     CUDA_CHECK(cudaMalloc(&d_send_buffers[i],
@@ -3311,10 +3327,11 @@ void ndarray<T, StoragePolicy>::exchange_ghosts_gpu_direct()
   // Synchronize after unpacking
   CUDA_CHECK(cudaDeviceSynchronize());
 
-  // Free device buffers
-  for (size_t i = 0; i < dist_->neighbors_.size(); i++) {
-    CUDA_CHECK(cudaFree(d_send_buffers[i]));
-    CUDA_CHECK(cudaFree(d_recv_buffers[i]));
+  free_gpu_buffers();
+
+  } catch (...) {
+    free_gpu_buffers();
+    throw;
   }
 }
 #elif NDARRAY_HAVE_CUDA
@@ -3652,11 +3669,11 @@ void ndarray<T, StoragePolicy>::read_netcdf_auto(
   // Internal helper to check for time dimension
   auto check_time = [&](int ncid, int varid) {
     int unlimid;
-    nc_inq_unlimdim(ncid, &unlimid);
+    NC_SAFE_CALL( nc_inq_unlimdim(ncid, &unlimid) );
     if (unlimid >= 0) {
       int ndims, dimids[NC_MAX_VAR_DIMS];
-      nc_inq_varndims(ncid, varid, &ndims);
-      nc_inq_vardimid(ncid, varid, dimids);
+      NC_SAFE_CALL( nc_inq_varndims(ncid, varid, &ndims) );
+      NC_SAFE_CALL( nc_inq_vardimid(ncid, varid, dimids) );
       for (int d = 0; d < ndims; d++) {
         if (dimids[d] == unlimid) return true;
       }

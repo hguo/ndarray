@@ -181,7 +181,7 @@ inline void substream_netcdf<StoragePolicy>::initialize(YAML::Node y)
 
     size_t nt = 0;
     int unlimited_recid;
-    nc_inq_unlimdim(ncid, &unlimited_recid);
+    NC_SAFE_CALL( nc_inq_unlimdim(ncid, &unlimited_recid) );
 
     if (unlimited_recid >= 0) {
       this->has_unlimited_time_dimension = true;
