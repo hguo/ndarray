@@ -981,7 +981,7 @@ ndarray<T, StoragePolicy> ndarray<T, StoragePolicy>::subarray(const lattice& l0)
 {
   lattice l(l0);
   if (l0.nd_cuttable() < nd()) {
-    for (int i = 0; i < n_component_dims; i ++) {
+    for (size_t i = 0; i < n_component_dims; i ++) {
       l.starts_.insert(l.starts_.begin(), 0);
       l.sizes_.insert(l.starts_.begin(), this->shapef(i));
     }
@@ -1006,7 +1006,7 @@ void ndarray<T, StoragePolicy>::bil_add_block_raw(const std::string& filename,
   reshapef(ext.sizes());
   std::vector<int> domain, st, sz;
 
-  for (int i = 0; i < nd(); i ++) {
+  for (size_t i = 0; i < nd(); i ++) {
     domain.push_back(SZ[i]);
     st.push_back(ext.start(i));
     sz.push_back(ext.size(i));
@@ -1024,7 +1024,7 @@ void ndarray<T, StoragePolicy>::flip_byte_order(T &x)
   T y;
   char *px = (char*)&x, *py = (char*)&y;
 
-  for (int i = 0; i < sizeof(T); i ++)
+  for (size_t i = 0; i < sizeof(T); i ++)
     py[sizeof(T)-i-1] = px[i];
 
   x = y;
@@ -1317,9 +1317,9 @@ void ndarray<T, StoragePolicy>::reshapef(const std::vector<size_t> &dims_)
 
     // C-order strides: last dimension varies fastest
     // s[nd-1] = 1, s[nd-2] = dims[nd-1], etc.
-    for (int i = this->nd() - 1; i >= 0; i--)
-      if (i == this->nd() - 1) this->s[i] = 1;
-      else this->s[i] = this->s[i+1] * this->dims[i+1];
+    for (size_t i = this->nd(); i > 0; i--)
+      if (i == this->nd()) this->s[i-1] = 1;
+      else this->s[i-1] = this->s[i] * this->dims[i];
 
     size_t total_size = this->s[0] * this->dims[0];
 
@@ -2352,7 +2352,7 @@ bool ndarray<T, StoragePolicy>::mlerp(const F x[], T v[]) const
     if (nc == 0) // univariate
       v[0] += coef * this->f(verts);
     else if (nc == 1) { // multiple channels
-      for (int k = 0; k < dimf(0); k ++) {
+      for (size_t k = 0; k < dimf(0); k ++) {
         verts[0] = k;
         F val = this->f(verts);
         v[k] += coef * val;

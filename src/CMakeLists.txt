@@ -14,6 +14,11 @@ endif ()
 
 add_library (ndarray SHARED ${ndarray_sources})
 
+# Enable standard compiler warnings
+target_compile_options (ndarray PRIVATE
+  $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra -Wno-unused-parameter>
+)
+
 # Link all dependencies with PUBLIC visibility so they propagate to consumers
 # This allows examples/tests to simply link against ndarray without manually
 # specifying each optional dependency
