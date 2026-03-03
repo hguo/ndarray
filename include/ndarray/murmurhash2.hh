@@ -51,10 +51,11 @@ inline unsigned int murmurhash2(const void * key, int len, const unsigned int se
 
 	switch(len)
 	{
-	case 3: h ^= data[2] << 16;
-	case 2: h ^= data[1] << 8;
+	case 3: h ^= data[2] << 16; [[fallthrough]];
+	case 2: h ^= data[1] << 8;  [[fallthrough]];
 	case 1: h ^= data[0];
 	        h *= m;
+	default: break;
 	};
 
 	// Do a few final mixes of the hash to ensure the last few

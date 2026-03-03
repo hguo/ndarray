@@ -78,18 +78,18 @@ inline bool cuda_device_available(int device_id = 0)
 inline void print_cuda_device_info(int device_id = 0)
 {
   if (!cuda_device_available(device_id)) {
-    std::cerr << "CUDA device " << device_id << " not available" << std::endl;
+    std::cerr << "CUDA device " << device_id << " not available" << '\n';
     return;
   }
 
   cudaDeviceProp prop = get_cuda_device_properties(device_id);
-  std::cout << "CUDA Device " << device_id << ": " << prop.name << std::endl;
-  std::cout << "  Compute capability: " << prop.major << "." << prop.minor << std::endl;
-  std::cout << "  Total global memory: " << (prop.totalGlobalMem / (1024*1024)) << " MB" << std::endl;
-  std::cout << "  Multiprocessors: " << prop.multiProcessorCount << std::endl;
-  std::cout << "  Max threads per block: " << prop.maxThreadsPerBlock << std::endl;
-  std::cout << "  Max threads per multiprocessor: " << prop.maxThreadsPerMultiProcessor << std::endl;
-  std::cout << "  Warp size: " << prop.warpSize << std::endl;
+  std::cout << "CUDA Device " << device_id << ": " << prop.name << '\n';
+  std::cout << "  Compute capability: " << prop.major << "." << prop.minor << '\n';
+  std::cout << "  Total global memory: " << (prop.totalGlobalMem / (1024*1024)) << " MB" << '\n';
+  std::cout << "  Multiprocessors: " << prop.multiProcessorCount << '\n';
+  std::cout << "  Max threads per block: " << prop.maxThreadsPerBlock << '\n';
+  std::cout << "  Max threads per multiprocessor: " << prop.maxThreadsPerMultiProcessor << '\n';
+  std::cout << "  Warp size: " << prop.warpSize << '\n';
 }
 
 // Basic operation launchers

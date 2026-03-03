@@ -190,10 +190,10 @@ ndarray<T, StoragePolicy> transpose_nd_general(const ndarray<T, StoragePolicy>& 
     if (!preserves_dimension_semantics(axes, n_comp, has_time)) {
       // Permutation moves component or time dimensions - warn user
       // We still copy the metadata, but it may no longer be semantically correct
-      std::cerr << "[NDARRAY WARNING] transpose: permutation moves component or time dimensions." << std::endl;
-      std::cerr << "  The resulting array may have incorrect metadata." << std::endl;
-      std::cerr << "  Original: n_component_dims=" << n_comp << ", has_time=" << has_time << std::endl;
-      std::cerr << "  Consider manually adjusting metadata after transpose." << std::endl;
+      std::cerr << "[NDARRAY WARNING] transpose: permutation moves component or time dimensions.\n";
+      std::cerr << "  The resulting array may have incorrect metadata.\n";
+      std::cerr << "  Original: n_component_dims=" << n_comp << ", has_time=" << has_time << '\n';
+      std::cerr << "  Consider manually adjusting metadata after transpose.\n";
     }
   }
 

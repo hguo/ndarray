@@ -2540,7 +2540,7 @@ void ndarray<T, StoragePolicy>::decompose(MPI_Comm comm,
           // lattice_partitioner didn't handle it correctly
           // This is a workaround - ideally lattice_partitioner should handle it
           std::cerr << "Warning: decomp[" << i << "]==0 but dimension was split. "
-                    << "This may indicate lattice_partitioner doesn't support non-decomposed dimensions yet." << std::endl;
+                    << "This may indicate lattice_partitioner doesn't support non-decomposed dimensions yet.\n";
         }
       }
     }

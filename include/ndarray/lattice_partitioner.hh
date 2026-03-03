@@ -292,12 +292,12 @@ inline void lattice_partitioner::partition(std::vector<std::vector<size_t>> prim
 
 inline std::ostream& operator<<(std::ostream& os, const lattice_partitioner& partitioner)
 {
-  os << "lattice.nd=" << partitioner.nd() << ", np=" << partitioner.np() << std::endl;
+  os << "lattice.nd=" << partitioner.nd() << ", np=" << partitioner.np() << '\n';
   for (size_t i = 0; i < partitioner.np(); i ++) {
     os << "--" << "id=" << i <<", "
                << "core: " << partitioner.cores[i] << "; "
                << "ext: " << partitioner.extents[i];
-    if  (i < partitioner.np() - 1) os << std::endl;
+    if  (i < partitioner.np() - 1) os << '\n';
   }
 
   return os;

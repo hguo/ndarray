@@ -27,12 +27,12 @@ int main(int argc, char **argv)
   auto results = options.parse(argc, argv);
 
   if (results.count("help")) {
-    std::cerr << options.help() << std::endl;
+    std::cerr << options.help() << '\n';
     exit(0);
   }
 
   if (!results.count("input")) {
-    std::cerr << options.help() << std::endl;
+    std::cerr << options.help() << '\n';
     exit(1);
   }
 

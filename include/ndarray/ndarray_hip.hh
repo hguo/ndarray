@@ -78,21 +78,21 @@ inline bool hip_device_available(int device_id = 0)
 inline void print_hip_device_info(int device_id = 0)
 {
   if (!hip_device_available(device_id)) {
-    std::cerr << "HIP device " << device_id << " not available" << std::endl;
+    std::cerr << "HIP device " << device_id << " not available" << '\n';
     return;
   }
 
   hipDeviceProp_t prop = get_hip_device_properties(device_id);
-  std::cout << "HIP Device " << device_id << ": " << prop.name << std::endl;
-  std::cout << "  Compute capability: " << prop.major << "." << prop.minor << std::endl;
-  std::cout << "  Total global memory: " << (prop.totalGlobalMem / (1024*1024)) << " MB" << std::endl;
-  std::cout << "  Multiprocessors: " << prop.multiProcessorCount << std::endl;
-  std::cout << "  Max threads per block: " << prop.maxThreadsPerBlock << std::endl;
-  std::cout << "  Warp size: " << prop.warpSize << std::endl;
-  std::cout << "  Memory clock rate: " << (prop.memoryClockRate / 1000) << " MHz" << std::endl;
-  std::cout << "  Memory bus width: " << prop.memoryBusWidth << " bits" << std::endl;
+  std::cout << "HIP Device " << device_id << ": " << prop.name << '\n';
+  std::cout << "  Compute capability: " << prop.major << "." << prop.minor << '\n';
+  std::cout << "  Total global memory: " << (prop.totalGlobalMem / (1024*1024)) << " MB" << '\n';
+  std::cout << "  Multiprocessors: " << prop.multiProcessorCount << '\n';
+  std::cout << "  Max threads per block: " << prop.maxThreadsPerBlock << '\n';
+  std::cout << "  Warp size: " << prop.warpSize << '\n';
+  std::cout << "  Memory clock rate: " << (prop.memoryClockRate / 1000) << " MHz" << '\n';
+  std::cout << "  Memory bus width: " << prop.memoryBusWidth << " bits" << '\n';
   std::cout << "  Peak memory bandwidth: " <<
-    (2.0 * prop.memoryClockRate * (prop.memoryBusWidth / 8) / 1.0e6) << " GB/s" << std::endl;
+    (2.0 * prop.memoryClockRate * (prop.memoryBusWidth / 8) / 1.0e6) << " GB/s" << '\n';
 }
 
 } // namespace ftk

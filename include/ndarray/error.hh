@@ -437,7 +437,7 @@ inline void warn(int err, const std::string& str = "")
 {
   std::cerr << "[NDARRAY WARN] " << err2str(err);
   if (str.length()) std::cerr << ": " << str;
-  std::cerr << std::endl;
+  std::cerr << '\n';
 }
 
 /**
@@ -446,7 +446,7 @@ inline void warn(int err, const std::string& str = "")
  * @param str Warning message
  */
 inline void warn(const std::string& str) {
-  std::cerr << "[NDARRAY WARN] " << str << std::endl;
+  std::cerr << "[NDARRAY WARN] " << str << '\n';
 }
 
 }
