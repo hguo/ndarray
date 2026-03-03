@@ -132,7 +132,7 @@ inline void lattice_partitioner::partition(size_t np,
       return ;
     }
 
-    for(auto i = 0; i < given.size(); ++i) {
+    for(size_t i = 0; i < given.size(); ++i) {
       size_t nslice = given[i];
       if(nslice > 1) {
         std::vector<size_t> prime_factors_dim = prime_factorization(nslice);
@@ -204,11 +204,11 @@ inline void lattice_partitioner::partition(std::vector<std::vector<size_t>> prim
   std::queue<lattice> lattice_queue;
   lattice_queue.push(l);
 
-  for(int curr = 0; curr < ndim; ++curr) { // current dim for cutting
+  for(size_t curr = 0; curr < static_cast<size_t>(ndim); ++curr) { // current dim for cutting
     for(size_t& nslice : prime_factors_dims[curr]) {
-      int n = lattice_queue.size();
+      size_t n = lattice_queue.size();
 
-      for (int j = 0; j < n; ++j) {
+      for (size_t j = 0; j < n; ++j) {
         auto p = lattice_queue.front();
 
         if(p.size(curr) < nslice) { // what if p.sizes(curr) < nslice?
@@ -219,7 +219,7 @@ inline void lattice_partitioner::partition(std::vector<std::vector<size_t>> prim
         std::vector<size_t> starts(p.starts());
         std::vector<size_t> sizes(p.sizes());
         sizes[curr] = ns;
-        for(int k = 0; k < nslice - 1; ++k) {
+        for(size_t k = 0; k < nslice - 1; ++k) {
           lattice_queue.push(lattice(starts, sizes));
           starts[curr] += ns;
         }
@@ -312,7 +312,7 @@ inline lattice lattice_partitioner::add_ghost(const lattice& b,
   auto starts = b.starts(),
        sizes = b.sizes();
 
-  for(int d = 0; d < l.nd_cuttable(); ++d) {
+  for(size_t d = 0; d < l.nd_cuttable(); ++d) {
     // ghost_low layer
     {
       size_t offset = starts[d] - l.start(d);

@@ -69,9 +69,13 @@ inline void substream_h5<StoragePolicy>::read(int i, std::shared_ptr<group_type>
 
       for (auto varname : var.possible_names) {
         if (varname.find("%d") != std::string::npos) {
-          char formatted_name[256];
-          snprintf(formatted_name, sizeof(formatted_name), varname.c_str(), local_timestep);
-          varname = formatted_name;
+          int n = snprintf(nullptr, 0, varname.c_str(), local_timestep);
+          if (n >= 0) {
+            std::string formatted_name(static_cast<size_t>(n) + 1, '\0');
+            snprintf(&formatted_name[0], static_cast<size_t>(n) + 1, varname.c_str(), local_timestep);
+            formatted_name.resize(static_cast<size_t>(n));
+            varname = formatted_name;
+          }
         }
         did = H5Dopen2(fid, varname.c_str(), H5P_DEFAULT);
         if (did != H5I_INVALID_HID) {

@@ -75,9 +75,9 @@ ndarray<T> synthetic_woven_2D_part(const lattice& ext, const lattice& core, T t 
   ndarray<T> scalar;
   scalar.reshapef(core.sizes());
 
-  const int DW = ext.size(0), DH = ext.size(1);
-  for (int j = 0; j < core.size(1) ; j ++) {
-    for (int i = 0; i < core.size(0); i ++) {
+  const size_t DW = ext.size(0), DH = ext.size(1);
+  for (size_t j = 0; j < core.size(1) ; j ++) {
+    for (size_t i = 0; i < core.size(0); i ++) {
       const T x = ((T(i + core.start(0)) / (DW-1)) - 0.5) * scaling_factor,
               y = ((T(j + core.start(1)) / (DH-1)) - 0.5) * scaling_factor;
       scalar.f(i, j) = woven_function_2Dt(x, y, t);
@@ -119,7 +119,7 @@ ndarray<T> synthetic_woven_2D_unstructured(
   ndarray<T> scalar;
   scalar.reshapef(coords.dim(1));
 
-  for (int i = 0; i < coords.dim(1); i ++) {
+  for (size_t i = 0; i < coords.dim(1); i ++) {
     double x = (coords(0, i) - center[0]) * scaling_factor,
            y = (coords(1, i) - center[1]) * scaling_factor;
     scalar[i] = woven_function_2Dt(x, y, t);

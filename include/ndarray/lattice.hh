@@ -103,7 +103,7 @@ inline std::ostream& operator<<(std::ostream& os, const lattice& l)
 
 inline std::vector<size_t> lattice::lower_bounds() const {
   std::vector<size_t> lb;
-  for(int i = 0; i < nd(); ++i) {
+  for(size_t i = 0; i < nd(); ++i) {
     lb.push_back(starts_[i]);
   }
 
@@ -112,7 +112,7 @@ inline std::vector<size_t> lattice::lower_bounds() const {
 
 inline std::vector<size_t> lattice::upper_bounds() const {
   std::vector<size_t> ub;
-  for(int i = 0; i < nd(); ++i) {
+  for(size_t i = 0; i < nd(); ++i) {
     ub.push_back(starts_[i] + sizes_[i] - 1);
   }
 
