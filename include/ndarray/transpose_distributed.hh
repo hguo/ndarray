@@ -411,8 +411,8 @@ ndarray<T, StoragePolicy> transpose_distributed(const ndarray<T, StoragePolicy>&
   }
 
   // Wait for all communication
-  if (requests.size() > 0) {
-    MPI_Waitall(requests.size(), requests.data(), MPI_STATUSES_IGNORE);
+  if (!requests.empty()) {
+    MPI_Waitall(static_cast<int>(requests.size()), requests.data(), MPI_STATUSES_IGNORE);
   }
 
   // Phase 4: Unpack received data

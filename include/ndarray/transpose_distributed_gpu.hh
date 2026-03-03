@@ -307,8 +307,8 @@ ndarray<T, StoragePolicy> transpose_distributed_gpu(const ndarray<T, StoragePoli
   }
 
   // Wait for communication
-  if (requests.size() > 0) {
-    MPI_Waitall(requests.size(), requests.data(), MPI_STATUSES_IGNORE);
+  if (!requests.empty()) {
+    MPI_Waitall(static_cast<int>(requests.size()), requests.data(), MPI_STATUSES_IGNORE);
   }
 
   // Phase 5: Unpack received data on GPU

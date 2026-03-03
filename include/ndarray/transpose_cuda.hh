@@ -183,6 +183,11 @@ void transpose_nd_cuda(const ndarray<T, StoragePolicy>& input,
   const size_t nd = input.nd();
   const size_t n_elems = input.nelem();
 
+  // Kernel uses fixed-size arrays of 16 elements
+  if (nd > 16) {
+    throw invalid_operation("transpose_nd_cuda: arrays with more than 16 dimensions are not supported");
+  }
+
   // Ensure input is on device
   if (!input.is_on_device() || input.get_device_type() != NDARRAY_DEVICE_CUDA) {
     throw device_error(ERR_NOT_BUILT_WITH_CUDA,

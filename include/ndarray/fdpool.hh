@@ -133,7 +133,7 @@ inline int fdpool_nc::open(const std::string& f, MPI_Comm comm)
   auto it = pool.find(f);
   if (it == pool.end()) {
     // File not in pool - open it for the first time
-    int ncid, rtn;
+    int ncid = -1, rtn;
 
 #if NDARRAY_HAVE_NETCDF
 #if NDARRAY_HAVE_NETCDF_PARALLEL

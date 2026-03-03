@@ -26,12 +26,15 @@ int main(int argc, char **argv)
   options.parse_positional({"input"});
   auto results = options.parse(argc, argv);
 
-  if (!results.count("input") || results.count("help")) {
+  if (results.count("help")) {
     std::cerr << options.help() << std::endl;
     exit(0);
   }
 
-  fprintf(stderr, "input yaml file: %s\n", input_yaml_filename.c_str());
+  if (!results.count("input")) {
+    std::cerr << options.help() << std::endl;
+    exit(1);
+  }
 
   std::shared_ptr<ftk::stream<>> stream(new ftk::stream<>);
 
