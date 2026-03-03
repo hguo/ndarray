@@ -11,9 +11,9 @@ template <typename StoragePolicy = native_storage>
 struct ndarray_group : public std::map<std::string, std::shared_ptr<ndarray_base>> {
   ndarray_group() {}
 
-  bool has(const std::string key) const { return this->find(key) != this->end(); }
+  bool has(const std::string& key) const { return this->find(key) != this->end(); }
 
-  std::shared_ptr<ndarray_base> get(const std::string key) const {
+  std::shared_ptr<ndarray_base> get(const std::string& key) const {
     auto it = this->find(key);
     if (it != this->end())
       return it->second;
@@ -21,16 +21,16 @@ struct ndarray_group : public std::map<std::string, std::shared_ptr<ndarray_base
       return nullptr;
   }
 
-  void set(const std::string key, std::shared_ptr<ndarray_base> ptr) { this->emplace(key, ptr); }
-  template <typename T> void set(const std::string key, const ndarray<T, StoragePolicy> &arr);
-  template <typename T> void set(const std::string key, ndarray<T, StoragePolicy> &&arr);  // Move version
+  void set(const std::string& key, std::shared_ptr<ndarray_base> ptr) { this->emplace(key, ptr); }
+  template <typename T> void set(const std::string& key, const ndarray<T, StoragePolicy> &arr);
+  template <typename T> void set(const std::string& key, ndarray<T, StoragePolicy> &&arr);  // Move version
 
-  template <typename T> std::shared_ptr<ndarray<T, StoragePolicy>> get_ptr(const std::string key) {
+  template <typename T> std::shared_ptr<ndarray<T, StoragePolicy>> get_ptr(const std::string& key) {
     if (has(key)) return std::dynamic_pointer_cast<ndarray<T, StoragePolicy>>(at(key));
     else return nullptr;
   }
 
-  template <typename T> std::shared_ptr<const ndarray<T, StoragePolicy>> get_ptr(const std::string key) const {
+  template <typename T> std::shared_ptr<const ndarray<T, StoragePolicy>> get_ptr(const std::string& key) const {
     auto it = this->find(key);
     if (it != this->end()) return std::dynamic_pointer_cast<const ndarray<T, StoragePolicy>>(it->second);
     else return nullptr;
@@ -38,12 +38,12 @@ struct ndarray_group : public std::map<std::string, std::shared_ptr<ndarray_base
 
   // Zero-copy access: returns reference to internal array
   // WARNING: Reference is only valid while ndarray_group exists
-  template <typename T> const ndarray<T, StoragePolicy>& get_ref(const std::string key) const;
-  template <typename T> ndarray<T, StoragePolicy>& get_ref(const std::string key);
+  template <typename T> const ndarray<T, StoragePolicy>& get_ref(const std::string& key) const;
+  template <typename T> ndarray<T, StoragePolicy>& get_ref(const std::string& key);
 
-  void remove(const std::string key);
+  void remove(const std::string& key);
 
-  template <typename T> ndarray<T, StoragePolicy> get_arr(const std::string key) {
+  template <typename T> ndarray<T, StoragePolicy> get_arr(const std::string& key) {
     if (has(key)) return *get_ptr<T>(key);
     else return ndarray<T, StoragePolicy>();
   }
@@ -58,25 +58,25 @@ public:
 
 template <typename StoragePolicy>
 template <typename T>
-void ndarray_group<StoragePolicy>::set(const std::string key, const ndarray<T, StoragePolicy> &arr)
+void ndarray_group<StoragePolicy>::set(const std::string& key, const ndarray<T, StoragePolicy> &arr)
 {
-  std::shared_ptr<ndarray_base> parr(new ndarray<T, StoragePolicy>(arr));  // Copy construct
+  auto parr = std::make_shared<ndarray<T, StoragePolicy>>(arr);  // Copy construct
   this->set(key, parr);
 }
 
 // Move version - avoids copy when caller uses std::move()
 template <typename StoragePolicy>
 template <typename T>
-void ndarray_group<StoragePolicy>::set(const std::string key, ndarray<T, StoragePolicy> &&arr)
+void ndarray_group<StoragePolicy>::set(const std::string& key, ndarray<T, StoragePolicy> &&arr)
 {
-  std::shared_ptr<ndarray_base> parr(new ndarray<T, StoragePolicy>(std::move(arr)));  // Move construct
+  auto parr = std::make_shared<ndarray<T, StoragePolicy>>(std::move(arr));  // Move construct
   this->set(key, parr);
 }
 
 // Zero-copy read access - returns const reference
 template <typename StoragePolicy>
 template <typename T>
-const ndarray<T, StoragePolicy>& ndarray_group<StoragePolicy>::get_ref(const std::string key) const
+const ndarray<T, StoragePolicy>& ndarray_group<StoragePolicy>::get_ref(const std::string& key) const
 {
   auto it = this->find(key);
   if (it == this->end()) {
@@ -92,7 +92,7 @@ const ndarray<T, StoragePolicy>& ndarray_group<StoragePolicy>::get_ref(const std
 // Zero-copy write access - returns mutable reference
 template <typename StoragePolicy>
 template <typename T>
-ndarray<T, StoragePolicy>& ndarray_group<StoragePolicy>::get_ref(const std::string key)
+ndarray<T, StoragePolicy>& ndarray_group<StoragePolicy>::get_ref(const std::string& key)
 {
   auto ptr = get_ptr<T>(key);
   if (!ptr) {
@@ -102,7 +102,7 @@ ndarray<T, StoragePolicy>& ndarray_group<StoragePolicy>::get_ref(const std::stri
 }
 
 template <typename StoragePolicy>
-inline void ndarray_group<StoragePolicy>::remove(const std::string key)
+inline void ndarray_group<StoragePolicy>::remove(const std::string& key)
 {
   auto p = this->find(key);
   if (p != this->end()) {
@@ -116,13 +116,13 @@ inline void ndarray_group<StoragePolicy>::print_info(std::ostream& os) const
   os << "array_group "
      << (this->name.empty() ? "(no name)" : name)
      << (this->empty() ? " (empty)" : " ")
-     << std::endl;
+     << '\n';
 
   for (const auto &kv : *this) {
     os << " - name: " << kv.first.c_str() << ", ";
     os << "type: " << ndarray_base::dtype2str( kv.second->type() ) << ", ";
     kv.second->print_shapef(os);
-    os << std::endl;
+    os << '\n';
   }
 }
 

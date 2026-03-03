@@ -146,7 +146,7 @@ struct stream {
    * @brief Parse YAML configuration file
    * @param filename Path to YAML file describing stream
    */
-  void parse_yaml(const std::string filename);
+  void parse_yaml(const std::string& filename);
 
   /**
    * @brief Get total number of timesteps
@@ -164,7 +164,7 @@ struct stream {
    * @brief Set path prefix for all file paths
    * @param p Path prefix string
    */
-  void set_path_prefix(const std::string p) { path_prefix = p; }
+  void set_path_prefix(const std::string& p) { path_prefix = p; }
 
   /**
    * @brief Check if stream has dimensions specified
@@ -382,7 +382,7 @@ inline void stream<StoragePolicy>::set_variable_decomposition(
 #endif // NDARRAY_HAVE_MPI
 
 template <typename StoragePolicy>
-inline void stream<StoragePolicy>::parse_yaml(const std::string filename)
+inline void stream<StoragePolicy>::parse_yaml(const std::string& filename)
 {
   YAML::Node yaml = YAML::LoadFile(filename);
   auto yroot = yaml["stream"];
@@ -496,7 +496,7 @@ inline void stream<StoragePolicy>::parse_yaml(const std::string filename)
 template <typename StoragePolicy>
 inline std::shared_ptr<typename stream<StoragePolicy>::group_type> stream<StoragePolicy>::read_static()
 {
-  std::shared_ptr<group_type> g(new group_type);
+  auto g = std::make_shared<group_type>();
 
   for (const auto& sub : this->substreams)
     if (sub->is_enabled && sub->is_static) {
@@ -536,7 +536,7 @@ inline int stream<StoragePolicy>::total_timesteps() const
 template <typename StoragePolicy>
 inline std::shared_ptr<typename stream<StoragePolicy>::group_type> stream<StoragePolicy>::read(int i)
 {
-  std::shared_ptr<group_type> g(new group_type);
+  auto g = std::make_shared<group_type>();
 
   for (auto &sub : this->substreams)
     if (sub->is_enabled && !sub->is_static)

@@ -7,6 +7,7 @@
 
 #include <ndarray/ndarray_stream.hh>
 #include <ndarray/synthetic.hh>
+#include <cassert>
 
 namespace ftk {
 

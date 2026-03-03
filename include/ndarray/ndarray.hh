@@ -402,9 +402,9 @@ public: // construction from data
   }
 
 public: // file i/o; automatically determine format based on extensions
-  static ndarray<T, StoragePolicy> from_file(const std::string& filename, const std::string varname="", MPI_Comm comm = MPI_COMM_WORLD);
-  bool read_file(const std::string& filename, const std::string varname="", MPI_Comm comm = MPI_COMM_WORLD);
-  bool to_file(const std::string& filename, const std::string varname="", MPI_Comm comm = MPI_COMM_WORLD) const;
+  static ndarray<T, StoragePolicy> from_file(const std::string& filename, const std::string& varname="", MPI_Comm comm = MPI_COMM_WORLD);
+  bool read_file(const std::string& filename, const std::string& varname="", MPI_Comm comm = MPI_COMM_WORLD);
+  bool to_file(const std::string& filename, const std::string& varname="", MPI_Comm comm = MPI_COMM_WORLD) const;
 
 public: // i/o for binary file
   void read_binary_file(const std::string& filename, int endian = NDARRAY_ENDIAN_LITTLE) { ndarray_base::read_binary_file(filename, endian); }
@@ -422,23 +422,23 @@ public: // i/o for binary file
   void bil_add_block_raw(const std::string& filename, const std::vector<size_t>& SZ, const lattice& ext);
 
 public: // i/o for vtk image data
-  void to_vtk_image_data_file(const std::string& filename, const std::string varname=std::string()) const;
+  void to_vtk_image_data_file(const std::string& filename, const std::string& varname=std::string()) const;
   void read_vtk_image_data_file_sequence(const std::string& pattern);
 #if NDARRAY_HAVE_VTK
   int vtk_data_type() const;
-  void from_vtu(vtkSmartPointer<vtkUnstructuredGrid> d, const std::string array_name=std::string());
-  void from_vtk_image_data(vtkSmartPointer<vtkImageData> d, const std::string array_name=std::string()) { from_vtk_regular_data<>(d, array_name); }
+  void from_vtu(vtkSmartPointer<vtkUnstructuredGrid> d, const std::string& array_name=std::string());
+  void from_vtk_image_data(vtkSmartPointer<vtkImageData> d, const std::string& array_name=std::string()) { from_vtk_regular_data<>(d, array_name); }
   void from_vtk_array(vtkSmartPointer<vtkAbstractArray> d);
   void from_vtk_data_array(vtkSmartPointer<vtkDataArray> d);
   vtkSmartPointer<vtkImageData> to_vtk_image_data(std::string varname=std::string()) const;
   // vtkSmartPointer<vtkDataArray> to_vtk_data_array(std::string varname=std::string()) const;  // moved to base
 
   template <typename VTK_REGULAR_DATA=vtkImageData> /*vtkImageData, vtkRectilinearGrid, or vtkStructuredGrid*/
-  void from_vtk_regular_data(vtkSmartPointer<VTK_REGULAR_DATA> d, const std::string array_name=std::string());
+  void from_vtk_regular_data(vtkSmartPointer<VTK_REGULAR_DATA> d, const std::string& array_name=std::string());
 #endif
 
 public: // i/o for vtkStructuredGrid data
-  void to_vtk_rectilinear_grid(const std::string& filename, const std::string varname=std::string()) const;
+  void to_vtk_rectilinear_grid(const std::string& filename, const std::string& varname=std::string()) const;
 
 public: // i/o for hdf5
   static ndarray<T, StoragePolicy> from_h5(const std::string& filename, const std::string& name);
@@ -1144,7 +1144,7 @@ inline void ndarray<T, StoragePolicy>::from_vtk_data_array(
 template <typename T, typename StoragePolicy>
 inline void ndarray<T, StoragePolicy>::from_vtu(
     vtkSmartPointer<vtkUnstructuredGrid> d,
-    const std::string array_name)
+    const std::string& array_name)
 {
   vtkSmartPointer<vtkDataArray> da = d->GetPointData()->GetArray(array_name.c_str());
   if (!da) da = d->GetPointData()->GetArray(0);
@@ -1155,7 +1155,7 @@ template <typename T, typename StoragePolicy>
 template <typename VTK_REGULAR_DATA>
 inline void ndarray<T, StoragePolicy>::from_vtk_regular_data(
     vtkSmartPointer<VTK_REGULAR_DATA> d,
-    const std::string array_name)
+    const std::string& array_name)
 {
   vtkSmartPointer<vtkDataArray> da = d->GetPointData()->GetArray(array_name.c_str());
   if (!da) da = d->GetPointData()->GetArray(0);
@@ -1191,7 +1191,7 @@ inline void ndarray<T, StoragePolicy>::from_vtk_regular_data(
 
 
 template<typename T, typename StoragePolicy>
-inline void ndarray<T, StoragePolicy>::to_vtk_image_data_file(const std::string& filename, const std::string varname) const
+inline void ndarray<T, StoragePolicy>::to_vtk_image_data_file(const std::string& filename, const std::string& varname) const
 {
   // fprintf(stderr, "to_vtk_image_data_file, n_component_dims=%zu\n", n_component_dims);
   vtkSmartPointer<vtkXMLImageDataWriter> writer = vtkXMLImageDataWriter::New();
@@ -1809,7 +1809,7 @@ inline void ndarray<T, StoragePolicy>::copy_from_device()
 }
 
 template <typename T, typename StoragePolicy>
-ndarray<T, StoragePolicy> ndarray<T, StoragePolicy>::from_file(const std::string& filename, const std::string varname, MPI_Comm comm)
+ndarray<T, StoragePolicy> ndarray<T, StoragePolicy>::from_file(const std::string& filename, const std::string& varname, MPI_Comm comm)
 {
   ndarray<T, StoragePolicy> array;
   array.read_file(filename, varname, comm);
@@ -1817,7 +1817,7 @@ ndarray<T, StoragePolicy> ndarray<T, StoragePolicy>::from_file(const std::string
 }
 
 template <typename T, typename StoragePolicy>
-bool ndarray<T, StoragePolicy>::read_file(const std::string& filename, const std::string varname, MPI_Comm comm)
+bool ndarray<T, StoragePolicy>::read_file(const std::string& filename, const std::string& varname, MPI_Comm comm)
 {
   if (!file_exists(filename)) {
     warn(ERR_FILE_NOT_FOUND);
@@ -3709,7 +3709,7 @@ void ndarray<T, StoragePolicy>::read_netcdf_auto(
     MPI_Bcast(this->data(), static_cast<int>(total_size), mpi_datatype(), 0, dist_->comm);
     
     // Propagate flags
-    size_t flags[2] = {this->n_component_dims, (size_t)this->is_time_varying};
+    size_t flags[2] = {this->n_component_dims, static_cast<size_t>(this->is_time_varying)};
     MPI_Bcast(flags, 2, MPI_UNSIGNED_LONG, 0, dist_->comm);
     if (dist_->rank != 0) {
       this->n_component_dims = flags[0];
@@ -3954,7 +3954,7 @@ void ndarray<T, StoragePolicy>::read_pnetcdf_auto(
     MPI_Bcast(this->data(), static_cast<int>(total_size), mpi_datatype(), 0, dist_->comm);
 
     // Propagate flags
-    size_t flags[2] = {this->n_component_dims, (size_t)this->is_time_varying};
+    size_t flags[2] = {this->n_component_dims, static_cast<size_t>(this->is_time_varying)};
     MPI_Bcast(flags, 2, MPI_UNSIGNED_LONG, 0, dist_->comm);
     if (dist_->rank != 0) {
       this->n_component_dims = flags[0];
@@ -4218,7 +4218,7 @@ void ndarray<T, StoragePolicy>::read_hdf5_auto(
     MPI_Bcast(this->data(), static_cast<int>(total_size), mpi_datatype(), 0, dist_->comm);
 
     // Propagate flags
-    size_t flags[2] = {this->n_component_dims, (size_t)this->is_time_varying};
+    size_t flags[2] = {this->n_component_dims, static_cast<size_t>(this->is_time_varying)};
     MPI_Bcast(flags, 2, MPI_UNSIGNED_LONG, 0, dist_->comm);
     if (dist_->rank != 0) {
       this->n_component_dims = flags[0];
@@ -4432,7 +4432,7 @@ void ndarray<T, StoragePolicy>::read_binary_auto(const std::string& filename)
     MPI_Bcast(this->data(), static_cast<int>(total_size), mpi_datatype(), 0, dist_->comm);
 
     // Propagate flags
-    size_t flags[2] = {this->n_component_dims, (size_t)this->is_time_varying};
+    size_t flags[2] = {this->n_component_dims, static_cast<size_t>(this->is_time_varying)};
     MPI_Bcast(flags, 2, MPI_UNSIGNED_LONG, 0, dist_->comm);
     if (dist_->rank != 0) {
       this->n_component_dims = flags[0];
@@ -4612,7 +4612,7 @@ inline std::shared_ptr<ndarray_base> ndarray_base::new_by_nc_dtype(int typep)
   return p;
 }
 
-inline std::shared_ptr<ndarray_base> ndarray_base::new_by_adios2_dtype(const std::string type)
+inline std::shared_ptr<ndarray_base> ndarray_base::new_by_adios2_dtype(const std::string& type)
 {
   std::shared_ptr<ndarray_base> p;
 #if NDARRAY_HAVE_ADIOS2

@@ -36,7 +36,7 @@ int main(int argc, char **argv)
     exit(1);
   }
 
-  std::shared_ptr<ftk::stream<>> stream(new ftk::stream<>);
+  auto stream = std::make_shared<ftk::stream<>>();
 
   if (!data_path_prefix.empty())
     stream->set_path_prefix( data_path_prefix );

@@ -92,13 +92,13 @@ struct ndarray_base {
   virtual ~ndarray_base() {}
 
   static std::string dtype2str(int dtype);
-  static int str2dtype(const std::string str);
+  static int str2dtype(const std::string& str);
 
   static std::shared_ptr<ndarray_base> new_by_dtype(int type);
-  static std::shared_ptr<ndarray_base> new_by_dtype(const std::string str) { return new_by_dtype(str2dtype(str)); }
+  static std::shared_ptr<ndarray_base> new_by_dtype(const std::string& str) { return new_by_dtype(str2dtype(str)); }
   static std::shared_ptr<ndarray_base> new_by_nc_dtype(int typep);
   static std::shared_ptr<ndarray_base> new_by_vtk_dtype(int typep);
-  static std::shared_ptr<ndarray_base> new_by_adios2_dtype(const std::string type);
+  static std::shared_ptr<ndarray_base> new_by_adios2_dtype(const std::string& type);
 #if NDARRAY_HAVE_HDF5
   static std::shared_ptr<ndarray_base> new_by_h5_dtype(hid_t native_type);
 #endif
@@ -369,19 +369,19 @@ public: // adios1 io
   virtual bool read_bp_legacy(const std::string& filename, const std::string& varname, MPI_Comm comm) = 0;
 
 public: // vti i/o
-  void read_vtk_image_data_file(const std::string& filename, const std::string array_name=std::string());
+  void read_vtk_image_data_file(const std::string& filename, const std::string& array_name=std::string());
   virtual void read_vtk_image_data_file_sequence(const std::string& pattern) = 0;
 #if NDARRAY_HAVE_VTK
-  virtual void from_vtk_image_data(vtkSmartPointer<vtkImageData> d, const std::string array_name=std::string()) = 0;
-  virtual void from_vtu(vtkSmartPointer<vtkUnstructuredGrid> d, const std::string array_name=std::string()) = 0;
+  virtual void from_vtk_image_data(vtkSmartPointer<vtkImageData> d, const std::string& array_name=std::string()) = 0;
+  virtual void from_vtu(vtkSmartPointer<vtkUnstructuredGrid> d, const std::string& array_name=std::string()) = 0;
   virtual void from_vtk_data_array(vtkSmartPointer<vtkDataArray> da) = 0;
 #endif
 
 public: // vtk data array
 #if NDARRAY_HAVE_VTK
   static std::shared_ptr<ndarray_base> new_from_vtk_data_array(vtkSmartPointer<vtkDataArray> da);
-  static std::shared_ptr<ndarray_base> new_from_vtk_image_data(vtkSmartPointer<vtkImageData> da, const std::string varname);
-  vtkSmartPointer<vtkDataArray> to_vtk_data_array(std::string varname=std::string()) const;
+  static std::shared_ptr<ndarray_base> new_from_vtk_image_data(vtkSmartPointer<vtkImageData> da, const std::string& varname);
+  vtkSmartPointer<vtkDataArray> to_vtk_data_array(const std::string& varname=std::string()) const;
   virtual int vtk_data_type() const = 0;
 #endif
 
@@ -542,7 +542,7 @@ inline void ndarray_base::to_binary_file(const std::string& f)
   fclose(fp);
 }
 
-inline void ndarray_base::read_vtk_image_data_file(const std::string& filename, const std::string array_name)
+inline void ndarray_base::read_vtk_image_data_file(const std::string& filename, const std::string& array_name)
 {
 #if NDARRAY_HAVE_VTK
   vtkNew<vtkXMLImageDataReader> reader;
@@ -557,7 +557,7 @@ inline void ndarray_base::read_vtk_image_data_file(const std::string& filename, 
 #if NDARRAY_HAVE_VTK
 inline std::shared_ptr<ndarray_base> ndarray_base::new_from_vtk_image_data(
     vtkSmartPointer<vtkImageData> vti,
-    std::string varname)
+    const std::string& varname)
 {
   if (!vti)
     throw vtk_error("Input vtkImageData is null");
@@ -664,7 +664,7 @@ inline void ndarray_base::read_bp(const std::string& filename, const std::string
 }
 
 #if NDARRAY_HAVE_VTK
-inline vtkSmartPointer<vtkDataArray> ndarray_base::to_vtk_data_array(std::string varname) const
+inline vtkSmartPointer<vtkDataArray> ndarray_base::to_vtk_data_array(const std::string& varname) const
 {
   vtkSmartPointer<vtkDataArray> d = vtkDataArray::CreateDataArray(this->vtk_data_type());
   if (varname.length() > 0)
@@ -1033,7 +1033,7 @@ inline std::string ndarray_base::dtype2str(int dtype)
     return "";
 }
 
-inline int ndarray_base::str2dtype(const std::string str)
+inline int ndarray_base::str2dtype(const std::string& str)
 {
   if (str == "char")
     return NDARRAY_DTYPE_CHAR;
