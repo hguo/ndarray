@@ -18,11 +18,11 @@ inline int levenshtein_distance(const std::string& s1, const std::string& s2) {
     std::vector<std::vector<int>> d(len1 + 1, std::vector<int>(len2 + 1));
 
     d[0][0] = 0;
-    for(int i = 1; i <= len1; ++i) d[i][0] = i;
-    for(int i = 1; i <= len2; ++i) d[0][i] = i;
+    for(size_t i = 1; i <= len1; ++i) d[i][0] = static_cast<int>(i);
+    for(size_t i = 1; i <= len2; ++i) d[0][i] = static_cast<int>(i);
 
-    for(int i = 1; i <= len1; ++i) {
-        for(int j = 1; j <= len2; ++j) {
+    for(size_t i = 1; i <= len1; ++i) {
+        for(size_t j = 1; j <= len2; ++j) {
             d[i][j] = std::min({
                 d[i-1][j] + 1,
                 d[i][j-1] + 1,
@@ -36,7 +36,10 @@ inline int levenshtein_distance(const std::string& s1, const std::string& s2) {
 // Case-insensitive string comparison
 inline bool iequals(const std::string& a, const std::string& b) {
     return std::equal(a.begin(), a.end(), b.begin(), b.end(),
-        [](char a, char b) { return tolower(a) == tolower(b); });
+        [](char a, char b) {
+            return std::tolower(static_cast<unsigned char>(a)) ==
+                   std::tolower(static_cast<unsigned char>(b));
+        });
 }
 
 // Find similar variable names using fuzzy matching
@@ -66,8 +69,10 @@ inline std::vector<std::string> find_similar_names(
         else {
             std::string query_lower = query;
             std::string cand_lower = candidate;
-            std::transform(query_lower.begin(), query_lower.end(), query_lower.begin(), ::tolower);
-            std::transform(cand_lower.begin(), cand_lower.end(), cand_lower.begin(), ::tolower);
+            std::transform(query_lower.begin(), query_lower.end(), query_lower.begin(),
+                [](unsigned char c) { return std::tolower(c); });
+            std::transform(cand_lower.begin(), cand_lower.end(), cand_lower.begin(),
+                [](unsigned char c) { return std::tolower(c); });
 
             if (cand_lower.find(query_lower) != std::string::npos) {
                 score = 700;
@@ -92,7 +97,7 @@ inline std::vector<std::string> find_similar_names(
 
     // Return top suggestions
     std::vector<std::string> suggestions;
-    for (int i = 0; i < std::min(max_suggestions, (int)scored.size()); i++) {
+    for (size_t i = 0; i < std::min(static_cast<size_t>(max_suggestions), scored.size()); i++) {
         suggestions.push_back(scored[i].second);
     }
 

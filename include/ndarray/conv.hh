@@ -26,11 +26,11 @@ ndarray<T> conv2D(const ndarray<T> &data, const ndarray<T> &kernel,
   // convolution
   // uncomment the following line to enable openmp
 #pragma omp parallel for collapse(2)
-  for (auto y = 0; y < dimy_r; ++y) {
-    for (auto x = 0; x < dimx_r; ++x) {
+  for (size_t y = 0; y < dimy_r; ++y) {
+    for (size_t x = 0; x < dimx_r; ++x) {
 
-      for (auto ky = 0; ky < ksizey; ++ky) {
-        for (auto kx = 0; kx < ksizex; ++kx) {
+      for (size_t ky = 0; ky < ksizey; ++ky) {
+        for (size_t kx = 0; kx < ksizex; ++kx) {
           auto realy = y - padding + ky,
                realx = x - padding + kx;
           if (realx >= 0 && realx < dimx && realy >= 0 && realy < dimy) {
@@ -55,14 +55,14 @@ std::vector<T> gaussian_kernel(T sigma, size_t size)
   double r, s = 2. * sigma * sigma;
   double sum = 0.;
 
-  for (auto i = 0; i < size; ++i) {
+  for (size_t i = 0; i < size; ++i) {
     double x = static_cast<double>(i) - center;
     r = x * x;
     kernel[i] = std::exp(-r / s);
     sum += kernel[i];
   }
 
-  for (auto i = 0; i < size; i ++)
+  for (size_t i = 0; i < size; i ++)
     kernel[i] /= sum;
 
   // for (auto i = 0; i < size; i ++)
@@ -82,8 +82,8 @@ ndarray<T> gaussian_kernel2D(T sigma, size_t ksizex, size_t ksizey)
   double r, s = 2. * sigma * sigma;
   double sum = 0.;
 
-  for (auto j = 0; j < ksizey; ++j) {
-    for (auto i = 0; i < ksizex; ++i) {
+  for (size_t j = 0; j < ksizey; ++j) {
+    for (size_t i = 0; i < ksizex; ++i) {
       double x = static_cast<double>(i) - centerx,
              y = static_cast<double>(j) - centery;
       r = x * x + y * y;
@@ -93,7 +93,7 @@ ndarray<T> gaussian_kernel2D(T sigma, size_t ksizex, size_t ksizey)
   }
 
   // normalize the kernel
-  for (auto i = 0; i < ksizex * ksizey; ++i)
+  for (size_t i = 0; i < ksizex * ksizey; ++i)
     kernel[i] /= sum;
 
   return kernel;
@@ -135,13 +135,13 @@ ndarray<T> conv3D(const ndarray<T> &data, const ndarray<T> &kernel,
   // convolution
   // uncomment the following line to enable openmp
 #pragma omp parallel for collapse(3)
-  for (auto z = 0; z < dimz_r; ++z) {
-    for (auto y = 0; y < dimy_r; ++y) {
-      for (auto x = 0; x < dimx_r; ++x) {
+  for (size_t z = 0; z < dimz_r; ++z) {
+    for (size_t y = 0; y < dimy_r; ++y) {
+      for (size_t x = 0; x < dimx_r; ++x) {
 
-        for (auto kz = 0; kz < ksizez; ++kz) {
-          for (auto ky = 0; ky < ksizey; ++ky) {
-            for (auto kx = 0; kx < ksizex; ++kx) {
+        for (size_t kz = 0; kz < ksizez; ++kz) {
+          for (size_t ky = 0; ky < ksizey; ++ky) {
+            for (size_t kx = 0; kx < ksizex; ++kx) {
               auto realz = z - padding + kz,
                    realy = y - padding + ky,
                    realx = x - padding + kx;
@@ -175,9 +175,9 @@ ndarray<T> gaussian_kernel3D(
   double r, s = 2. * sigma * sigma;
   double sum = 0.;
 
-  for (int j = 0; j < ksizey; ++j) {
-    for (int i = 0; i < ksizex; ++i) {
-      for (int k = 0; k < ksizez; ++k) {
+  for (size_t j = 0; j < ksizey; ++j) {
+    for (size_t i = 0; i < ksizex; ++i) {
+      for (size_t k = 0; k < ksizez; ++k) {
         double x = static_cast<double>(i) - centerx,
                y = static_cast<double>(j) - centery,
                z = static_cast<double>(k) - centerz;
@@ -189,7 +189,7 @@ ndarray<T> gaussian_kernel3D(
   }
 
   // normalize the kernel
-  for (auto i = 0; i < ksizex * ksizey* ksizez; ++i)
+  for (size_t i = 0; i < ksizex * ksizey * ksizez; ++i)
     kernel[i] /= sum;
 
   return kernel;

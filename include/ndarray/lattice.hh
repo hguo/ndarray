@@ -162,7 +162,7 @@ inline void lattice::reshape(const std::vector<int> &sizes)
 {
   // Convert int to size_t
   std::vector<size_t> _sizes(sizes.size());
-  for(int i = 0; i < sizes.size(); ++i) {
+  for(size_t i = 0; i < sizes.size(); ++i) {
     _sizes[i] = sizes[i];
   }
 
