@@ -772,15 +772,6 @@ int ndarray<T, StoragePolicy>::type() const {
   }
 }
 
-#if 0
-template <typename T, typename StoragePolicy>
-unsigned int ndarray<T, StoragePolicy>::hash() const
-{
-  unsigned int h0 = murmurhash2(storage_.data(), sizeof(T)*storage_.size(), 0);
-  unsigned int h1 = murmurhash2(dims.data(), sizeof(size_t)*dims.size(), h0);
-  return h1;
-}
-#endif
 
 template <typename T, typename StoragePolicy>
 template <typename T1>
@@ -1271,19 +1262,6 @@ template <typename T, typename StoragePolicy>
 ndarray<T, StoragePolicy>::ndarray(const T *a, const std::vector<size_t> &dims_)
 {
   from_array(a, dims_);
-#if 0
-  dims = dims_;
-  s.resize(dims.size());
-
-  for (size_t i = 0; i < nd(); i ++)
-    if (i == 0) s[i] = 1;
-    else s[i] = s[i-1]*dims[i-1];
-
-  storage_.resize(s[nd()-1]);
-  for (size_t i = 0; i < s[nd()-1]; i++) {
-    storage_[i] = a[i];
-  }
-#endif
 }
 
 template <typename T, typename StoragePolicy>

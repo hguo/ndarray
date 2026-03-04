@@ -23,11 +23,11 @@ struct substream_synthetic : public substream<StoragePolicy> {
   using group_type = ndarray_group<StoragePolicy>;
 
   substream_synthetic(stream_type& s) : substream<StoragePolicy>(s) {}
-  bool require_input_files() { return false; }
-  bool require_dimensions() { return true; }
-  int direction() { return SUBSTREAM_DIR_INPUT;}
+  bool require_input_files() override { return false; }
+  bool require_dimensions() override { return true; }
+  int direction() override { return SUBSTREAM_DIR_INPUT;}
 
-  void initialize(YAML::Node);
+  void initialize(YAML::Node) override;
 };
 
 /**
@@ -47,8 +47,8 @@ struct substream_synthetic_woven : public substream_synthetic<StoragePolicy> {
 
   substream_synthetic_woven(stream_type& s) : substream_synthetic<StoragePolicy>(s) {}
 
-  void initialize(YAML::Node);
-  void read(int, std::shared_ptr<group_type>);
+  void initialize(YAML::Node) override;
+  void read(int, std::shared_ptr<group_type>) override;
 
   double scaling_factor = 15.0;
   double t0 = 1e-4, delta = 0.1;
@@ -74,8 +74,8 @@ struct substream_synthetic_moving_extremum : public substream_synthetic<StorageP
 
   substream_synthetic_moving_extremum(stream_type& s) : substream_synthetic<StoragePolicy>(s) {}
 
-  void initialize(YAML::Node);
-  void read(int, std::shared_ptr<group_type>);
+  void initialize(YAML::Node) override;
+  void read(int, std::shared_ptr<group_type>) override;
 
   std::vector<double> x0;  // Initial position
   std::vector<double> dir; // Direction vector
@@ -101,8 +101,8 @@ struct substream_synthetic_double_gyre : public substream_synthetic<StoragePolic
 
   substream_synthetic_double_gyre(stream_type& s) : substream_synthetic<StoragePolicy>(s) {}
 
-  void initialize(YAML::Node);
-  void read(int, std::shared_ptr<group_type>);
+  void initialize(YAML::Node) override;
+  void read(int, std::shared_ptr<group_type>) override;
 
   double A = 0.1;
   double omega = M_PI * 0.2;
@@ -127,8 +127,8 @@ struct substream_synthetic_merger : public substream_synthetic<StoragePolicy> {
 
   substream_synthetic_merger(stream_type& s) : substream_synthetic<StoragePolicy>(s) {}
 
-  void initialize(YAML::Node);
-  void read(int, std::shared_ptr<group_type>);
+  void initialize(YAML::Node) override;
+  void read(int, std::shared_ptr<group_type>) override;
 
   double t0 = 0.0, delta = 0.1;
 };
@@ -151,8 +151,8 @@ struct substream_synthetic_moving_ramp : public substream_synthetic<StoragePolic
 
   substream_synthetic_moving_ramp(stream_type& s) : substream_synthetic<StoragePolicy>(s) {}
 
-  void initialize(YAML::Node);
-  void read(int, std::shared_ptr<group_type>);
+  void initialize(YAML::Node) override;
+  void read(int, std::shared_ptr<group_type>) override;
 
   double x0 = 0.0;
   double rate = 1.0;

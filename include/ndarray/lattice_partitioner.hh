@@ -161,35 +161,6 @@ inline void lattice_partitioner::partition(size_t np,
 
   // apply ghosts
   for(const auto& core : cores) {
-#if 0
-    auto starts = core.starts(),
-         sizes = core.sizes();
-
-    for(int d = 0; d < ndim; ++d) {
-      // ghost_low layer
-      {
-        size_t offset = starts[d] - l.start(d);
-        if(ghost_low[d] < offset) {
-          offset = ghost_low[d];
-        }
-
-        starts[d] -= offset;
-        sizes[d] += offset;
-      }
-
-      // ghost_high layer
-      {
-        size_t offset = (l.start(d) + l.size(d)) - (starts[d] + sizes[d]);
-        if(ghost_high[d] < offset) {
-          offset = ghost_high[d];
-        }
-
-        sizes[d] += offset;
-      }
-    }
-#endif
-
-    // lattice ext(starts, sizes);
     lattice ext = add_ghost(core, ghost_low, ghost_high);
     extents.push_back(ext);
   }

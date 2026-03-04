@@ -23,12 +23,12 @@ struct substream_adios2 : public substream<StoragePolicy> {
   using stream_type = stream<StoragePolicy>;
   using group_type = ndarray_group<StoragePolicy>;
   substream_adios2(stream_type& s) : substream<StoragePolicy>(s) {}
-  bool require_input_files() { return true; }
-  bool require_dimensions() { return false; }
-  int direction() { return SUBSTREAM_DIR_INPUT;}
+  bool require_input_files() override { return true; }
+  bool require_dimensions() override { return false; }
+  int direction() override { return SUBSTREAM_DIR_INPUT;}
 
-  void initialize(YAML::Node);
-  void read(int, std::shared_ptr<group_type>);
+  void initialize(YAML::Node) override;
+  void read(int, std::shared_ptr<group_type>) override;
 };
 
 ///////////

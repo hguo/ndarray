@@ -790,20 +790,6 @@ inline void ndarray_base::to_netcdf(int ncid, int varid, const size_t st[], cons
 #endif
 }
 
-#if 0
-inline void ndarray_base::to_netcdf_multivariate(int ncid, int varids[]) const
-{
-  const size_t nv = dims[0], ndims = nd()-1;
-  std::vector<size_t> d(dims.begin()+1, dims.end());
-
-  for (int i = 0; i < nv; i ++) {
-    ndarray<T> subarray(d);
-    for (size_t j = 0; j < subarray.nelem(); j ++)
-      subarray[j] = p[j*nv + i];
-    subarray.to_netcdf(ncid, varids[i]);
-  }
-}
-#endif
 
 inline void ndarray_base::to_netcdf_unlimited_time(int ncid, int varid) const
 {
@@ -815,20 +801,6 @@ inline void ndarray_base::to_netcdf_unlimited_time(int ncid, int varid) const
   to_netcdf(ncid, varid, &starts[0], &sizes[0]);
 }
 
-#if 0
-inline void ndarray_base::to_netcdf_multivariate_unlimited_time(int ncid, int varids[]) const
-{
-  const size_t nv = dims[0], ndims = nd()-1;
-  std::vector<size_t> d(dims.begin()+1, dims.end());
-
-  for (int i = 0; i < nv; i ++) {
-    ndarray<T> subarray(d);
-    for (size_t j = 0; j < subarray.nelem(); j ++)
-      subarray[j] = p[j*nv + i];
-    subarray.to_netcdf_unlimited_time(ncid, varids[i]);
-  }
-}
-#endif
 
 inline void ndarray_base::read_netcdf(int ncid, int varid, const size_t starts[], const size_t sizes[], MPI_Comm comm)
 {
@@ -1004,13 +976,6 @@ inline std::ostream& ndarray_base::print_shapef(std::ostream& os) const
      << "n_component_dims=" << this->n_component_dims << ", "
      << "is_time_varying=" << this->is_time_varying;
 
-#if 0
-  os << "prod={";
-  for (size_t i = 0; i < s.size(); i ++)
-    if (i < s.size()-1) os << s[i] << ", ";
-    else os << s[i] << "}, ";
-
-#endif
 
   return os;
 }

@@ -142,30 +142,6 @@ static bool file_exists(const std::string& filename) {
   // return f.good();
 }
 
-#if 0
-static bool is_directory_all(const std::string& filename, diy::mpi::communicator comm = MPI_COMM_WORLD)
-{
-  bool b = false;
-  if (comm.rank() == 0)
-    b = is_directory(filename);
-  diy::mpi::all_reduce(comm, b, b, std::logical_or<bool>());
-  return b;
-}
-
-static bool file_exists_all(const std::string& filename, diy::mpi::communicator comm = MPI_COMM_WORLD)
-{
-  bool b = false;
-  if (comm.rank() == 0)
-    b = file_exists(filename);
-  diy::mpi::all_reduce(comm, b, b, std::logical_or<bool>());
-  return b;
-}
-
-static bool file_not_exists_all(const std::string& filename, diy::mpi::communicator comm = MPI_COMM_WORLD)
-{
-  return !file_exists_all(filename, comm);
-}
-#endif
 
 static bool file_not_exists(const std::string& filename) {
   return !file_exists(filename);
