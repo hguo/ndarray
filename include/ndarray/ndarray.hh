@@ -2186,36 +2186,30 @@ inline bool ndarray<float>::read_amira(const std::string& filename)
     return buffer;
   };
 
-  FILE *fp = fopen(filename.c_str(), "rb");
+  std::unique_ptr<FILE, int(*)(FILE*)> fp(fopen(filename.c_str(), "rb"), fclose);
   if (!fp) {
     warn(ERR_FILE_CANNOT_OPEN, filename);
     return false;
   }
 
   char buffer[2048];
-  size_t nread = fread(buffer, sizeof(char), 2047, fp);
+  size_t nread = fread(buffer, sizeof(char), 2047, fp.get());
   buffer[nread] = '\0';
 
   if (!strstr(buffer, "# AmiraMesh BINARY-LITTLE-ENDIAN 2.1")) {
     warn(ERR_FILE_FORMAT_AMIRA, filename);
-    fclose(fp);
     return false;
   }
 
   int xDim(0), yDim(0), zDim(0);
   sscanf(find_and_jump(buffer, "define Lattice"), "%d %d %d", &xDim, &yDim, &zDim);
-  printf("\tAmriaMesh grid dimensions: %d %d %d\n", xDim, yDim, zDim);
 
   float xmin(1.0f), ymin(1.0f), zmin(1.0f);
   float xmax(-1.0f), ymax(-1.0f), zmax(-1.0f);
 
   sscanf(find_and_jump(buffer, "BoundingBox"), "%g %g %g %g %g %g", &xmin, &xmax, &ymin, &ymax, &zmin, &zmax);
-  printf("\tBoundingBox in x-Direction: [%g ... %g]\n", xmin, xmax);
-  printf("\tBoundingBox in y-Direction: [%g ... %g]\n", ymin, ymax);
-  printf("\tBoundingBox in z-Direction: [%g ... %g]\n", zmin, zmax);
 
   const bool bIsUniform = (strstr(buffer, "CoordType \"uniform\"") != nullptr);
-  printf("\tGridType: %s\n", bIsUniform ? "uniform" : "UNKNOWN");
 
   int NumComponents(0);
   if (strstr(buffer, "Lattice { float Data }"))
@@ -2224,14 +2218,12 @@ inline bool ndarray<float>::read_amira(const std::string& filename)
   } else {
     sscanf(find_and_jump(buffer, "Lattice { float["), "%d", &NumComponents);
   }
-  printf("\tNumber of Components: %d\n", NumComponents);
 
   if (xDim <= 0 || yDim <= 0 || zDim <= 0
       || xmin > xmax || ymin > ymax || zmin > zmax
       || !bIsUniform || NumComponents <= 0)
   {
     warn(ERR_FILE_FORMAT_AMIRA);
-    fclose(fp);
     return false;
   }
 
@@ -2239,17 +2231,16 @@ inline bool ndarray<float>::read_amira(const std::string& filename)
   const long idxStartData = dataSection ? (dataSection - buffer) : -1;
   if (idxStartData > 0)
   {
-    fseek(fp, idxStartData, SEEK_SET);
-    fgets(buffer, 2047, fp);
-    fgets(buffer, 2047, fp);
+    fseek(fp.get(), idxStartData, SEEK_SET);
+    fgets(buffer, 2047, fp.get());
+    fgets(buffer, 2047, fp.get());
 
     reshapef(NumComponents, xDim, yDim, zDim);
     set_multicomponents();
-    read_binary_file(fp);
+    read_binary_file(fp.get());
   }
 
-  fclose(fp);
-  return 0;
+  return false;
 }
 
 template <typename T, typename StoragePolicy>

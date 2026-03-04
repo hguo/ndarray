@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <cstring>
 #include <cassert>
+#include <memory>
 #include <random>
 
 #if NDARRAY_HAVE_MPI
@@ -527,19 +528,17 @@ inline void ndarray_base::make_multicomponents()
 
 inline void ndarray_base::read_binary_file(const std::string& filename, int endian)
 {
-  FILE *fp = fopen(filename.c_str(), "rb");
+  std::unique_ptr<FILE, int(*)(FILE*)> fp(fopen(filename.c_str(), "rb"), fclose);
   if (!fp) throw std::runtime_error("Cannot open file for reading: " + filename);
-  read_binary_file(fp, endian);
-  fclose(fp);
+  read_binary_file(fp.get(), endian);
 }
 
 inline void ndarray_base::to_binary_file(const std::string& f)
 {
-  FILE *fp = fopen(f.c_str(), "wb");
+  std::unique_ptr<FILE, int(*)(FILE*)> fp(fopen(f.c_str(), "wb"), fclose);
   if (!fp) throw std::runtime_error("Cannot open file for writing: " + f);
-  to_binary_file(fp);
-  fflush(fp);
-  fclose(fp);
+  to_binary_file(fp.get());
+  fflush(fp.get());
 }
 
 inline void ndarray_base::read_vtk_image_data_file(const std::string& filename, const std::string& array_name)
