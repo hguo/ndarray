@@ -23,8 +23,8 @@ ndarray<T> gradient2D(const ndarray<T>& scalar)
 #pragma omp parallel for collapse(2)
   for (int j = 0; j < DH; j ++) {
     for (int i = 0; i < DW; i ++) {
-      auto dfdx = grad.f(0, i, j) = (f(i+1, j) - f(i-1, j)) * (DW-1);
-      auto dfdy = grad.f(1, i, j) = (f(i, j+1) - f(i, j-1)) * (DH-1);
+      grad.f(0, i, j) = (f(i+1, j) - f(i-1, j)) * (DW-1);
+      grad.f(1, i, j) = (f(i, j+1) - f(i, j-1)) * (DH-1);
     }
   }
   return grad;
@@ -67,18 +67,18 @@ ndarray<T> jacobian2D(const ndarray<T>& vec)
 #pragma omp parallel for collapse(2)
   for (int j = 0; j < DH; j ++) {
     for (int i = 0; i < DW; i ++) {
-      const T H00 = f(0, i+1, j) - f(0, i-1, j) * (DW-1),
-              H01 = f(0, i, j+1) - f(0, i, j-1) * (DH-1),
-              H10 = f(1, i+1, j) - f(1, i-1, j) * (DW-1),
-              H11 = f(1, i, j+1) - f(1, i, j-1) * (DH-1);
+      const T H00 = (f(0, i+1, j) - f(0, i-1, j)) * (DW-1),
+              H01 = (f(0, i, j+1) - f(0, i, j-1)) * (DH-1),
+              H10 = (f(1, i+1, j) - f(1, i-1, j)) * (DW-1),
+              H11 = (f(1, i, j+1) - f(1, i, j-1)) * (DH-1);
 
       grad.f(0, 0, i, j) = H00;
       grad.f(1, 1, i, j) = H11;
       if (symmetric)
         grad.f(0, 1, i, j) = grad.f(1, 0, i, j) = (H01 + H10) * 0.5;
       else {
-        grad.f(0, 1) = H01;
-        grad.f(1, 0) = H10;
+        grad.f(0, 1, i, j) = H01;
+        grad.f(1, 0, i, j) = H10;
       }
     }
   }
@@ -169,25 +169,25 @@ ndarray<T> jacobian3D(const ndarray<T>& V, int b = 2)
   for (int k = b; k < DD-b; k ++) {
     for (int j = b; j < DH-b; j ++) {
       for (int i = b; i < DW-b; i ++) {
-        const float H00 = J.f(0, 0, i, j, k) = // ddf/dx2
+        J.f(0, 0, i, j, k) = // ddf/dx2
           0.5 * (V.f(0, i+1, j, k) - V.f(0, i-1, j, k));
-        const float H01 = J.f(0, 1, i, j, k) = // ddf/dxdy
+        J.f(0, 1, i, j, k) = // ddf/dxdy
           0.5 * (V.f(0, i, j+1, k) - V.f(0, i, j-1, k));
-        const float H02 = J.f(0, 2, i, j, k) = // ddf/dxdz
+        J.f(0, 2, i, j, k) = // ddf/dxdz
           0.5 * (V.f(0, i, j, k+1) - V.f(0, i, j, k-1));
 
-        const float H10 = J.f(1, 0, i, j, k) = // ddf/dydx
+        J.f(1, 0, i, j, k) = // ddf/dydx
           0.5 * (V.f(1, i+1, j, k) - V.f(1, i-1, j, k));
-        const float H11 = J.f(1, 1, i, j, k) = // ddf/dy2
+        J.f(1, 1, i, j, k) = // ddf/dy2
           0.5 * (V.f(1, i, j+1, k) - V.f(1, i, j-1, k));
-        const float H12 = J.f(1, 2, i, j, k) = // ddf/dydz
+        J.f(1, 2, i, j, k) = // ddf/dydz
           0.5 * (V.f(1, i, j, k+1) - V.f(1, i, j, k-1));
 
-        const float H20 = J.f(2, 0, i, j, k) = // ddf/dzdx
+        J.f(2, 0, i, j, k) = // ddf/dzdx
           0.5 * (V.f(2, i+1, j, k) - V.f(2, i-1, j, k));
-        const float H21 = J.f(2, 1, i, j, k) = // ddf/dzdy
+        J.f(2, 1, i, j, k) = // ddf/dzdy
           0.5 * (V.f(2, i, j+1, k) - V.f(2, i, j-1, k));
-        const float H22 = J.f(2, 2, i, j, k) = // ddf/dz2
+        J.f(2, 2, i, j, k) = // ddf/dz2
           0.5 * (V.f(2, i, j, k+1) - V.f(2, i, j, k-1));
       }
     }
@@ -209,25 +209,25 @@ ndarray<T> jacobian3Dt(const ndarray<T>& V)
     for (int k = 0; k < DD-2; k ++) {
       for (int j = 2; j < DH-2; j ++) {
         for (int i = 2; i < DW-2; i ++) {
-          const float H00 = J(0, 0, i, j, k, t) = // ddf/dx2
+          J(0, 0, i, j, k, t) = // ddf/dx2
             0.5 * (V(0, i+1, j, k, t) - V(0, i-1, j, k, t));
-          const float H01 = J(0, 1, i, j, k) = // ddf/dxdy
+          J(0, 1, i, j, k, t) = // ddf/dxdy
             0.5 * (V(0, i, j+1, k, t) - V(0, i, j-1, k, t));
-          const float H02 = J(0, 2, i, j, k) = // ddf/dxdz
+          J(0, 2, i, j, k, t) = // ddf/dxdz
             0.5 * (V(0, i, j, k+1, t) - V(0, i, j, k-1, t));
 
-          const float H10 = J(1, 0, i, j, k, t) = // ddf/dydx
+          J(1, 0, i, j, k, t) = // ddf/dydx
             0.5 * (V(1, i+1, j, k, t) - V(1, i-1, j, k, t));
-          const float H11 = J(1, 1, i, j, k, t) = // ddf/dy2
+          J(1, 1, i, j, k, t) = // ddf/dy2
             0.5 * (V(1, i, j+1, k, t) - V(1, i, j-1, k, t));
-          const float H12 = J(1, 2, i, j, k, t) = // ddf/dydz
+          J(1, 2, i, j, k, t) = // ddf/dydz
             0.5 * (V(1, i, j, k+1, t) - V(1, i, j, k-1, t));
 
-          const float H20 = J(2, 0, i, j, k, t) = // ddf/dydx
+          J(2, 0, i, j, k, t) = // ddf/dzdx
             0.5 * (V(2, i+1, j, k, t) - V(2, i-1, j, k, t));
-          const float H21 = J(2, 1, i, j, k, t) = // ddf/dy2
+          J(2, 1, i, j, k, t) = // ddf/dzdy
             0.5 * (V(2, i, j+1, k, t) - V(2, i, j-1, k, t));
-          const float H22 = J(2, 2, i, j, k, t) = // ddf/dydz
+          J(2, 2, i, j, k, t) = // ddf/dzdz
             0.5 * (V(2, i, j, k+1, t) - V(2, i, j, k-1, t));
         }
       }

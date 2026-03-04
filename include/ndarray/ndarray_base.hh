@@ -519,9 +519,9 @@ inline size_t ndarray_base::indexc(const std::vector<int>& idx) const {
 
 inline void ndarray_base::make_multicomponents()
 {
-  std::vector<size_t> s = shapef();
-  s.insert(s.begin(), 1);
-  reshapef(s);
+  std::vector<size_t> shape = shapef();
+  shape.insert(shape.begin(), 1);
+  reshapef(shape);
   set_multicomponents();
 }
 
