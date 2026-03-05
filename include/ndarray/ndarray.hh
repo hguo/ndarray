@@ -1077,10 +1077,9 @@ void ndarray<T, StoragePolicy>::read_binary_file_sequence(const std::string& pat
 
   size_t npt = std::accumulate(dims.begin(), dims.end()-1, 1, std::multiplies<size_t>());
   for (size_t i = 0; i < filenames.size(); i ++) {
-    FILE *fp = fopen(filenames[i].c_str(), "rb");
+    std::unique_ptr<FILE, int(*)(FILE*)> fp(fopen(filenames[i].c_str(), "rb"), fclose);
     if (!fp) throw std::runtime_error("Cannot open file for reading: " + filenames[i]);
-    size_t nread = fread(&storage_[npt*i], sizeof(T), npt, fp);
-    fclose(fp);
+    size_t nread = fread(&storage_[npt*i], sizeof(T), npt, fp.get());
     if (nread != npt) {
       warn("fread: short read in " + filenames[i] + ": expected " +
            std::to_string(npt) + " elements, got " + std::to_string(nread));
@@ -2035,6 +2034,7 @@ ndarray<T, StoragePolicy> ndarray<T, StoragePolicy>::get_transpose() const
 template <typename T, typename StoragePolicy>
 ndarray<T, StoragePolicy> ndarray<T, StoragePolicy>::concat(const std::vector<ndarray<T, StoragePolicy>>& arrays)
 {
+  if (arrays.empty()) return ndarray<T, StoragePolicy>();
   ndarray<T, StoragePolicy> result;
   std::vector<size_t> result_shape = arrays[0].shapef();
   result_shape.insert(result_shape.begin(), arrays.size());
@@ -2053,6 +2053,7 @@ ndarray<T, StoragePolicy> ndarray<T, StoragePolicy>::concat(const std::vector<nd
 template <typename T, typename StoragePolicy>
 ndarray<T, StoragePolicy> ndarray<T, StoragePolicy>::stack(const std::vector<ndarray<T, StoragePolicy>>& arrays)
 {
+  if (arrays.empty()) return ndarray<T, StoragePolicy>();
   ndarray<T, StoragePolicy> result;
   std::vector<size_t> result_shape = arrays[0].shapef();
   result_shape.push_back(arrays.size());

@@ -1,5 +1,5 @@
-#ifndef __NDARRAY_DEVICE_HH
-#define __NDARRAY_DEVICE_HH
+#ifndef _NDARRAY_DEVICE_HH
+#define _NDARRAY_DEVICE_HH
 
 #include <ndarray/config.hh>
 #include <memory>

@@ -1,5 +1,5 @@
-#ifndef __NDARRAY_ERROR_HH
-#define __NDARRAY_ERROR_HH
+#ifndef _NDARRAY_ERROR_HH
+#define _NDARRAY_ERROR_HH
 
 #include <ndarray/config.hh>
 #include <cstdio>
