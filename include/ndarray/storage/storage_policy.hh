@@ -1,5 +1,5 @@
-#ifndef _FTK_STORAGE_POLICY_HH
-#define _FTK_STORAGE_POLICY_HH
+#ifndef _NDARRAY_STORAGE_POLICY_HH
+#define _NDARRAY_STORAGE_POLICY_HH
 
 #include <type_traits>
 
@@ -29,4 +29,4 @@ struct has_reshape<T, std::void_t<decltype(std::declval<T>().reshape(std::declva
 
 } // namespace ftk
 
-#endif // _FTK_STORAGE_POLICY_HH
+#endif // _NDARRAY_STORAGE_POLICY_HH

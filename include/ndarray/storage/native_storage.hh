@@ -1,5 +1,5 @@
-#ifndef _FTK_NATIVE_STORAGE_HH
-#define _FTK_NATIVE_STORAGE_HH
+#ifndef _NDARRAY_NATIVE_STORAGE_HH
+#define _NDARRAY_NATIVE_STORAGE_HH
 
 #include <vector>
 #include <algorithm>
@@ -36,4 +36,4 @@ struct native_storage {
 
 } // namespace ftk
 
-#endif // _FTK_NATIVE_STORAGE_HH
+#endif // _NDARRAY_NATIVE_STORAGE_HH

@@ -1,5 +1,5 @@
-#ifndef _FTK_MURMURHASH2_H
-#define _FTK_MURMURHASH2_H
+#ifndef _NDARRAY_MURMURHASH2_HH
+#define _NDARRAY_MURMURHASH2_HH
 
 //-----------------------------------------------------------------------------
 // MurmurHash2, by Austin Appleby

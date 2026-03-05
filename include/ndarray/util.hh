@@ -44,13 +44,13 @@ enum {
  * @param comm MPI communicator (default: MPI_COMM_WORLD)
  * @note Reserved for future initialization needs
  */
-static void ndarray_init(MPI_Comm = MPI_COMM_WORLD) { }
+static inline void ndarray_init(MPI_Comm = MPI_COMM_WORLD) { }
 #else
 /**
  * @brief Initialize ndarray library (no-op currently)
  * @note Reserved for future initialization needs
  */
-static void ndarray_init() { }
+static inline void ndarray_init() { }
 #endif
 
 /**
@@ -94,7 +94,7 @@ static void ndarray_init() { }
  *
  * @see fdpool_nc in fdpool.hh for file descriptor pool details
  */
-static void ndarray_finalize()
+static inline void ndarray_finalize()
 {
 #if NDARRAY_HAVE_NETCDF
   // Close all NetCDF files in the file descriptor pool
@@ -128,7 +128,7 @@ static inline std::vector<std::string> glob(const std::string &pattern)
   return filenames;
 }
 
-static bool is_directory(const std::string& filename) {
+static inline bool is_directory(const std::string& filename) {
   struct stat s;
   if ( stat(filename.c_str(), &s) == 0 ) {
     if (s.st_mode & S_IFDIR) return true;
@@ -136,18 +136,18 @@ static bool is_directory(const std::string& filename) {
   } else return false;
 }
 
-static bool file_exists(const std::string& filename) {
+static inline bool file_exists(const std::string& filename) {
   return access( filename.c_str(), F_OK ) == 0;
   // std::ifstream f(filename);
   // return f.good();
 }
 
 
-static bool file_not_exists(const std::string& filename) {
+static inline bool file_not_exists(const std::string& filename) {
   return !file_exists(filename);
 }
 
-static std::string remove_file_extension(const std::string& f)
+static inline std::string remove_file_extension(const std::string& f)
 {
   size_t lastindex = f.find_last_of(".");
   if (lastindex == std::string::npos) return f;

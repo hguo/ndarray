@@ -1,5 +1,5 @@
-#ifndef _NDARRAY_FDPOOL_H
-#define _NDARRAY_FDPOOL_H
+#ifndef _NDARRAY_FDPOOL_HH
+#define _NDARRAY_FDPOOL_HH
 
 #include <ndarray/config.hh>
 #include <ndarray/error.hh>

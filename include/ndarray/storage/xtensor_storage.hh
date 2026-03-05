@@ -1,5 +1,5 @@
-#ifndef _FTK_XTENSOR_STORAGE_HH
-#define _FTK_XTENSOR_STORAGE_HH
+#ifndef _NDARRAY_XTENSOR_STORAGE_HH
+#define _NDARRAY_XTENSOR_STORAGE_HH
 
 #include "storage_policy.hh"
 
@@ -52,4 +52,4 @@ struct xtensor_storage {
 
 #endif // NDARRAY_HAVE_XTENSOR
 
-#endif // _FTK_XTENSOR_STORAGE_HH
+#endif // _NDARRAY_XTENSOR_STORAGE_HH

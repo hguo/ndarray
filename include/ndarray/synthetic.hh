@@ -1,6 +1,5 @@
-
-#ifndef _HYPERMESH_SYNTHETIC_DATA_H
-#define _HYPERMESH_SYNTHETIC_DATA_H
+#ifndef _NDARRAY_SYNTHETIC_HH
+#define _NDARRAY_SYNTHETIC_HH
 
 #include <ndarray/ndarray.hh>
 #include <ndarray/lattice.hh>

@@ -1,5 +1,5 @@
-#ifndef _FTK_EIGEN_STORAGE_HH
-#define _FTK_EIGEN_STORAGE_HH
+#ifndef _NDARRAY_EIGEN_STORAGE_HH
+#define _NDARRAY_EIGEN_STORAGE_HH
 
 #include "storage_policy.hh"
 
@@ -58,4 +58,4 @@ struct eigen_storage {
 
 #endif // NDARRAY_HAVE_EIGEN
 
-#endif // _FTK_EIGEN_STORAGE_HH
+#endif // _NDARRAY_EIGEN_STORAGE_HH
