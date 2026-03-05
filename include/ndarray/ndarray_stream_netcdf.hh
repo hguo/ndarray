@@ -86,11 +86,6 @@ inline void substream_netcdf<StoragePolicy>::read(int i, std::shared_ptr<group_t
     }
 
     if (varid >= 0) { // succ
-      // Optionally log which name was actually used
-      if (found_varname != var.name && var.possible_names.size() > 1) {
-        // fprintf(stderr, "[ndarray] Variable '%s' found as '%s'\n",
-        //         var.name.c_str(), found_varname.c_str());
-      }
       // create a new array
       int type;
       NC_SAFE_CALL( nc_inq_vartype(ncid, varid, &type) );
@@ -165,8 +160,6 @@ inline void substream_netcdf<StoragePolicy>::read(int i, std::shared_ptr<group_t
         warn(error_msg);
 
         // For now, just warn instead of fatal error to maintain backward compatibility
-        // In future versions, this should throw or fatal
-        // fatal(ERR_NETCDF);
       }
     }
   }

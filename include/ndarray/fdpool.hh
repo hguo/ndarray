@@ -151,9 +151,6 @@ inline int fdpool_nc::open(const std::string& f, MPI_Comm comm)
 #endif
 #endif
 
-    // Debug output (commented out by default)
-    // fprintf(stderr, "[fdpool] opened netcdf file %s, ncid=%d.\n", f.c_str(), ncid);
-
     // Cache the file descriptor
     pool[f] = ncid;
     return ncid;
@@ -169,9 +166,6 @@ inline void fdpool_nc::close_all()
   // Close all cached file descriptors
   for (const auto &kv : pool) {
 #if NDARRAY_HAVE_NETCDF
-    // Debug output (commented out by default)
-    // fprintf(stderr, "[fdpool] closing netcdf file %s, ncid=%d.\n", kv.first.c_str(), kv.second);
-
     // Close the NetCDF file
     NC_SAFE_CALL( nc_close(kv.second) );
 #endif

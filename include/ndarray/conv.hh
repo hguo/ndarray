@@ -65,9 +65,6 @@ std::vector<T> gaussian_kernel(T sigma, size_t size)
   for (size_t i = 0; i < size; i ++)
     kernel[i] /= sum;
 
-  // for (auto i = 0; i < size; i ++)
-  //   fprintf(stderr, "kernel[%d]=%f\n", i, kernel[i]);
-
   return kernel;
 }
 

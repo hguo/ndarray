@@ -105,12 +105,6 @@ inline void lattice_partitioner::partition(size_t np,
 
   int ndim = l.nd_cuttable(); // # of cuttable dimensions
 
-  // // Compute number of grid points by product
-  // int ngridpoints = std::accumulate(sizes_.begin(), sizes_.end(), 1, std::multiplies<int>());
-  // if(ngridpoints <= np) {
-  //   return empty; // return an empty vector
-  // }
-
   std::vector<std::vector<size_t>> prime_factors_dims(ndim, std::vector<size_t>()); // Prime factors of each dimension
 
   if(!is_vector_zero(given)) {
@@ -203,63 +197,11 @@ inline void lattice_partitioner::partition(std::vector<std::vector<size_t>> prim
     }
   }
 
-  // std::vector<std::tuple<lattice, lattice>> partitions;
   while (!lattice_queue.empty()) {
-
-    lattice core = lattice_queue.front();
-
-    lattice ghost(core.starts(), core.sizes());
-
-    cores.push_back(core);
-    // extents.push_back(ghost);
-
+    cores.push_back(lattice_queue.front());
     lattice_queue.pop();
   }
 }
-
-// inline size_t lattice::global_index(const std::vector<size_t> &coords)
-// {
-
-// }
-
-// // Each grid point is a regular lattice
-// inline std::vector<lattice> lattice::partition_all() {
-//   int ngridpoints = std::accumulate(sizes_.begin(), sizes_.end(), 1, std::multiplies<int>());
-
-//   int ndim = unlimited_ ? nd() - 1 : nd(); // # of cuttable dimensions
-
-//   std::vector<size_t> bounds(starts_);
-//   for(int i = 0; i < ndim; ++i) {
-//     bounds[i] += sizes_[i];
-//   }
-
-//   // Each time, the first dim plus one
-
-//   std::vector<size_t> sizes(sizes_);
-//   for(int i = 1; i < ndim; ++i) {
-//     sizes[i] = 0;
-//   }
-//   sizes[0] = 1;
-
-//   std::vector<lattice> partitions;
-//   std::vector<size_t> starts(starts_);
-//   for(int i = 0; i < ngridpoints; ++i) {
-
-//     for(int j = 0; j < ndim; ++j) {
-//       if(starts[j] < bounds[j]) {
-//         starts[j] += 1;
-
-//         break ;
-//       } else {
-//         starts[j] = 0;
-//       }
-//     }
-
-//     partitions.push_back(lattice(starts, sizes));
-//   }
-
-//   return partitions;
-// }
 
 inline std::ostream& operator<<(std::ostream& os, const lattice_partitioner& partitioner)
 {

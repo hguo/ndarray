@@ -32,7 +32,6 @@ ndarray<T, StoragePolicy> synthetic_woven_2D(int DW, int DH, T t = T(1e-4), T sc
   ndarray<T, StoragePolicy> scalar;
   scalar.reshapef(DW, DH);
 
-  // const T scaling_factor = 15; // the factor that controls the shape of the synthesize data
   for (int j = 0; j < DH; j ++) {
     for (int i = 0; i < DW; i ++) {
       const T x = ((T(i) / (DW-1)) - 0.5) * scaling_factor,
@@ -51,7 +50,6 @@ ndarray<T> synthetic_capped_woven_grad_2D(int DW, int DH, T t = T(1e-4), T cap =
   vector.reshapef(3, DW, DH);
   vector.set_multicomponents(1);
 
-  // const T scaling_factor = 15; // the factor that controls the shape of the synthesize data
   for (int j = 0; j < DH; j ++) {
     for (int i = 0; i < DW; i ++) {
       const T x = ((T(i) / (DW-1)) - 0.5) * scaling_factor,
@@ -93,7 +91,6 @@ ndarray<T> synthetic_woven_2Dt(int DW, int DH, int DT, T scaling_factor = T(15))
   ndarray<T> scalar;
   scalar.reshapef(DW, DH, DT);
 
-  // const T scaling_factor = 15; // the factor that controls the shape of the synthesize data
   for (int k = 0; k < DT; k ++) {
     for (int j = 0; j < DH; j ++) {
       for (int i = 0; i < DW; i ++) {
@@ -136,7 +133,6 @@ std::array<T, 2> double_gyre(
   const auto b = [&](T t) { return 1 - 2 * epsilon * sin(omega * t); };
   const auto f = [&](T x, T t) { return a(t) * x * x + b(t) * x; };
   const auto dfdx = [&](T x, T t) {
-    // return 2 * a(t) * x * x + b(t); // this is the old buggy version; made a mistake on df/dx
     return 2 * a(t) * x + b(t);
   };
   const auto u = [&](T x, T y, T t) {

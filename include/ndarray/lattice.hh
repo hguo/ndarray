@@ -49,18 +49,12 @@ struct lattice {
   template <typename uint=uint64_t> uint to_integer(const std::vector<int> &coords) const;
   template <typename uint=uint64_t> std::vector<int> from_integer(uint i) const;
 
-  // size_t global_index(const std::vector<size_t> &coords) const;
   size_t local_index(int p, const std::vector<size_t> &coords) const;
 
 public: // the last dimension, aka time.  these functions are mainly for I/O and streaming purposes
-  bool unlimited_time() const {return size(nd()-1) == std::numeric_limits<int>::max();}// return unlimited_;}
-  // void set_unlimited_time(bool u) {unlimited_ = u;}
-
-  // void advance_time(int nt = 1) {starts_[nd()-1] += nt;} // deprecated
-  // void recess_time(int nt = 1) {starts_[nd()-1] -= nt;}
+  bool unlimited_time() const {return size(nd()-1) == std::numeric_limits<int>::max();}
 
 public:
-  // bool unlimited_ = false;
   std::vector<size_t> starts_, sizes_; // the last dimension can be unlimited
   std::vector<size_t> prod_;
 };

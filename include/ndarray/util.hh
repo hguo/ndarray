@@ -138,8 +138,6 @@ static inline bool is_directory(const std::string& filename) {
 
 static inline bool file_exists(const std::string& filename) {
   return access( filename.c_str(), F_OK ) == 0;
-  // std::ifstream f(filename);
-  // return f.good();
 }
 
 
