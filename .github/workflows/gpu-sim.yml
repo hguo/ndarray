@@ -1,0 +1,87 @@
+name: CUDA tests (simulated H100)
+
+# Optional, non-required check. The hosted runners have no GPU, so this builds
+# ndarray with CUDA and runs the CUDA tests on a simulated NVIDIA H100
+# (https://github.com/pantheongpu/pantheonsim). A simulator cannot reproduce
+# hardware-specific behavior or timing, so it complements real-GPU testing and
+# does not replace it.
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "include/**"
+      - "src/**"
+      - "tests/**"
+      - "cmake/**"
+      - "CMakeLists.txt"
+      - ".github/workflows/gpu-sim.yml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  cuda-sim:
+    name: CUDA 13.0, simulated H100
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+      with:
+        persist-credentials: false
+
+    - name: Set up the simulated GPU and CUDA toolkit
+      uses: pantheongpu/setup-pantheonsim@deff5781e8adfd83dec98dd5242dcbc96a564773 # v0.1.10
+      with:
+        gpu: nvidia/h100
+        cuda-toolkit: "13.0"
+
+    - name: Configure CMake (CUDA)
+      # The simulator runs PTX only (90-virtual) and needs a shared CUDA runtime.
+      run: |
+        cmake -B build \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DNDARRAY_BUILD_TESTS=ON \
+          -DNDARRAY_BUILD_EXAMPLES=OFF \
+          -DNDARRAY_USE_CUDA=ON \
+          -DNDARRAY_USE_MPI=OFF \
+          -DNDARRAY_USE_YAML=OFF \
+          -DCMAKE_CUDA_COMPILER=/usr/local/cuda-13.0/bin/nvcc \
+          -DCUDAToolkit_ROOT=/usr/local/cuda-13.0 \
+          -DCMAKE_CUDA_ARCHITECTURES=90-virtual \
+          -DCMAKE_CUDA_RUNTIME_LIBRARY=Shared
+
+    - name: Build
+      run: cmake --build build -j3 --target test_gpu test_gpu_kernels test_transpose_cuda
+
+    # The tests return 0 when no device is found, so each run is logged and
+    # checked for a device, a simulator error and the final success line.
+    - name: Run CUDA tests on the simulated H100
+      working-directory: build
+      run: |
+        run_test() {
+          local exe="$1" success="$2"
+          echo "::group::$exe"
+          set -o pipefail
+          vgpu run "$exe" 2>&1 | tee "$exe.log"
+          local rc=${PIPESTATUS[0]}
+          echo "::endgroup::"
+          if [ "$rc" -ne 0 ]; then echo "::error::$exe exited with $rc"; return 1; fi
+          if grep -q -i -E 'VirtualGPU error|No CUDA devices|skipping .*tests|tests skipped' "$exe.log"; then
+            echo "::error::$exe hit a simulator error, found no device or skipped the tests"; return 1
+          fi
+          if ! grep -q -F "$success" "$exe.log"; then
+            echo "::error::$exe did not print '$success'"; return 1
+          fi
+        }
+        status=0
+        run_test ./bin/test_gpu "All GPU tests passed" || status=1
+        run_test ./bin/test_gpu_kernels "All GPU tests passed" || status=1
+        run_test ./bin/test_transpose_cuda "All CUDA transpose tests passed" || status=1
+        exit $status
